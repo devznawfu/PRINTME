@@ -19,8 +19,7 @@ def submit_form(client, code, **overrides):
         "name": "Maria Alvarez",
         "code": code,
         "service": "photo",
-        "size": "2x2",
-        "qty": "1",
+        "qty_2x2": "1",
         "files": (io.BytesIO(b"fake jpeg bytes"), "photo.jpg"),
     }
     data.update(overrides)
@@ -46,10 +45,10 @@ class TestUploadSubmitValidation:
         assert resp.status_code == 400
         assert b"doesn" in resp.data  # "doesn't look right"
 
-    def test_photo_without_size_rerenders_with_error(self, app, client):
-        resp = submit_form(client, todays_code(app), size="")
+    def test_photo_without_any_quantity_rerenders_with_error(self, app, client):
+        resp = submit_form(client, todays_code(app), qty_2x2="0")
         assert resp.status_code == 400
-        assert b"Please pick a photo size" in resp.data
+        assert b"Please pick at least one size and quantity" in resp.data
 
     def test_no_files_rerenders_with_error(self, app, client):
         resp = client.post(
@@ -58,8 +57,7 @@ class TestUploadSubmitValidation:
                 "name": "Maria",
                 "code": todays_code(app),
                 "service": "photo",
-                "size": "2x2",
-                "qty": "1",
+                "qty_2x2": "1",
             },
             content_type="multipart/form-data",
         )
@@ -98,7 +96,7 @@ class TestUploadSubmitHappyPathMocked:
 
     def test_creates_a_job_with_a_ticket_and_photo_item(self, app, client):
         with patch("printme.routes.upload.process_photo_job"):
-            submit_form(client, todays_code(app), size="Passport", qty="3")
+            submit_form(client, todays_code(app), qty_2x2="0", qty_Passport="3")
 
         with app.app_context():
             job = Job.query.filter_by(customer_name="Maria Alvarez").one()
@@ -107,6 +105,15 @@ class TestUploadSubmitHappyPathMocked:
             assert len(job.photo_items) == 1
             assert job.photo_items[0].size_name == "Passport"
             assert job.photo_items[0].quantity == 3
+
+    def test_creates_multiple_photo_item_rows_for_mixed_sizes(self, app, client):
+        with patch("printme.routes.upload.process_photo_job"):
+            submit_form(client, todays_code(app), qty_2x2="0", qty_Passport="2", qty_1x1="4")
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Maria Alvarez").one()
+            rows = {(row.size_name, row.quantity) for row in job.photo_items}
+            assert rows == {("1x1", 4), ("Passport", 2)}
 
     def test_multiple_files_create_multiple_jobs_with_distinct_tickets(self, app, client):
         with patch("printme.routes.upload.process_document_job"):
@@ -247,8 +254,7 @@ class TestUploadSubmitRealPipeline:
                     "name": "Maria",
                     "code": todays_code(app),
                     "service": "photo",
-                    "size": "2x2",
-                    "qty": "1",
+                    "qty_2x2": "1",
                     "files": (fh, "face_one.jpg"),
                 },
                 content_type="multipart/form-data",
