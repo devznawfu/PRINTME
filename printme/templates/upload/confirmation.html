@@ -10,13 +10,18 @@
     </span>
     <h1 class="text-[28px] font-bold leading-tight tracking-tight">Thanks, {{ (name or 'friend').split(' ')[0] }}!</h1>
 
-    <div class="flex flex-col items-center gap-2 rounded-[22px] border border-line bg-panel px-11 py-7">
-      <span class="text-[12.5px] font-medium uppercase tracking-[0.14em] text-muted">
-        {{ "Your ticket" if tickets|length == 1 else "Your tickets" }}
-      </span>
-      {% for t in tickets %}
-      <span class="text-[40px] font-bold leading-tight tracking-tight">{{ t.ticket }}</span>
-      {% endfor %}
+    <div class="relative mt-6">
+      <div class="animate-pop-in absolute -top-11 left-1/2 -z-10 -translate-x-1/2" style="animation-delay: 350ms;">
+        {{ icons.stickman_peek(56) }}
+      </div>
+      <div class="flex flex-col items-center gap-2 rounded-[22px] border border-line bg-panel px-11 py-7">
+        <span class="text-[12.5px] font-medium uppercase tracking-[0.14em] text-muted">
+          {{ "Your ticket" if tickets|length == 1 else "Your tickets" }}
+        </span>
+        {% for t in tickets %}
+        <span class="text-[40px] font-bold leading-tight tracking-tight">{{ t.ticket }}</span>
+        {% endfor %}
+      </div>
     </div>
 
     <div class="max-w-[300px] text-lg leading-relaxed text-text-soft">We'll call your name when it's ready. You can put your phone away.</div>
