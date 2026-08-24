@@ -206,4 +206,27 @@
 body {
   background: var(--color-bg);
   color: var(--color-text);
+  transition: background 260ms ease, color 260ms ease;
 }
+
+/* Entrance animations, transcribed from design-reference/*.html's
+   `fade`/`pop` keyframes (prefixed pm- to match this file's --pm-*
+   token naming and avoid colliding with Tailwind's built-in
+   animate-* utilities). Applied selectively to a few entrance
+   "moments" in the templates, not globally. */
+@keyframes pm-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes pm-pop { from { transform: scale(0.97); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+.animate-fade-in { animation: pm-fade 240ms ease-out both; }
+.animate-pop-in { animation: pm-pop 240ms ease-out both; }
+
+/* Interactive-element baseline, matching design-reference/*.html's
+   near-universal `transition: all 140ms ease` on tap targets and its
+   generic `a:hover` rule. filter: brightness() works as a hover cue
+   regardless of a button's current background - the upload flow uses
+   raw hex literals (matching the untheme'd upload-screen mockup)
+   while admin templates use the CSS-var theme tokens above, so this
+   covers both without per-button tuning. */
+a { transition: color 150ms ease; }
+a:hover { color: var(--color-muted); }
+button:not(:disabled) { transition: all 150ms ease; }
+button:not(:disabled):hover { filter: brightness(1.08); }
