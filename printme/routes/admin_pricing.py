@@ -18,6 +18,10 @@ RATE_LABELS = {
     "2x2": "2x2",
     "Passport": "Passport",
     "Visa": "Visa",
+    "Wallet": "Wallet",
+    "4x6": "4x6",
+    "5x7": "5x7",
+    "4x4": "4x4",
 }
 
 

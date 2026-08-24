@@ -24,5 +24,22 @@ def test_every_fixed_photo_size_fits_within_usable_area():
         assert h <= sizes.USABLE_HEIGHT_PX, name
 
 
-def test_all_four_required_sizes_are_defined():
-    assert set(sizes.PHOTO_SIZES_PX) == {"1x1", "2x2", "Passport", "Visa"}
+def test_all_required_sizes_are_defined():
+    assert set(sizes.PHOTO_SIZES_PX) == {
+        "1x1",
+        "2x2",
+        "Passport",
+        "Visa",
+        "Wallet",
+        "4x6",
+        "5x7",
+        "4x4",
+    }
+
+
+def test_oversized_sizes_that_do_not_fit_a4_are_excluded():
+    """8x8/8x10 were deliberately dropped - their 8in side doesn't fit
+    USABLE_WIDTH_PX after the shop's margins. Documented here so a
+    future edit doesn't silently reintroduce a size that won't print."""
+    assert "8x8" not in sizes.PHOTO_SIZES_PX
+    assert "8x10" not in sizes.PHOTO_SIZES_PX

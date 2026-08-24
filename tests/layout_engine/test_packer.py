@@ -136,7 +136,7 @@ def test_rotation_only_applies_to_non_square_sizes_and_swaps_dimensions():
 
 def test_unknown_size_name_raises():
     with pytest.raises(ValueError):
-        pack([PhotoItem("x", "4x6")])
+        pack([PhotoItem("x", "9x9")])
 
 
 def test_duplicate_item_id_raises():

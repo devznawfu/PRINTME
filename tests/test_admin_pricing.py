@@ -19,6 +19,8 @@ class TestPricingPage:
 
         assert resp.status_code == 200
         assert b"15.00" in resp.data  # default 1x1/2x2 rate
+        assert b"35.00" in resp.data  # default 4x6 rate
+        assert b"4x6" in resp.data
 
     def test_requires_admin_login(self, client):
         resp = client.get("/admin/pricing/")

@@ -36,4 +36,12 @@ PHOTO_SIZES_PX = {
     "2x2": (in_to_px(2), in_to_px(2)),
     "Passport": (mm_to_px(35), mm_to_px(45)),
     "Visa": (mm_to_px(45), mm_to_px(45)),
+    # 8x8/8x10 were considered and dropped: even after rotation, their
+    # 8in side doesn't fit USABLE_WIDTH_PX (A4 minus margins leaves
+    # ~7.87in) - keep them out rather than shrinking the shop-wide
+    # cutting margin to squeeze them in.
+    "Wallet": (in_to_px(2.5), in_to_px(3.5)),
+    "4x6": (in_to_px(4), in_to_px(6)),
+    "5x7": (in_to_px(5), in_to_px(7)),
+    "4x4": (in_to_px(4), in_to_px(4)),
 }
