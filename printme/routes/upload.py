@@ -55,7 +55,10 @@ def submit():
     name = (request.form.get("name") or "").strip()
     code = (request.form.get("code") or "").strip()
     service = request.form.get("service") if request.form.get("service") in ("photo", "document") else "photo"
-    size = request.form.get("size", "")
+    qty_by_size = {
+        s: _clamp_qty(request.form.get(f"qty_{s}"), default=0, minimum=0)
+        for s in PHOTO_SIZES
+    }
     qty = _clamp_qty(request.form.get("qty"))
     color_mode = request.form.get("color_mode") if request.form.get("color_mode") in COLOR_MODES else "bw"
     duplex = bool(request.form.get("duplex"))
@@ -67,8 +70,8 @@ def submit():
         errors.append("Please enter your name.")
     if not validate_code(code, db.session):
         errors.append("That code doesn't look right. Ask staff for today's code.")
-    if service == "photo" and size not in PHOTO_SIZES:
-        errors.append("Please pick a photo size.")
+    if service == "photo" and sum(qty_by_size.values()) == 0:
+        errors.append("Please pick at least one size and quantity.")
     if not files:
         errors.append("Please add at least one file.")
 
@@ -91,7 +94,7 @@ def submit():
             errors=errors,
             name=name,
             service=service,
-            size=size,
+            qty_by_size=qty_by_size,
             qty=qty,
             color_mode=color_mode,
             duplex="1" if duplex else "",
@@ -122,7 +125,10 @@ def submit():
         job = create_job_with_ticket(db.session, **job_fields)
 
         if service == "photo":
-            job.photo_items.append(PhotoItemRow(size_name=size, quantity=qty))
+            for s in PHOTO_SIZES:
+                n = qty_by_size[s]
+                if n > 0:
+                    job.photo_items.append(PhotoItemRow(size_name=s, quantity=n))
             db.session.commit()
 
         _process(job)
@@ -136,8 +142,12 @@ def submit():
     session["pending_confirmation"] = {
         "name": name,
         "service": service,
-        "size": size,
         "qty": qty,
+        "photo_items": (
+            [{"size_name": s, "quantity": n} for s, n in qty_by_size.items() if n > 0]
+            if service == "photo"
+            else []
+        ),
         "tickets": tickets,
     }
     return redirect(url_for("upload.confirmation"))

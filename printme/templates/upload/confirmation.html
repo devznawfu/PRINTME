@@ -20,9 +20,10 @@
 
     <div class="max-w-[300px] text-lg leading-relaxed text-[#45453F]">We'll call your name when it's ready. You can put your phone away.</div>
     <div class="text-[14.5px] text-[#6B6B68]">
-      {{ "Photo printing" if service == "photo" else "Document printing" }}{% if size %} &middot; {{ size }}{% endif %}
+      {{ "Photo printing" if service == "photo" else "Document printing" }}
+      {%- if service == "photo" %}{% for pi in photo_items %} &middot; {{ pi.size_name }} &times; {{ pi.quantity }}{% endfor %}{% endif %}
       &middot; {{ tickets|length }} {{ "file" if tickets|length == 1 else "files" }}
-      &middot; {{ qty }} {{ "copy" if qty == 1 else "copies" }}
+      {%- if service != "photo" %} &middot; {{ qty }} {{ "copy" if qty == 1 else "copies" }}{% endif %}
     </div>
 
     <a href="{{ url_for('upload.form') }}" class="mt-1.5 min-h-[58px] rounded-2xl border border-[#DEDEDB] px-[30px] py-4 text-[16.5px] font-bold">Send something else</a>
