@@ -1,0 +1,47 @@
+{% macro job_card(card, flagged=False, printers=[]) %}
+<div class="flex flex-col gap-5 rounded-3xl border {{ 'border-warn-card-line bg-warn-card' if flagged else 'border-border bg-panel' }} p-6">
+  <div class="flex gap-4">
+    <div class="flex h-[108px] w-[108px] flex-none items-end overflow-hidden rounded-2xl {{ 'bg-warn-thumb-a' if flagged else 'bg-thumb-a' }} p-2">
+      <span class="max-w-full truncate font-mono text-[11px] {{ 'text-warn-thumb-text' if flagged else 'text-thumb-text' }}">{{ card.thumb }}</span>
+    </div>
+    <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+      <h3 class="truncate text-xl font-bold leading-tight">{{ card.job.customer_name }}</h3>
+      <span class="{{ 'text-warn-muted' if flagged else 'text-muted' }}">Ticket {{ card.job.ticket_number }}</span>
+      <span class="mt-1 inline-flex w-fit items-center gap-2 rounded-full {{ 'bg-warn-thumb-a text-warn-note-text' if flagged else 'bg-chip text-chip-text' }} px-3 py-1.5 text-sm font-bold">
+        <span class="h-2 w-2 rounded-sm {{ 'bg-warn-title' if flagged else 'bg-chip-dot' }}"></span>{{ card.service_label }}
+      </span>
+      <span class="{{ 'text-warn-muted' if flagged else 'text-muted' }} text-[15px]">{{ card.file_line }}</span>
+      <span class="{{ 'text-warn-muted' if flagged else 'text-muted' }} text-[15px] font-bold">&#8369;{{ "%.2f"|format(card.job.total_cost) }}</span>
+    </div>
+  </div>
+
+  {% if flagged %}
+  <div class="flex gap-3 rounded-2xl border border-warn-card-line bg-warn-note p-4">
+    <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-warn-accent text-sm font-bold text-warn-accent-text">!</span>
+    <span class="text-[15px] leading-snug text-warn-note-text">{{ card.job.attention_reason }}</span>
+  </div>
+  <a href="{{ url_for('admin_review.review', job_id=card.job.id) }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl bg-warn-accent text-lg font-bold text-warn-accent-text">Review</a>
+  {% else %}
+  <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
+    <span class="text-[15px] font-bold">Quantity</span>
+    <div class="flex items-center gap-2" data-qty-stepper data-job-id="{{ card.job.id }}">
+      <button type="button" data-qty-dec aria-label="Decrease quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">&minus;</button>
+      <span data-qty-display class="min-w-[40px] text-center text-lg font-bold">{{ card.file_line.split(' ')[0] }}</span>
+      <button type="button" data-qty-inc aria-label="Increase quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">+</button>
+    </div>
+  </div>
+  {% if card.job.service_type == "document" %}
+  <form method="post" action="{{ url_for('api.print_document', job_id=card.job.id) }}" class="flex flex-wrap items-center gap-3">
+    <select name="printer" aria-label="Printer" class="h-[54px] flex-1 rounded-xl border border-line bg-inset px-4 text-[15px]">
+      {% for p in printers %}
+      <option value="{{ p }}">{{ p }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl bg-btn-bg text-lg font-bold text-btn-text">Print</button>
+  </form>
+  {% else %}
+  <a href="{{ url_for('admin_photo_sheets.photo_sheets') }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl border border-line text-center text-[15px] font-bold">Part of the next Photo Sheets batch</a>
+  {% endif %}
+  {% endif %}
+</div>
+{% endmacro %}

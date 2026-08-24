@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% import "admin/partials/_job_card.html" as cards %}
+{% block title %}PRINTME! &mdash; Print queue{% endblock %}
+{% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
+{% block body %}
+<div class="sticky top-0 z-10 flex items-center justify-between gap-6 border-b border-header-line bg-header px-10 py-[22px]">
+  <div class="flex items-center gap-3.5">
+    <h1 class="text-[27px] font-bold tracking-tight">PRINTME!</h1>
+    <span class="h-2 w-2 rounded-full bg-text"></span>
+    <span class="ml-2 text-lg text-muted">Print queue</span>
+  </div>
+  <div class="flex items-center gap-4">
+    <span class="text-[17px] text-muted">Signed in as {{ display_name }}</span>
+    <a href="{{ url_for('admin_photo_sheets.photo_sheets') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Photo Sheets</a>
+    <a href="{{ url_for('admin_pricing.pricing') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Pricing</a>
+    <button type="button" id="theme-toggle" aria-label="Switch to light mode" title="Switch to light mode" class="flex h-[54px] w-[54px] flex-none items-center justify-center rounded-2xl border border-line">
+      <svg id="theme-icon-sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"></circle><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"></path></svg>
+      <svg id="theme-icon-moon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="hidden" aria-hidden="true"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"></path></svg>
+    </button>
+    <form method="post" action="{{ url_for('admin_auth.logout') }}">
+      <button type="submit" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Sign out</button>
+    </form>
+  </div>
+</div>
+
+<div class="mx-auto flex max-w-[1280px] flex-col gap-12 px-10 pb-20 pt-9">
+
+  <div class="flex flex-wrap items-center justify-between gap-6 rounded-[26px] border-2 border-warn-accent bg-warn-note px-8 py-[26px]">
+    <div class="flex flex-col gap-1.5">
+      <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-warn-title">Today's code</h2>
+      <span class="text-lg text-warn-muted">Read this out to customers before they upload.</span>
+    </div>
+    <div class="flex items-center gap-5">
+      <span class="text-[68px] font-bold leading-none tracking-[0.14em] text-warn-note-text">{{ todays_code }}</span>
+      <form method="post" action="{{ url_for('api.reset_code') }}">
+        <button type="submit" class="flex min-h-[64px] items-center gap-3 rounded-2xl border border-warn-card-line px-6 text-lg font-bold text-warn-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"></path><path d="M20 4v5h-5"></path></svg>
+          New code
+        </button>
+      </form>
+      <span class="max-w-[150px] text-[16.5px] leading-snug text-warn-muted">{{ ("Code last reset at " + reset_at.strftime("%-I:%M %p")) if reset_at else "Code not reset today" }}</span>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-5">
+    <div class="flex items-baseline gap-4">
+      <h2 class="text-[30px] font-bold tracking-tight">Ready to Print</h2>
+      <span class="text-lg text-muted">{{ ready_cards|length }} {{ "job waiting" if ready_cards|length == 1 else "jobs waiting" }}</span>
+    </div>
+    <div class="grid grid-cols-1 gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
+      {% for card in ready_cards %}
+        {{ cards.job_card(card, flagged=False, printers=printers) }}
+      {% endfor %}
+    </div>
+    {% if not ready_cards %}
+    <div class="rounded-3xl border border-dashed border-dash p-11 text-center text-lg text-faint">Nothing waiting to print right now.</div>
+    {% endif %}
+  </div>
+
+  <div class="flex flex-col gap-5 rounded-[28px] border border-warn-line bg-warn-bg p-7">
+    <div class="flex items-baseline gap-4">
+      <h2 class="text-[30px] font-bold tracking-tight text-warn-title">Needs Attention</h2>
+      <span class="text-lg text-warn-muted">{{ flagged_cards|length }} {{ "job to check" if flagged_cards|length == 1 else "jobs to check" }}</span>
+    </div>
+    <div class="-mt-2 max-w-[720px] text-[17.5px] leading-snug text-warn-muted">These photos need a person to look at them before printing. Open Review to check and approve.</div>
+    <div class="grid grid-cols-1 gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
+      {% for card in flagged_cards %}
+        {{ cards.job_card(card, flagged=True) }}
+      {% endfor %}
+    </div>
+    {% if not flagged_cards %}
+    <div class="rounded-2xl border border-dashed border-warn-card-line p-10 text-center text-lg text-warn-muted">All clear &mdash; nothing needs checking.</div>
+    {% endif %}
+  </div>
+
+  <div class="flex flex-wrap items-center justify-center gap-4 text-center text-base text-faint">
+    <span>
+      {{ "No jobs printed yet today." if printed_today == 0 else (printed_today|string + (" job" if printed_today == 1 else " jobs") + " printed today.") }}
+      Free storage: {{ free_space_gb }} GB.
+    </span>
+    <form method="post" action="{{ url_for('api.cleanup_old_jobs') }}">
+      <button type="submit" class="flex min-h-[44px] items-center rounded-xl border border-line px-4 text-[15px] font-bold">Delete jobs older than 2 days</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin-dashboard.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}PRINTME! &mdash; Photo Sheets{% endblock %}
+{% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
+{% block body %}
+<div class="mx-auto flex max-w-[1040px] flex-col gap-8 px-8 py-10">
+  <div class="flex items-center justify-between gap-6">
+    <div class="flex flex-col gap-1.5">
+      <h1 class="text-[30px] font-bold tracking-tight">Photo Sheets</h1>
+      <span class="text-lg text-muted">Pending photo jobs, packed onto the fewest A4 sheets.</span>
+    </div>
+    <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to queue</a>
+  </div>
+
+  {% if not sheets %}
+  <div class="rounded-3xl border border-dashed border-dash p-14 text-center text-lg text-faint">No pending photo jobs to pack right now.</div>
+  {% endif %}
+
+  {% for sheet in sheets %}
+  <div class="flex flex-col gap-4 rounded-3xl border border-border bg-panel p-6">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-bold">Sheet {{ sheet.sheet_number + 1 }} of {{ sheets|length }}</h2>
+      <span class="text-muted">{{ sheet.items|length }} photo{{ "s" if sheet.items|length != 1 else "" }}</span>
+    </div>
+    <img src="{{ url_for('admin_photo_sheets.preview_image', sheet_id=sheet.id) }}" alt="Sheet {{ sheet.sheet_number + 1 }} preview" class="w-full rounded-xl border border-line">
+    <form method="post" action="{{ url_for('admin_photo_sheets.print_sheet', sheet_id=sheet.id) }}" class="flex flex-wrap items-center gap-3">
+      <select name="printer" aria-label="Printer" class="h-[54px] flex-1 rounded-xl border border-line bg-inset px-4 text-[15px]">
+        {% for p in printers %}
+        <option value="{{ p }}">{{ p }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="min-h-[54px] rounded-xl bg-btn-bg px-8 text-[17px] font-bold text-btn-text">Print This Sheet</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

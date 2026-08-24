@@ -1,0 +1,151 @@
+"""Public customer upload flow (design-reference/upload-screen.html).
+
+Processing is dispatched synchronously, right in the request: this is a
+single-shop kiosk with low concurrent load, not a high-traffic service,
+and a few seconds' wait with a real result beats a mysterious
+"processing" state with no feedback. A processing failure doesn't fail
+the request - the pipelines already mark the job failed+flagged
+internally, so the customer still gets their ticket and staff see the
+problem in the Needs Attention queue.
+"""
+
+from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
+
+from config import PHOTO_SIZES
+from printme.extensions import db
+from printme.models.job import COLOR_MODES, PAPER_SIZES, PhotoItemRow, create_job_with_ticket
+from printme.services import job_state
+from printme.services.document_pipeline import process_document_job
+from printme.services.photo_pipeline import process_photo_job
+from printme.services.secret_code import validate as validate_code
+from printme.services.uploads import UploadRejected, save_upload, validate_file_storage
+
+bp = Blueprint("upload", __name__)
+
+
+def _clamp_qty(raw, default=1, minimum=1, maximum=99):
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, n))
+
+
+def _process(job):
+    """Dispatch a freshly-created job to its pipeline. Errors are
+    swallowed here - the pipelines already mark the job failed+flagged
+    and commit that themselves before re-raising."""
+    try:
+        job_state.start_processing(db.session, job)
+        if job.service_type == "photo":
+            process_photo_job(db.session, job, job.upload_path, current_app.config["PROCESSED_DIR"])
+        else:
+            process_document_job(db.session, job, current_app.config["PROCESSED_DIR"])
+    except Exception:
+        current_app.logger.exception("processing failed for job %s", job.id)
+
+
+@bp.route("/", methods=["GET"])
+def form():
+    return render_template("upload/index.html", photo_sizes=PHOTO_SIZES, paper_sizes=PAPER_SIZES)
+
+
+@bp.route("/upload", methods=["POST"])
+def submit():
+    name = (request.form.get("name") or "").strip()
+    code = (request.form.get("code") or "").strip()
+    service = request.form.get("service") if request.form.get("service") in ("photo", "document") else "photo"
+    size = request.form.get("size", "")
+    qty = _clamp_qty(request.form.get("qty"))
+    color_mode = request.form.get("color_mode") if request.form.get("color_mode") in COLOR_MODES else "bw"
+    duplex = bool(request.form.get("duplex"))
+    paper_size = request.form.get("paper_size") if request.form.get("paper_size") in PAPER_SIZES else "Letter"
+    files = [f for f in request.files.getlist("files") if f and f.filename]
+
+    errors = []
+    if not name:
+        errors.append("Please enter your name.")
+    if not validate_code(code, db.session):
+        errors.append("That code doesn't look right. Ask staff for today's code.")
+    if service == "photo" and size not in PHOTO_SIZES:
+        errors.append("Please pick a photo size.")
+    if not files:
+        errors.append("Please add at least one file.")
+
+    # Validate every file up front, before saving any of them - a
+    # single bad file rejects the whole submission atomically instead
+    # of silently dropping just that file (which would otherwise ship
+    # fewer tickets than files the customer attached, with no visible
+    # error, since we redirect past the point where errors render).
+    for f in files:
+        try:
+            validate_file_storage(f)
+        except UploadRejected as exc:
+            errors.append(str(exc))
+
+    def _rerender(status=400):
+        return render_template(
+            "upload/index.html",
+            photo_sizes=PHOTO_SIZES,
+            paper_sizes=PAPER_SIZES,
+            errors=errors,
+            name=name,
+            service=service,
+            size=size,
+            qty=qty,
+            color_mode=color_mode,
+            duplex="1" if duplex else "",
+            paper_size=paper_size,
+        ), status
+
+    if errors:
+        return _rerender()
+
+    upload_dir = current_app.config["UPLOAD_DIR"]
+    tickets = []
+    for f in files:
+        try:
+            original_filename, saved_path = save_upload(f, upload_dir)
+        except UploadRejected as exc:
+            errors.append(str(exc))
+            continue
+
+        job_fields = dict(
+            customer_name=name,
+            service_type=service,
+            original_filename=original_filename,
+            upload_path=str(saved_path),
+        )
+        if service == "document":
+            job_fields.update(color_mode=color_mode, duplex=duplex, paper_size=paper_size, copies=qty)
+
+        job = create_job_with_ticket(db.session, **job_fields)
+
+        if service == "photo":
+            job.photo_items.append(PhotoItemRow(size_name=size, quantity=qty))
+            db.session.commit()
+
+        _process(job)
+        tickets.append({"ticket": job.ticket_number, "filename": original_filename})
+
+    if not tickets:
+        if not errors:
+            errors.append("Something went wrong - please try again.")
+        return _rerender()
+
+    session["pending_confirmation"] = {
+        "name": name,
+        "service": service,
+        "size": size,
+        "qty": qty,
+        "tickets": tickets,
+    }
+    return redirect(url_for("upload.confirmation"))
+
+
+@bp.route("/confirmation", methods=["GET"])
+def confirmation():
+    data = session.pop("pending_confirmation", None)
+    if not data:
+        return redirect(url_for("upload.form"))
+    return render_template("upload/confirmation.html", **data)

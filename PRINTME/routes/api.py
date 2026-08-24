@@ -1,0 +1,92 @@
+"""Small state-mutating admin actions: daily code reset, per-job
+quantity adjustment, and single-document printing. Kept separate from
+admin_dashboard.py (which only renders) and admin_review.py (which
+owns the flagged-job review actions)."""
+
+from flask import Blueprint, jsonify, redirect, request, url_for
+
+from printme.extensions import db
+from printme.models.job import Job, JobStatus
+from printme.routes.admin_auth import admin_required
+from printme.services import job_state
+from printme.services.pricing import price_job
+from printme.services.printing.mock_backend import MockPrinterBackend
+from printme.services.printing.printer_registry import available_printers, is_valid_printer
+from printme.services.retention import DEFAULT_RETENTION_DAYS, sweep_old_uploads
+from printme.services.secret_code import reset_now
+
+bp = Blueprint("api", __name__, url_prefix="/admin")
+
+# One process-lifetime mock backend so its print_log is inspectable
+# across requests during development. Swapped for the real win32
+# backend in Phase 8 - everything here only depends on PrinterBackend.
+_printer_backend = MockPrinterBackend()
+
+
+@bp.route("/code/reset", methods=["POST"])
+@admin_required
+def reset_code():
+    reset_now(db.session)
+    return redirect(url_for("admin_dashboard.dashboard"))
+
+
+@bp.route("/jobs/cleanup", methods=["POST"])
+@admin_required
+def cleanup_old_jobs():
+    sweep_old_uploads(db.session, days=DEFAULT_RETENTION_DAYS)
+    return redirect(url_for("admin_dashboard.dashboard"))
+
+
+@bp.route("/jobs/<int:job_id>/qty", methods=["POST"])
+@admin_required
+def adjust_qty(job_id):
+    job = db.session.get(Job, job_id)
+    if job is None:
+        return jsonify(error="job not found"), 404
+
+    direction = request.json.get("direction") if request.is_json else request.form.get("direction")
+    delta = 1 if direction == "inc" else -1 if direction == "dec" else 0
+
+    if job.service_type == "photo" and job.photo_items:
+        row = job.photo_items[0]
+        row.quantity = max(1, min(99, row.quantity + delta))
+        new_qty = row.quantity
+    else:
+        job.copies = max(1, min(99, (job.copies or 1) + delta))
+        new_qty = job.copies
+
+    db.session.commit()
+    try:
+        price_job(db.session, job)
+    except ValueError:
+        pass  # e.g. a document job whose page_count isn't known yet
+
+    if request.is_json:
+        return jsonify(qty=new_qty, total_cost=job.total_cost)
+    return redirect(url_for("admin_dashboard.dashboard"))
+
+
+@bp.route("/jobs/<int:job_id>/print", methods=["POST"])
+@admin_required
+def print_document(job_id):
+    """Individual print action for DOCUMENT jobs only - photo jobs
+    print in batches via the Photo Sheets page (admin_photo_sheets.py),
+    per the confirmed design: the layout engine packs multiple
+    customers' photos onto shared sheets, so there is no meaningful
+    "print this one photo job" action."""
+    job = db.session.get(Job, job_id)
+    if job is None or job.service_type != "document":
+        return redirect(url_for("admin_dashboard.dashboard"))
+
+    printer_name = request.form.get("printer") or (available_printers()[0])
+    if not is_valid_printer(printer_name):
+        return redirect(url_for("admin_dashboard.dashboard"))
+
+    try:
+        job_state.mark_printing(db.session, job)
+        _printer_backend.print_file(job.processed_path, printer_name, copies=job.copies or 1)
+        job_state.mark_done(db.session, job)
+    except Exception as exc:
+        job_state.mark_failed(db.session, job, f"Printing failed: {exc}")
+
+    return redirect(url_for("admin_dashboard.dashboard"))

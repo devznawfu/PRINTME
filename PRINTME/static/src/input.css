@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+/* DM Sans, self-hosted (variable font, weights 400-700) - CLAUDE.md
+   requires no internet dependency at runtime, so this is downloaded
+   once during setup rather than linked from fonts.googleapis.com. Both
+   design-reference mockups load DM Sans; Google's own CSS response
+   serves the SAME variable-font file for the 400/500/700 declarations,
+   so one @font-face with a weight range covers all three. */
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../fonts/dm-sans-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191,
+    U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../fonts/dm-sans-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+    U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+/*
+ * Design tokens, transcribed verbatim from /design-reference/*.html -
+ * the admin dashboard's CSS-custom-property theme system (dark by
+ * default, .pm-light overrides to light) is the canonical source; the
+ * upload screen's near-identical inline hex colors map onto the same
+ * tokens (the ~1-value differences between the two mockups are not
+ * meaningful) rather than getting their own near-duplicate set.
+ */
+@theme {
+  --font-sans: "DM Sans", system-ui, sans-serif;
+
+  --color-bg: var(--pm-bg);
+  --color-text: var(--pm-text);
+  --color-muted: var(--pm-muted);
+  --color-faint: var(--pm-faint);
+  --color-panel: var(--pm-panel);
+  --color-border: var(--pm-border);
+  --color-line: var(--pm-line);
+  --color-header: var(--pm-header);
+  --color-header-line: var(--pm-header-line);
+  --color-inset: var(--pm-inset);
+
+  --color-btn-bg: var(--pm-btn-bg);
+  --color-btn-text: var(--pm-btn-text);
+  --color-btn-hover: var(--pm-btn-hover);
+  --color-btn-disabled-bg: var(--pm-btn-disabled-bg);
+  --color-btn-disabled-text: var(--pm-btn-disabled-text);
+
+  --color-chip: var(--pm-chip);
+  --color-chip-text: var(--pm-chip-text);
+  --color-chip-dot: var(--pm-chip-dot);
+
+  --color-thumb-a: var(--pm-thumb-a);
+  --color-thumb-b: var(--pm-thumb-b);
+  --color-thumb-text: var(--pm-thumb-text);
+
+  --color-dash: var(--pm-dash);
+  --color-text-soft: var(--pm-text-soft);
+
+  --color-ok-bg: var(--pm-ok-bg);
+  --color-ok-line: var(--pm-ok-line);
+  --color-ok-dot: var(--pm-ok-dot);
+  --color-ok-dot-text: var(--pm-ok-dot-text);
+
+  --color-err-bg: var(--pm-err-bg);
+  --color-err-line: var(--pm-err-line);
+  --color-err-text: var(--pm-err-text);
+
+  /* "Needs Attention" warning palette */
+  --color-warn-bg: var(--pm-warn-bg);
+  --color-warn-line: var(--pm-warn-line);
+  --color-warn-title: var(--pm-warn-title);
+  --color-warn-muted: var(--pm-warn-muted);
+  --color-warn-card: var(--pm-warn-card);
+  --color-warn-card-line: var(--pm-warn-card-line);
+  --color-warn-note: var(--pm-warn-note);
+  --color-warn-note-text: var(--pm-warn-note-text);
+  --color-warn-accent: var(--pm-warn-accent);
+  --color-warn-accent-text: var(--pm-warn-accent-text);
+  --color-warn-accent-hover: var(--pm-warn-accent-hover);
+  --color-warn-thumb-a: var(--pm-warn-thumb-a);
+  --color-warn-thumb-b: var(--pm-warn-thumb-b);
+  --color-warn-thumb-text: var(--pm-warn-thumb-text);
+}
+
+/* Dark is the mockup's default (admin-dashboard.html defines dark
+   values directly on `html`, light is the opt-in override). */
+:root {
+  --pm-bg: #121211;
+  --pm-text: #f4f4f1;
+  --pm-muted: #9b9b95;
+  --pm-faint: #6e6e68;
+  --pm-panel: #1d1d1b;
+  --pm-border: #2e2e2b;
+  --pm-line: #3a3a36;
+  --pm-header: #161615;
+  --pm-header-line: #2a2a27;
+  --pm-inset: #171716;
+
+  --pm-btn-bg: #f4f4f1;
+  --pm-btn-text: #121211;
+  --pm-btn-hover: #ffffff;
+  --pm-btn-disabled-bg: #2e2e2b;
+  --pm-btn-disabled-text: #6e6e68;
+
+  --pm-chip: #262622;
+  --pm-chip-text: #dcdcd5;
+  --pm-chip-dot: #b7b7b0;
+
+  --pm-thumb-a: #2a2a27;
+  --pm-thumb-b: #232320;
+  --pm-thumb-text: #8a8a83;
+
+  --pm-dash: #33332f;
+  --pm-text-soft: #b7b7b0;
+
+  --pm-ok-bg: #1f2a1f;
+  --pm-ok-line: #3a4e37;
+  --pm-ok-dot: #8cc98c;
+  --pm-ok-dot-text: #16210f;
+
+  --pm-err-bg: #2a2118;
+  --pm-err-line: #4a3a24;
+  --pm-err-text: #f0a868;
+
+  --pm-warn-bg: #1b1814;
+  --pm-warn-line: #46381f;
+  --pm-warn-title: #f3c98b;
+  --pm-warn-muted: #b39a76;
+  --pm-warn-card: #221e19;
+  --pm-warn-card-line: #4a3b22;
+  --pm-warn-note: #2c2418;
+  --pm-warn-note-text: #f0d3a6;
+  --pm-warn-accent: #f3c98b;
+  --pm-warn-accent-text: #241c10;
+  --pm-warn-accent-hover: #ffdca4;
+  --pm-warn-thumb-a: #33291b;
+  --pm-warn-thumb-b: #2b2317;
+  --pm-warn-thumb-text: #a08a62;
+}
+
+:root[data-theme="light"] {
+  --pm-bg: #f6f6f4;
+  --pm-text: #1a1a18;
+  --pm-muted: #6b6b66;
+  --pm-faint: #8c8c86;
+  --pm-panel: #ffffff;
+  --pm-border: #e4e4df;
+  --pm-line: #dcdcd6;
+  --pm-header: #ffffff;
+  --pm-header-line: #e6e6e1;
+  --pm-inset: #f5f5f2;
+
+  --pm-btn-bg: #1a1a18;
+  --pm-btn-text: #ffffff;
+  --pm-btn-hover: #000000;
+  --pm-btn-disabled-bg: #e4e4e1;
+  --pm-btn-disabled-text: #a3a39f;
+
+  --pm-chip: #efefeb;
+  --pm-chip-text: #3a3a36;
+  --pm-chip-dot: #8c8c86;
+
+  --pm-thumb-a: #eaeae5;
+  --pm-thumb-b: #f2f2ee;
+  --pm-thumb-text: #8c8c86;
+
+  --pm-dash: #d6d6d0;
+  --pm-text-soft: #45453f;
+
+  --pm-ok-bg: #edf6ec;
+  --pm-ok-line: #cbe3c7;
+  --pm-ok-dot: #3e7a3b;
+  --pm-ok-dot-text: #ffffff;
+
+  --pm-err-bg: #fdf1e3;
+  --pm-err-line: #efd5b3;
+  --pm-err-text: #95591a;
+
+  --pm-warn-bg: #fdf6ea;
+  --pm-warn-line: #eddcbc;
+  --pm-warn-title: #8a5f1c;
+  --pm-warn-muted: #8f7a52;
+  --pm-warn-card: #fffdf8;
+  --pm-warn-card-line: #eedcbb;
+  --pm-warn-note: #fbefd8;
+  --pm-warn-note-text: #6b4c18;
+  --pm-warn-accent: #e0a94e;
+  --pm-warn-accent-text: #241c10;
+  --pm-warn-accent-hover: #f0bc63;
+  --pm-warn-thumb-a: #f3e6ce;
+  --pm-warn-thumb-b: #f9f0df;
+  --pm-warn-thumb-text: #9a8256;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}

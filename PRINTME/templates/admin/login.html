@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}PRINTME! &mdash; Staff sign in{% endblock %}
+{% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
+{% block body %}
+<div class="flex min-h-screen items-center justify-center px-6 py-16">
+  <div class="flex w-full max-w-[480px] flex-col gap-[30px]">
+
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center gap-3">
+        <h1 class="text-[38px] font-bold tracking-tight">PRINTME!</h1>
+        <span class="h-[11px] w-[11px] rounded-full bg-text"></span>
+      </div>
+      <h2 class="text-lg font-normal text-muted">Staff sign in</h2>
+    </div>
+
+    <form method="post" action="{{ url_for('admin_auth.do_login') }}" class="flex flex-col gap-[22px] rounded-3xl border border-border bg-panel px-8 pt-[34px] pb-8 shadow-[0_18px_44px_var(--pm-shadow,rgba(0,0,0,0.25))]">
+      <div class="flex flex-col gap-2.5">
+        <label for="username" class="text-lg font-bold">Username</label>
+        <input id="username" name="username" type="text" placeholder="e.g. maria" value="{{ username or '' }}" class="h-[66px] rounded-2xl border border-line bg-inset px-5 text-xl text-text outline-none">
+      </div>
+      <div class="flex flex-col gap-2.5">
+        <label for="password" class="text-lg font-bold">Password</label>
+        <input id="password" name="password" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;" class="h-[66px] rounded-2xl border border-line bg-inset px-5 text-xl text-text outline-none">
+      </div>
+
+      {% if error %}
+      <div class="rounded-2xl border border-err-line bg-err-bg px-4 py-3.5 text-base text-err-text">That username or password didn't work. Please try again.</div>
+      {% endif %}
+
+      <button type="submit" class="min-h-[72px] w-full rounded-2xl bg-btn-bg text-xl font-bold text-btn-text">Sign in</button>
+
+      <div class="text-center text-[15.5px] leading-relaxed text-faint">Demo login &mdash; username <b class="text-muted">maria</b>, password <b class="text-muted">print</b></div>
+    </form>
+
+    <div class="text-center text-[15.5px] text-faint">Forgot your password? Ask the shop owner to reset it for you.</div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"{% block html_attrs %}{% endblock %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PRINTME!{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
+  {% block theme_script %}{% endblock %}
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="min-h-screen bg-bg text-text font-sans">
+  {% block body %}{% endblock %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>
