@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet" />
+<style>
+  body.pm-light, body.pm-light * { --bg:#F6F6F4 !important; --text:#1A1A18 !important; --muted:#6B6B66 !important; --faint:#8C8C86 !important; --panel:#FFFFFF !important; --border:#E4E4DF !important; --line:#DCDCD6 !important; --header:#FFFFFF !important; --header-line:#E6E6E1 !important; --inset:#F5F5F2 !important; --btn-bg:#1A1A18 !important; --btn-text:#FFFFFF !important; --btn-hover:#000000 !important; --chip:#EFEFEB !important; --chip-text:#3A3A36 !important; --chip-dot:#8C8C86 !important; --thumb-a:#EAEAE5 !important; --thumb-b:#F2F2EE !important; --thumb-text:#8C8C86 !important; --shadow:rgba(30,30,20,0.08) !important; --shadow-strong:rgba(30,30,20,0.12) !important; --dash:#D6D6D0 !important; --overlay:rgba(40,40,35,0.42) !important; --ok-bg:#EDF6EC !important; --ok-line:#CBE3C7 !important; --ok-dot:#3E7A3B !important; --ok-dot-text:#FFFFFF !important; --err-bg:#FDF1E3 !important; --err-line:#EFD5B3 !important; --err-text:#95591A !important; --w-bg:#FDF6EA !important; --w-line:#EDDCBC !important; --w-title:#8A5F1C !important; --w-muted:#8F7A52 !important; --w-card:#FFFDF8 !important; --w-card-line:#EEDCBB !important; --w-note:#FBEFD8 !important; --w-note-text:#6B4C18 !important; --w-accent:#E0A94E !important; --w-accent-text:#241C10 !important; --w-accent-hover:#F0BC63 !important; --w-thumb-a:#F3E6CE !important; --w-thumb-b:#F9F0DF !important; --w-thumb-text:#9A8256 !important; }
+  html { --bg:#121211; --text:#F4F4F1; --muted:#9B9B95; --faint:#6E6E68; --panel:#1D1D1B; --border:#2E2E2B; --line:#3A3A36; --header:#161615; --header-line:#2A2A27; --inset:#171716; --btn-bg:#F4F4F1; --btn-text:#121211; --btn-hover:#FFFFFF; --chip:#262622; --chip-text:#DCDCD5; --chip-dot:#B7B7B0; --thumb-a:#2A2A27; --thumb-b:#232320; --thumb-text:#8A8A83; --shadow:rgba(0,0,0,0.35); --shadow-strong:rgba(0,0,0,0.45); --dash:#33332F; --overlay:rgba(8,8,7,0.78); --ok-bg:#1F2A1F; --ok-line:#3A4E37; --ok-dot:#8CC98C; --ok-dot-text:#16210F; --err-bg:#2A2118; --err-line:#4A3A24; --err-text:#F0A868; --w-bg:#1B1814; --w-line:#46381F; --w-title:#F3C98B; --w-muted:#B39A76; --w-card:#221E19; --w-card-line:#4A3B22; --w-note:#2C2418; --w-note-text:#F0D3A6; --w-accent:#F3C98B; --w-accent-text:#241C10; --w-accent-hover:#FFDCA4; --w-thumb-a:#33291B; --w-thumb-b:#2B2317; --w-thumb-text:#A08A62; }
+  body { margin: 0; background: var(--bg); transition: background 260ms ease; }
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  a { color: var(--text); }
+  a:hover { color: var(--muted); }
+  input, button { font-family: inherit; }
+  @keyframes pop { from { transform: scale(0.97); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+</style>
+</helmet>
+<div style="min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; transition: background 260ms ease, color 260ms ease;">
+
+  <sc-if value="{{ showLogin }}" hint-placeholder-val="{{ false }}">
+    <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 60px 24px;">
+      <div style="width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 30px;">
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 38px; font-weight: 700; letter-spacing: -0.03em;">{{ shopName }}</span>
+            <span style="width: 11px; height: 11px; border-radius: 50%; background: var(--text);"></span>
+          </div>
+          <div style="font-size: 18px; color: var(--muted);">Staff sign in</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 22px; padding: 34px 32px 32px; border-radius: 24px; background: var(--panel); border: 1px solid var(--border); box-shadow: 0 18px 44px var(--shadow-strong);">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <label for="user" style="font-size: 18px; font-weight: 700;">Username</label>
+            <input id="user" type="text" placeholder="e.g. maria" value="{{ user }}" onChange="{{ onUser }}" style="height: 66px; padding: 0 20px; font-size: 20px; border-radius: 16px; border: 1px solid var(--line); background: var(--inset); color: var(--text); outline: none;" style-focus="border-color: var(--text);" />
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <label for="pass" style="font-size: 18px; font-weight: 700;">Password</label>
+            <input id="pass" type="password" placeholder="••••••" value="{{ pass }}" onChange="{{ onPass }}" onKeyDown="{{ onKey }}" style="height: 66px; padding: 0 20px; font-size: 20px; border-radius: 16px; border: 1px solid var(--line); background: var(--inset); color: var(--text); outline: none;" style-focus="border-color: var(--text);" />
+          </div>
+
+          <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size: 16px; color: var(--err-text); padding: 14px 16px; border-radius: 14px; background: var(--err-bg); border: 1px solid var(--err-line);">That username or password didn't work. Please try again.</div>
+          </sc-if>
+
+          <button type="button" onClick="{{ doLogin }}" style="min-height: 72px; border-radius: 18px; border: none; width: 100%; font-size: 21px; font-weight: 700; background: var(--btn-bg); color: var(--btn-text); cursor: pointer; box-shadow: 0 10px 24px var(--shadow);" style-hover="background: var(--btn-hover);">Sign in</button>
+
+          <div style="font-size: 15.5px; color: var(--faint); text-align: center; line-height: 1.5;">Demo login — username <b style="color: var(--muted);">maria</b>, password <b style="color: var(--muted);">print</b></div>
+        </div>
+
+        <div style="font-size: 15.5px; color: var(--faint); text-align: center;">Forgot your password? Ask the shop owner to reset it for you.</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showDash }}" hint-placeholder-val="{{ true }}">
+  <div style="animation: fade 240ms ease-out both;">
+
+    <div style="position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px 40px; background: var(--header); border-bottom: 1px solid var(--header-line); transition: background 260ms ease;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span style="font-size: 27px; font-weight: 700; letter-spacing: -0.03em;">{{ shopName }}</span>
+        <span style="width: 9px; height: 9px; border-radius: 50%; background: var(--text);"></span>
+        <span style="font-size: 18px; color: var(--muted); margin-left: 8px;">Print queue</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <span style="font-size: 17px; color: var(--muted);">{{ greeting }}</span>
+
+        <button type="button" onClick="{{ toggleTheme }}" title="{{ themeLabel }}" aria-label="{{ themeLabel }}" style="position: relative; width: 54px; height: 54px; flex: none; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; overflow: hidden;" style-hover="border-color: var(--text);">
+          <span style="{{ sunStyle }}">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"></circle><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"></path></svg>
+          </span>
+          <span style="{{ moonStyle }}">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"></path></svg>
+          </span>
+        </button>
+
+        <button type="button" onClick="{{ logout }}" style="min-height: 54px; padding: 0 24px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 17px; font-weight: 700; cursor: pointer;" style-hover="border-color: var(--text);">Sign out</button>
+      </div>
+    </div>
+
+    <div style="max-width: 1280px; margin: 0 auto; padding: 36px 40px 80px; display: flex; flex-direction: column; gap: 48px;">
+
+      <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 14px; padding: 20px 24px; border-radius: 18px; background: var(--ok-bg); border: 1px solid var(--ok-line); animation: pop 240ms ease-out both;">
+          <span style="width: 30px; height: 30px; border-radius: 50%; background: var(--ok-dot); display: flex; align-items: center; justify-content: center; flex: none; color: var(--ok-dot-text);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+          </span>
+          <span style="font-size: 19px; font-weight: 700;">{{ toast }}</span>
+        </div>
+      </sc-if>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; padding: 26px 32px; border-radius: 26px; background: var(--w-note); border: 2px solid var(--w-accent);">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-size: 15px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--w-title);">Today's code</span>
+          <span style="font-size: 18px; color: var(--w-muted);">Read this out to customers before they upload.</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 22px;">
+          <span style="font-size: 68px; line-height: 1; font-weight: 700; letter-spacing: 0.14em; font-variant-numeric: tabular-nums; color: var(--w-note-text);">{{ todaysCode }}</span>
+          <button type="button" onClick="{{ askReset }}" style="display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 0 24px; border-radius: 16px; border: 1px solid var(--w-card-line); background: transparent; color: var(--w-title); font-size: 18px; font-weight: 700; cursor: pointer;" style-hover="border-color: var(--w-title);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"></path><path d="M20 4v5h-5"></path></svg>
+            New code
+          </button>
+          <span style="font-size: 16.5px; line-height: 1.4; color: var(--w-muted); max-width: 150px;">{{ resetNote }}</span>
+        </div>
+      </div>
+
+      <sc-if value="{{ resetOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position: fixed; inset: 0; z-index: 30; background: var(--overlay); display: flex; align-items: center; justify-content: center; padding: 40px; animation: fade 160ms ease-out both;">
+          <div style="width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 24px; padding: 34px; border-radius: 28px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 30px 70px var(--shadow-strong); animation: pop 200ms ease-out both;">
+            <span style="font-size: 30px; font-weight: 700; letter-spacing: -0.02em;">Give out a new code?</span>
+            <span style="font-size: 19px; line-height: 1.5; color: var(--muted);">The current code <b style="color: var(--text);">{{ todaysCode }}</b> stops working right away. Anyone already filling in the form will need the new one. Jobs already in the queue are not affected.</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 14px;">
+              <button type="button" onClick="{{ confirmReset }}" style="flex: 1 1 240px; min-height: 74px; border-radius: 18px; border: none; font-size: 21px; font-weight: 700; background: var(--btn-bg); color: var(--btn-text); cursor: pointer;" style-hover="background: var(--btn-hover);">Yes, make a new code</button>
+              <button type="button" onClick="{{ cancelReset }}" style="flex: 1 1 160px; min-height: 74px; border-radius: 18px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 20px; font-weight: 700; cursor: pointer;" style-hover="border-color: var(--text);">Keep current code</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="display: flex; flex-direction: column; gap: 22px;">
+        <div style="display: flex; align-items: baseline; gap: 16px;">
+          <span style="font-size: 30px; font-weight: 700; letter-spacing: -0.02em;">Ready to Print</span>
+          <span style="font-size: 18px; color: var(--muted);">{{ readyCount }}</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 22px;">
+          <sc-for list="{{ readyJobs }}" as="j" hint-placeholder-count="3">
+            <div style="display: flex; flex-direction: column; gap: 20px; padding: 24px; border-radius: 24px; background: var(--panel); border: 1px solid var(--border); box-shadow: 0 14px 32px var(--shadow);">
+              <div style="display: flex; gap: 18px;">
+                <div style="width: 108px; height: 108px; border-radius: 16px; flex: none; overflow: hidden; background: repeating-linear-gradient(135deg, var(--thumb-a) 0 8px, var(--thumb-b) 8px 16px); display: flex; align-items: flex-end; padding: 8px;">
+                  <span style="font-family: ui-monospace, Menlo, monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; color: var(--thumb-text);">{{ j.thumbLabel }}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 auto;">
+                  <span style="font-size: 24px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15;">{{ j.customer }}</span>
+                  <span style="font-size: 18px; color: var(--muted); font-variant-numeric: tabular-nums;">Ticket {{ j.ticket }}</span>
+                  <span style="display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; align-self: flex-start; padding: 7px 14px 7px 11px; border-radius: 999px; background: var(--chip); white-space: nowrap; font-size: 15.5px; font-weight: 700; color: var(--chip-text);">
+                    <span style="width: 8px; height: 8px; border-radius: 2px; background: var(--chip-dot);"></span>{{ j.service }}
+                  </span>
+                  <span style="font-size: 16.5px; color: var(--muted);">{{ j.fileLine }}</span>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-radius: 18px; background: var(--inset); border: 1px solid var(--header-line);">
+                <span style="font-size: 17.5px; font-weight: 700;">Quantity</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button type="button" onClick="{{ j.dec }}" style="width: 54px; height: 54px; border-radius: 14px; border: 1px solid var(--line); background: var(--thumb-b); color: var(--text); font-size: 26px; line-height: 1; cursor: pointer;" style-hover="border-color: var(--text);">−</button>
+                  <span style="min-width: 52px; text-align: center; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ j.qty }}</span>
+                  <button type="button" onClick="{{ j.inc }}" style="width: 54px; height: 54px; border-radius: 14px; border: 1px solid var(--line); background: var(--thumb-b); color: var(--text); font-size: 26px; line-height: 1; cursor: pointer;" style-hover="border-color: var(--text);">+</button>
+                </div>
+              </div>
+
+              <button type="button" onClick="{{ j.print }}" style="display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 74px; border-radius: 18px; border: none; width: 100%; font-size: 22px; font-weight: 700; background: var(--btn-bg); color: var(--btn-text); cursor: pointer; box-shadow: 0 10px 22px var(--shadow);" style-hover="background: var(--btn-hover);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"></path><rect x="4" y="9" width="16" height="7" rx="2"></rect><path d="M7 14h10v6H7z"></path></svg>
+                Print
+              </button>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ readyEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 44px; border-radius: 24px; border: 1px dashed var(--dash); text-align: center; font-size: 20px; color: var(--faint);">Nothing waiting to print right now.</div>
+        </sc-if>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 22px; padding: 28px; border-radius: 28px; background: var(--w-bg); border: 1px solid var(--w-line);">
+        <div style="display: flex; align-items: baseline; gap: 16px;">
+          <span style="font-size: 30px; font-weight: 700; letter-spacing: -0.02em; color: var(--w-title);">Needs Attention</span>
+          <span style="font-size: 18px; color: var(--w-muted);">{{ attentionCount }}</span>
+        </div>
+        <div style="font-size: 17.5px; color: var(--w-muted); max-width: 720px; line-height: 1.5; margin-top: -8px;">These photos need a person to look at them before printing. Open Review to check and approve.</div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 22px;">
+          <sc-for list="{{ flaggedJobs }}" as="j" hint-placeholder-count="2">
+            <div style="display: flex; flex-direction: column; gap: 20px; padding: 24px; border-radius: 24px; background: var(--w-card); border: 1px solid var(--w-card-line); box-shadow: 0 14px 32px var(--shadow);">
+              <div style="display: flex; gap: 18px;">
+                <div style="width: 108px; height: 108px; border-radius: 16px; flex: none; overflow: hidden; background: repeating-linear-gradient(135deg, var(--w-thumb-a) 0 8px, var(--w-thumb-b) 8px 16px); display: flex; align-items: flex-end; padding: 8px;">
+                  <span style="font-family: ui-monospace, Menlo, monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; color: var(--w-thumb-text);">{{ j.thumbLabel }}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 auto;">
+                  <span style="font-size: 24px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15;">{{ j.customer }}</span>
+                  <span style="font-size: 18px; color: var(--w-muted); font-variant-numeric: tabular-nums;">Ticket {{ j.ticket }}</span>
+                  <span style="display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; align-self: flex-start; padding: 7px 14px 7px 11px; border-radius: 999px; background: var(--w-thumb-a); white-space: nowrap; font-size: 15.5px; font-weight: 700; color: var(--w-note-text);">
+                    <span style="width: 8px; height: 8px; border-radius: 2px; background: var(--w-title);"></span>{{ j.service }}
+                  </span>
+                  <span style="font-size: 16.5px; color: var(--w-muted);">{{ j.fileLine }}</span>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 12px; padding: 16px; border-radius: 18px; background: var(--w-note); border: 1px solid var(--w-card-line);">
+                <span style="width: 26px; height: 26px; border-radius: 50%; background: var(--w-accent); color: var(--w-accent-text); font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none;">!</span>
+                <span style="font-size: 17.5px; line-height: 1.45; color: var(--w-note-text);">{{ j.issue }}</span>
+              </div>
+
+              <button type="button" onClick="{{ j.review }}" style="display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 74px; border-radius: 18px; border: none; width: 100%; font-size: 22px; font-weight: 700; background: var(--w-accent); color: var(--w-accent-text); cursor: pointer; box-shadow: 0 10px 22px var(--shadow);" style-hover="background: var(--w-accent-hover);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+                Review
+              </button>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ attentionEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 40px; border-radius: 20px; border: 1px dashed var(--w-card-line); text-align: center; font-size: 20px; color: var(--w-muted);">All clear — nothing needs checking.</div>
+        </sc-if>
+      </div>
+
+      <div style="font-size: 16px; color: var(--faint); text-align: center;">{{ printedLine }}</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ reviewOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 20; background: var(--overlay); display: flex; align-items: center; justify-content: center; padding: 40px; animation: fade 160ms ease-out both;">
+      <div style="width: 100%; max-width: 1040px; max-height: 92vh; overflow: auto; display: flex; flex-direction: column; gap: 26px; padding: 32px; border-radius: 28px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 30px 70px var(--shadow-strong); animation: pop 200ms ease-out both;">
+
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 24px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 32px; font-weight: 700; letter-spacing: -0.02em;">{{ rvCustomer }}</span>
+            <span style="font-size: 19px; color: var(--muted);">Ticket {{ rvTicket }} · {{ rvService }} · {{ rvQty }}</span>
+          </div>
+          <button type="button" onClick="{{ closeReview }}" style="min-height: 56px; padding: 0 24px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 17px; font-weight: 700; cursor: pointer;" style-hover="border-color: var(--text);">Close</button>
+        </div>
+
+        <div style="display: flex; gap: 14px; padding: 20px 22px; border-radius: 20px; background: var(--w-note); border: 1px solid var(--w-card-line);">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: var(--w-accent); color: var(--w-accent-text); font-size: 19px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none;">!</span>
+          <span style="font-size: 19px; line-height: 1.45; color: var(--w-note-text);">{{ rvIssue }}</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <span style="font-size: 16px; font-weight: 700; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase;">What the customer sent</span>
+            <div style="height: 320px; border-radius: 20px; background: repeating-linear-gradient(135deg, var(--thumb-a) 0 10px, var(--thumb-b) 10px 20px); display: flex; align-items: flex-end; padding: 14px; border: 1px solid var(--border);">
+              <span style="font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; color: var(--thumb-text);">original photo</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <span style="font-size: 16px; font-weight: 700; color: var(--w-title); letter-spacing: 0.06em; text-transform: uppercase;">After automatic clean-up</span>
+            <div style="height: 320px; border-radius: 20px; background: repeating-linear-gradient(135deg, var(--w-thumb-a) 0 10px, var(--w-thumb-b) 10px 20px); display: flex; align-items: flex-end; padding: 14px; border: 1px solid var(--w-card-line);">
+              <span style="font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; color: var(--w-thumb-text);">processed result</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 14px;">
+          <button type="button" onClick="{{ approve }}" style="flex: 1 1 260px; display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 76px; border-radius: 18px; border: none; font-size: 21px; font-weight: 700; background: var(--btn-bg); color: var(--btn-text); cursor: pointer;" style-hover="background: var(--btn-hover);">Looks good — Approve &amp; Print</button>
+          <button type="button" onClick="{{ useOriginal }}" style="flex: 1 1 220px; min-height: 76px; border-radius: 18px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 20px; font-weight: 700; cursor: pointer;" style-hover="border-color: var(--text);">Use original instead</button>
+          <button type="button" onClick="{{ sendBack }}" style="flex: 1 1 220px; min-height: 76px; border-radius: 18px; border: 1px solid var(--w-card-line); background: transparent; color: var(--w-title); font-size: 20px; font-weight: 700; cursor: pointer;" style-hover="border-color: var(--w-title);">Ask customer at counter</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1024},&quot;shopName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;PRINTME!&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;todaysCode&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;4821&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;demoUser&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;maria&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo login&quot;},&quot;demoPass&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;print&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo login&quot;}}">
+const THEMES = {
+  dark: {
+    '--bg': '#121211', '--text': '#F4F4F1', '--muted': '#9B9B95', '--faint': '#6E6E68',
+    '--panel': '#1D1D1B', '--border': '#2E2E2B', '--line': '#3A3A36',
+    '--header': '#161615', '--header-line': '#2A2A27', '--inset': '#171716',
+    '--btn-bg': '#F4F4F1', '--btn-text': '#121211', '--btn-hover': '#FFFFFF',
+    '--chip': '#262622', '--chip-text': '#DCDCD5', '--chip-dot': '#B7B7B0',
+    '--thumb-a': '#2A2A27', '--thumb-b': '#232320', '--thumb-text': '#8A8A83',
+    '--shadow': 'rgba(0,0,0,0.35)', '--shadow-strong': 'rgba(0,0,0,0.45)', '--dash': '#33332F',
+    '--overlay': 'rgba(8,8,7,0.78)',
+    '--ok-bg': '#1F2A1F', '--ok-line': '#3A4E37', '--ok-dot': '#8CC98C', '--ok-dot-text': '#16210F',
+    '--err-bg': '#2A2118', '--err-line': '#4A3A24', '--err-text': '#F0A868',
+    '--w-bg': '#1B1814', '--w-line': '#46381F', '--w-title': '#F3C98B', '--w-muted': '#B39A76',
+    '--w-card': '#221E19', '--w-card-line': '#4A3B22', '--w-note': '#2C2418', '--w-note-text': '#F0D3A6',
+    '--w-accent': '#F3C98B', '--w-accent-text': '#241C10', '--w-accent-hover': '#FFDCA4',
+    '--w-thumb-a': '#33291B', '--w-thumb-b': '#2B2317', '--w-thumb-text': '#A08A62'
+  },
+  light: {
+    '--bg': '#F6F6F4', '--text': '#1A1A18', '--muted': '#6B6B66', '--faint': '#8C8C86',
+    '--panel': '#FFFFFF', '--border': '#E4E4DF', '--line': '#DCDCD6',
+    '--header': '#FFFFFF', '--header-line': '#E6E6E1', '--inset': '#F5F5F2',
+    '--btn-bg': '#1A1A18', '--btn-text': '#FFFFFF', '--btn-hover': '#000000',
+    '--chip': '#EFEFEB', '--chip-text': '#3A3A36', '--chip-dot': '#8C8C86',
+    '--thumb-a': '#EAEAE5', '--thumb-b': '#F2F2EE', '--thumb-text': '#8C8C86',
+    '--shadow': 'rgba(30,30,20,0.08)', '--shadow-strong': 'rgba(30,30,20,0.12)', '--dash': '#D6D6D0',
+    '--overlay': 'rgba(40,40,35,0.42)',
+    '--ok-bg': '#EDF6EC', '--ok-line': '#CBE3C7', '--ok-dot': '#3E7A3B', '--ok-dot-text': '#FFFFFF',
+    '--err-bg': '#FDF1E3', '--err-line': '#EFD5B3', '--err-text': '#95591A',
+    '--w-bg': '#FDF6EA', '--w-line': '#EDDCBC', '--w-title': '#8A5F1C', '--w-muted': '#8F7A52',
+    '--w-card': '#FFFDF8', '--w-card-line': '#EEDCBB', '--w-note': '#FBEFD8', '--w-note-text': '#6B4C18',
+    '--w-accent': '#E0A94E', '--w-accent-text': '#241C10', '--w-accent-hover': '#F0BC63',
+    '--w-thumb-a': '#F3E6CE', '--w-thumb-b': '#F9F0DF', '--w-thumb-text': '#9A8256'
+  }
+};
+
+class Component extends DCLogic {
+  state = {
+    theme: 'dark',
+    user: '', pass: '', loginError: false, authed: false,
+    reviewId: null, toast: '', printed: 0, code: '', resetOpen: false, resetAt: '',
+    jobs: [
+      { id: 1, customer: 'Maria Alvarez', ticket: '#014', service: 'Photo', qty: 2, files: 3, flagged: false, thumb: '2×2' },
+      { id: 2, customer: 'Tom Becker', ticket: '#015', service: 'Document', qty: 1, files: 12, flagged: false, thumb: 'PDF page 1' },
+      { id: 3, customer: 'Priya Raman', ticket: '#016', service: 'Photo', qty: 4, files: 1, flagged: false, thumb: 'Passport' },
+      { id: 4, customer: 'Jonas Weber', ticket: '#017', service: 'Document', qty: 3, files: 2, flagged: false, thumb: 'scan of form' },
+      { id: 5, customer: 'Ana Sousa', ticket: '#018', service: 'Photo', qty: 2, files: 1, flagged: true, thumb: 'Visa',
+        issue: 'Two faces found in a passport photo. Check which person should be printed.' },
+      { id: 6, customer: 'Karl Fischer', ticket: '#019', service: 'Photo', qty: 1, files: 1, flagged: true, thumb: '1×1',
+        issue: 'Background removal cut into the hair. Check before printing.' }
+    ]
+  };
+
+  componentDidMount() {
+    let saved = null;
+    try { saved = localStorage.getItem('printme-staff-theme'); } catch (e) {}
+    const t = saved === 'light' || saved === 'dark' ? saved : (this.props.theme ?? 'dark');
+    this.setState({ theme: t });
+    this.applyTheme(t);
+  }
+
+  setTheme(name) {
+    this.applyTheme(name);
+    this.setState({ theme: name });
+  }
+
+  themes() {
+    return {
+      dark: {
+        '--bg': '#121211', '--text': '#F4F4F1', '--muted': '#9B9B95', '--faint': '#6E6E68',
+        '--panel': '#1D1D1B', '--border': '#2E2E2B', '--line': '#3A3A36',
+        '--header': '#161615', '--header-line': '#2A2A27', '--inset': '#171716',
+        '--btn-bg': '#F4F4F1', '--btn-text': '#121211', '--btn-hover': '#FFFFFF',
+        '--chip': '#262622', '--chip-text': '#DCDCD5', '--chip-dot': '#B7B7B0',
+        '--thumb-a': '#2A2A27', '--thumb-b': '#232320', '--thumb-text': '#8A8A83',
+        '--shadow': 'rgba(0,0,0,0.35)', '--shadow-strong': 'rgba(0,0,0,0.45)', '--dash': '#33332F',
+        '--overlay': 'rgba(8,8,7,0.78)',
+        '--ok-bg': '#1F2A1F', '--ok-line': '#3A4E37', '--ok-dot': '#8CC98C', '--ok-dot-text': '#16210F',
+        '--err-bg': '#2A2118', '--err-line': '#4A3A24', '--err-text': '#F0A868',
+        '--w-bg': '#1B1814', '--w-line': '#46381F', '--w-title': '#F3C98B', '--w-muted': '#B39A76',
+        '--w-card': '#221E19', '--w-card-line': '#4A3B22', '--w-note': '#2C2418', '--w-note-text': '#F0D3A6',
+        '--w-accent': '#F3C98B', '--w-accent-text': '#241C10', '--w-accent-hover': '#FFDCA4',
+        '--w-thumb-a': '#33291B', '--w-thumb-b': '#2B2317', '--w-thumb-text': '#A08A62'
+      },
+      light: {
+        '--bg': '#F6F6F4', '--text': '#1A1A18', '--muted': '#6B6B66', '--faint': '#8C8C86',
+        '--panel': '#FFFFFF', '--border': '#E4E4DF', '--line': '#DCDCD6',
+        '--header': '#FFFFFF', '--header-line': '#E6E6E1', '--inset': '#F5F5F2',
+        '--btn-bg': '#1A1A18', '--btn-text': '#FFFFFF', '--btn-hover': '#000000',
+        '--chip': '#EFEFEB', '--chip-text': '#3A3A36', '--chip-dot': '#8C8C86',
+        '--thumb-a': '#EAEAE5', '--thumb-b': '#F2F2EE', '--thumb-text': '#8C8C86',
+        '--shadow': 'rgba(30,30,20,0.08)', '--shadow-strong': 'rgba(30,30,20,0.12)', '--dash': '#D6D6D0',
+        '--overlay': 'rgba(40,40,35,0.42)',
+        '--ok-bg': '#EDF6EC', '--ok-line': '#CBE3C7', '--ok-dot': '#3E7A3B', '--ok-dot-text': '#FFFFFF',
+        '--err-bg': '#FDF1E3', '--err-line': '#EFD5B3', '--err-text': '#95591A',
+        '--w-bg': '#FDF6EA', '--w-line': '#EDDCBC', '--w-title': '#8A5F1C', '--w-muted': '#8F7A52',
+        '--w-card': '#FFFDF8', '--w-card-line': '#EEDCBB', '--w-note': '#FBEFD8', '--w-note-text': '#6B4C18',
+        '--w-accent': '#E0A94E', '--w-accent-text': '#241C10', '--w-accent-hover': '#F0BC63',
+        '--w-thumb-a': '#F3E6CE', '--w-thumb-b': '#F9F0DF', '--w-thumb-text': '#9A8256'
+      }
+    };
+  }
+
+  applyTheme(name) {
+    const all = this.themes();
+    const vars = all[name] || all.dark;
+    try {
+      document.body.classList.toggle('pm-light', name === 'light');
+      document.body.style.background = vars['--bg'];
+      document.body.style.transition = 'background 260ms ease';
+      localStorage.setItem('printme-staff-theme', name);
+    } catch (e) {}
+  }
+
+  iconStyle(visible, dir) {
+    return {
+      position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      transition: 'transform 420ms cubic-bezier(.34,1.56,.64,1), opacity 260ms ease',
+      transform: visible ? 'rotate(0deg) scale(1)' : 'rotate(' + dir * 90 + 'deg) scale(0.3)',
+      opacity: visible ? 1 : 0,
+      pointerEvents: 'none'
+    };
+  }
+
+  fileLine(j) {
+    return j.files + (j.files === 1 ? ' file' : ' files') + ' · ' + j.qty + (j.qty === 1 ? ' copy' : ' copies');
+  }
+
+  bump(id, d) {
+    this.setState(s => ({ jobs: s.jobs.map(j => j.id === id ? Object.assign({}, j, { qty: Math.max(1, Math.min(99, j.qty + d)) }) : j) }));
+  }
+
+  send(id, msg) {
+    this.setState(s => ({ jobs: s.jobs.filter(j => j.id !== id), toast: msg, printed: s.printed + 1, reviewId: null }));
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: '' }), 3200);
+  }
+
+  hold(id, customer) {
+    this.setState(s => ({
+      jobs: s.jobs.map(j => j.id === id ? Object.assign({}, j, { held: true }) : j),
+      reviewId: null,
+      toast: 'Held for the counter — nothing was printed. Talk to ' + customer + '.'
+    }));
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: '' }), 4200);
+  }
+
+  componentWillUnmount() { clearTimeout(this._t); }
+
+  renderVals() {
+    const s = this.state;
+    const dark = s.theme !== 'light';
+    const ready = s.jobs.filter(j => !j.flagged);
+    const flagged = s.jobs.filter(j => j.flagged);
+    const rv = s.jobs.find(j => j.id === s.reviewId);
+    const wrap = j => ({
+      customer: j.customer, ticket: j.ticket, service: j.service + ' printing',
+      qty: j.qty, thumbLabel: j.thumb, fileLine: this.fileLine(j),
+      issue: j.held ? 'Waiting at the counter — ask ' + j.customer.split(' ')[0] + ' which version to print. Nothing printed yet.' : j.issue,
+      inc: () => this.bump(j.id, 1),
+      dec: () => this.bump(j.id, -1),
+      print: () => this.send(j.id, 'Sent to the printer — ' + j.customer + ', ticket ' + j.ticket),
+      review: () => this.setState({ reviewId: j.id })
+    });
+    return {
+      shopName: this.props.shopName ?? 'PRINTME!',
+      todaysCode: s.code || this.props.todaysCode || '4821',
+      resetOpen: s.resetOpen,
+      resetNote: s.resetAt ? 'Code last reset at ' + s.resetAt : 'Code not reset today',
+      askReset: () => this.setState({ resetOpen: true }),
+      cancelReset: () => this.setState({ resetOpen: false }),
+      confirmReset: () => {
+        let next = String(Math.floor(1000 + Math.random() * 9000));
+        const cur = s.code || this.props.todaysCode || '4821';
+        if (next === cur) next = String((Number(next) % 9000) + 1000);
+        const now = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        this.setState({ code: next, resetAt: now, resetOpen: false, toast: 'New code is ' + next + ' — the old one no longer works.' });
+        clearTimeout(this._t);
+        this._t = setTimeout(() => this.setState({ toast: '' }), 5000);
+      },
+      showLogin: !s.authed,
+      showDash: s.authed,
+      user: s.user, pass: s.pass, loginError: s.loginError,
+      greeting: 'Signed in as ' + (s.user.trim() || 'maria'),
+      rootStyle: Object.assign({
+        minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif",
+        background: 'var(--bg)', color: 'var(--text)',
+        transition: 'background 260ms ease, color 260ms ease'
+      }, this.themes()[dark ? 'dark' : 'light']),
+      themeLabel: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      sunStyle: this.iconStyle(!dark, -1),
+      moonStyle: this.iconStyle(dark, 1),
+      toggleTheme: () => this.setTheme(dark ? 'light' : 'dark'),
+      onUser: e => this.setState({ user: e.target.value, loginError: false }),
+      onPass: e => this.setState({ pass: e.target.value, loginError: false }),
+      onKey: e => { if (e.key === 'Enter') this.doLogin(); },
+      doLogin: () => this.doLogin(),
+      logout: () => this.setState({ authed: false, pass: '', reviewId: null, toast: '' }),
+      readyJobs: ready.map(wrap),
+      flaggedJobs: flagged.map(wrap),
+      readyCount: ready.length + (ready.length === 1 ? ' job waiting' : ' jobs waiting'),
+      attentionCount: flagged.length + (flagged.length === 1 ? ' job to check' : ' jobs to check'),
+      readyEmpty: ready.length === 0,
+      attentionEmpty: flagged.length === 0,
+      toast: s.toast,
+      printedLine: s.printed === 0 ? 'No jobs printed yet in this session.'
+        : s.printed + (s.printed === 1 ? ' job' : ' jobs') + ' sent to the printer in this session.',
+      reviewOpen: !!rv,
+      rvCustomer: rv ? rv.customer : '',
+      rvTicket: rv ? rv.ticket : '',
+      rvService: rv ? rv.service + ' printing' : '',
+      rvQty: rv ? (rv.qty + (rv.qty === 1 ? ' copy' : ' copies')) : '',
+      rvIssue: rv ? rv.issue : '',
+      closeReview: () => this.setState({ reviewId: null }),
+      approve: () => rv && this.send(rv.id, 'Approved and sent to the printer — ' + rv.customer),
+      useOriginal: () => rv && this.send(rv.id, 'Original photo sent to the printer — ' + rv.customer),
+      sendBack: () => rv && this.hold(rv.id, rv.customer)
+    };
+  }
+
+  doLogin() {
+    const u = this.state.user.trim().toLowerCase();
+    const p = this.state.pass;
+    const okUser = this.props.demoUser ?? 'maria';
+    const okPass = this.props.demoPass ?? 'print';
+    if (u === okUser && p === okPass) this.setState({ authed: true, loginError: false });
+    else this.setState({ loginError: true });
+  }
+}
+</script>
+</body>
+</html>

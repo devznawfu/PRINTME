@@ -1,0 +1,36 @@
+# Web framework
+Flask==3.1.3
+Werkzeug==3.1.8
+
+# Database
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+SQLAlchemy==2.0.52
+alembic==1.19.1
+
+# Scheduling (midnight code rotation, 2-day retention sweep)
+APScheduler==3.11.3
+
+# Image processing
+opencv-python==4.13.0.92
+rembg==2.0.76
+onnxruntime==1.26.0
+Pillow==12.2.0
+
+# Smart Layout Engine (2D rectangle bin-packing)
+rectpack==0.2.2
+
+# Document handling
+pypdf==6.13.2
+
+# Windows printing (win32print) - Windows-only target deployment
+pywin32==312; sys_platform == "win32"
+
+# Config
+python-dotenv==1.2.2
+
+# Production WSGI server
+waitress==3.0.2
+
+# Testing
+pytest==8.4.2
