@@ -59,6 +59,27 @@ def record_packing_result(session, packed_sheets, item_to_job):
     return batch_id
 
 
+def _latest_batch_job_ids(session):
+    """(batch_id, job_ids) for the most recently created batch, or
+    (None, set()) if no batch has ever been packed."""
+    latest = (
+        session.query(PhotoSheet.batch_id)
+        .order_by(PhotoSheet.id.desc())
+        .first()
+    )
+    if latest is None:
+        return None, set()
+
+    batch_id = latest[0]
+    job_ids = {
+        row.job_id
+        for row in session.query(PhotoSheetItem.job_id)
+        .join(PhotoSheet)
+        .filter(PhotoSheet.batch_id == batch_id)
+    }
+    return batch_id, job_ids
+
+
 def pack_pending_photo_jobs(session):
     """Gather every ready-for-review, unflagged photo job's requested
     prints, pack them onto the minimum number of A4 sheets, and persist
@@ -66,7 +87,13 @@ def pack_pending_photo_jobs(session):
     a flagged job before staff have reviewed it; once approved, staff
     clear the flag and it's picked up by the next pack.
 
-    Returns the new batch_id, or None if there was nothing to pack.
+    Idempotent: if the set of pending jobs is unchanged since the last
+    pack, the existing batch is reused instead of repacking - this is
+    called on every admin page load, so without this a page refresh
+    would otherwise mint a fresh duplicate batch each time.
+
+    Returns the batch_id (new or reused), or None if there was nothing
+    to pack.
     """
     jobs = (
         session.query(Job)
@@ -77,6 +104,13 @@ def pack_pending_photo_jobs(session):
         )
         .all()
     )
+
+    if not jobs:
+        return None
+
+    latest_batch_id, latest_job_ids = _latest_batch_job_ids(session)
+    if {job.id for job in jobs} == latest_job_ids:
+        return latest_batch_id
 
     item_to_job = {}
     items = []

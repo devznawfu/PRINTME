@@ -86,6 +86,41 @@ class TestPackPendingPhotoJobs:
 
             assert pack_pending_photo_jobs(db.session) is None
 
+    def test_repeated_call_with_no_change_reuses_batch(self, app):
+        with app.app_context():
+            job = make_ready_photo_job("P-001", size_name="2x2", quantity=1)
+            db.session.add(job)
+            db.session.commit()
+
+            first_batch_id = pack_pending_photo_jobs(db.session)
+            second_batch_id = pack_pending_photo_jobs(db.session)
+
+            assert second_batch_id == first_batch_id
+            assert PhotoSheet.query.filter_by(batch_id=first_batch_id).count() == 1
+
+    def test_new_pending_job_triggers_fresh_batch(self, app):
+        with app.app_context():
+            job = make_ready_photo_job("P-001", size_name="2x2", quantity=1)
+            db.session.add(job)
+            db.session.commit()
+
+            first_batch_id = pack_pending_photo_jobs(db.session)
+
+            job2 = make_ready_photo_job("P-002", size_name="2x2", quantity=1)
+            db.session.add(job2)
+            db.session.commit()
+
+            second_batch_id = pack_pending_photo_jobs(db.session)
+
+            assert second_batch_id != first_batch_id
+            job_ids = {
+                i.job_id
+                for i in PhotoSheetItem.query.join(PhotoSheet).filter(
+                    PhotoSheet.batch_id == second_batch_id
+                )
+            }
+            assert job_ids == {job.id, job2.id}
+
     def test_mixes_multiple_jobs_onto_shared_sheets(self, app):
         with app.app_context():
             j1 = make_ready_photo_job("P-001", size_name="1x1", quantity=2)
