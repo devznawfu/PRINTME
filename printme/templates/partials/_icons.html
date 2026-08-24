@@ -1,0 +1,33 @@
+{# PRINTME! brand mark, transcribed from design-reference/PRINTME Logo.html
+   (a bundled Claude Design canvas export - decompressed to recover the
+   underlying SVG). currentColor throughout, so it themes for free
+   wherever it's dropped in. #}
+
+{% macro logo_mark(size=32, class_="") %}
+<svg width="{{ size }}" height="{{ (size * 108 / 128) | round | int }}" viewBox="0 0 128 108" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" class="{{ class_ }}">
+  <circle cx="84" cy="27" r="13"></circle>
+  <circle cx="79" cy="24" r="1.6" fill="currentColor" stroke="none"></circle>
+  <circle cx="89" cy="24" r="1.6" fill="currentColor" stroke="none"></circle>
+  <path d="M79 32 Q84 36 89 31" stroke-width="3"></path>
+  <path d="M84 40 L83 60"></path>
+  <path d="M82 46 L69 51 L61 61"></path>
+  <path d="M86 46 L98 52 L105 61"></path>
+  <path d="M13 59 L52 30" stroke-width="6.5"></path>
+  <rect x="8" y="62" width="100" height="36" rx="8"></rect>
+  <path d="M22 81 H62"></path>
+</svg>
+{% endmacro %}
+
+{# Just the character - head/eyes/mouth/torso/arms, no printer box -
+   for peeking over some OTHER element (e.g. the ticket card). #}
+{% macro stickman_peek(size=56, class_="") %}
+<svg width="{{ size }}" height="{{ (size * 53 / 50) | round | int }}" viewBox="58 11 50 53" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" class="{{ class_ }}">
+  <circle cx="84" cy="27" r="13"></circle>
+  <circle cx="79" cy="24" r="1.6" fill="currentColor" stroke="none"></circle>
+  <circle cx="89" cy="24" r="1.6" fill="currentColor" stroke="none"></circle>
+  <path d="M79 32 Q84 36 89 31" stroke-width="3"></path>
+  <path d="M84 40 L83 60"></path>
+  <path d="M82 46 L69 51 L61 61"></path>
+  <path d="M86 46 L98 52 L105 61"></path>
+</svg>
+{% endmacro %}

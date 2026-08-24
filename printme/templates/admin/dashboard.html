@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% import "admin/partials/_job_card.html" as cards %}
+{% import "partials/_icons.html" as icons %}
 {% block title %}PRINTME! &mdash; Print queue{% endblock %}
 {% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
 {% block body %}
 <div class="sticky top-0 z-10 flex items-center justify-between gap-6 border-b border-header-line bg-header px-10 py-[22px]">
   <div class="flex items-center gap-3.5">
+    {{ icons.logo_mark(26) }}
     <h1 class="text-[27px] font-bold tracking-tight">PRINTME!</h1>
-    <span class="h-2 w-2 rounded-full bg-text"></span>
     <span class="ml-2 text-lg text-muted">Print queue</span>
   </div>
   <div class="flex items-center gap-4">

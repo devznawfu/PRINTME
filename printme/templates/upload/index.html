@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "partials/_icons.html" as icons %}
 {% block html_attrs %} data-theme="light"{% endblock %}
 {% block title %}PRINTME!{% endblock %}
 {% block body %}
@@ -6,8 +7,8 @@
 
   <div class="flex flex-col gap-1.5 border-b border-[#E4E4E1] px-[22px] pt-7 pb-[22px]">
     <div class="flex items-center gap-2.5">
+      {{ icons.logo_mark(26) }}
       <h1 class="text-[30px] font-bold tracking-tight">PRINTME!</h1>
-      <span class="h-[9px] w-[9px] rounded-full bg-[#1A1A1A]"></span>
     </div>
     <div class="text-[15px] text-[#6B6B68]">Send us your prints from right where you stand.</div>
   </div>
