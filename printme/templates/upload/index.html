@@ -22,7 +22,6 @@
 
   <form id="upload-form" method="post" action="{{ url_for('upload.submit') }}" enctype="multipart/form-data" class="flex flex-col gap-[34px] px-[22px] pt-[26px] pb-10">
     <input type="hidden" name="service" value="{{ service or 'photo' }}">
-    <input type="hidden" name="size" value="{{ size or '' }}">
     <input type="hidden" name="color_mode" value="{{ color_mode or 'bw' }}">
     <input type="hidden" name="duplex" value="{{ duplex or '' }}">
 
@@ -44,9 +43,17 @@
 
     <div id="size-picker" class="flex flex-col gap-3.5">
       <h2 class="text-[19px] font-bold tracking-tight">What size?</h2>
-      <div class="flex flex-wrap gap-2.5">
+      <div class="flex flex-col gap-2.5">
         {% for s in photo_sizes %}
-        <button type="button" data-size-pick="{{ s }}" class="min-h-[58px] rounded-full border border-[#DEDEDB] bg-white px-[22px] text-[17px] font-bold">{{ s }}</button>
+        <div class="flex items-center justify-between gap-4 rounded-2xl border border-[#DEDEDB] bg-white px-4 py-3">
+          <span class="text-[17px] font-bold">{{ s }}</span>
+          <div data-stepper data-min="0" data-max="99" data-value="{{ (qty_by_size or {}).get(s, 0) }}" class="flex items-center gap-1.5 rounded-[18px] border border-[#DEDEDB] bg-[#FAFAF9] p-1.5">
+            <button type="button" data-stepper-dec aria-label="Decrease {{ s }} quantity" class="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#F2F2F0] text-2xl leading-none">&minus;</button>
+            <span data-stepper-display class="min-w-[32px] text-center text-[19px] font-bold">0</span>
+            <input type="hidden" data-stepper-input name="qty_{{ s }}">
+            <button type="button" data-stepper-inc aria-label="Increase {{ s }} quantity" class="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#F2F2F0] text-2xl leading-none">+</button>
+          </div>
+        </div>
         {% endfor %}
       </div>
     </div>
@@ -73,6 +80,18 @@
           <option value="{{ p }}" {{ "selected" if p == (paper_size or "Letter") else "" }}>{{ p }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex flex-col gap-0.5">
+          <span class="text-[19px] font-bold tracking-tight">How many copies?</span>
+          <span class="text-[13.5px] text-[#6B6B68]">of each file</span>
+        </div>
+        <div data-stepper data-min="1" data-max="99" data-value="{{ qty or 1 }}" class="flex items-center gap-1.5 rounded-[18px] border border-[#DEDEDB] bg-white p-1.5">
+          <button type="button" data-stepper-dec aria-label="Decrease copies" class="flex h-[52px] w-[52px] items-center justify-center rounded-[14px] bg-[#F2F2F0] text-2xl leading-none">&minus;</button>
+          <span data-stepper-display class="min-w-[44px] text-center text-[22px] font-bold">1</span>
+          <input type="hidden" data-stepper-input name="qty">
+          <button type="button" data-stepper-inc aria-label="Increase copies" class="flex h-[52px] w-[52px] items-center justify-center rounded-[14px] bg-[#F2F2F0] text-2xl leading-none">+</button>
+        </div>
       </div>
     </div>
 
@@ -125,19 +144,6 @@
     <div class="flex flex-col gap-3.5">
       <label for="code" class="text-[19px] font-bold tracking-tight">Today's code</label>
       <input id="code" name="code" type="text" inputmode="numeric" maxlength="4" placeholder="Ask staff for today's code" value="" class="h-[66px] rounded-2xl border border-[#DEDEDB] bg-white px-5 text-[19px] tracking-[0.1em] outline-none">
-    </div>
-
-    <div class="flex items-center justify-between gap-4">
-      <div class="flex flex-col gap-0.5">
-        <span class="text-[19px] font-bold tracking-tight">How many copies?</span>
-        <span class="text-[13.5px] text-[#6B6B68]">of each file</span>
-      </div>
-      <div data-stepper data-min="1" data-max="99" data-value="{{ qty or 1 }}" class="flex items-center gap-1.5 rounded-[18px] border border-[#DEDEDB] bg-white p-1.5">
-        <button type="button" data-stepper-dec aria-label="Decrease copies" class="flex h-[52px] w-[52px] items-center justify-center rounded-[14px] bg-[#F2F2F0] text-2xl leading-none">&minus;</button>
-        <span data-stepper-display class="min-w-[44px] text-center text-[22px] font-bold">1</span>
-        <input type="hidden" data-stepper-input name="qty">
-        <button type="button" data-stepper-inc aria-label="Increase copies" class="flex h-[52px] w-[52px] items-center justify-center rounded-[14px] bg-[#F2F2F0] text-2xl leading-none">+</button>
-      </div>
     </div>
 
     <div class="flex flex-col gap-3">

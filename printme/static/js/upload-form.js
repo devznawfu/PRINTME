@@ -8,7 +8,6 @@
   if (!form) return;
 
   const serviceInput = form.querySelector('input[name="service"]');
-  const sizeInput = form.querySelector('input[name="size"]');
   const sizePicker = document.getElementById("size-picker");
   const colorModeInput = form.querySelector('input[name="color_mode"]');
   const duplexInput = form.querySelector('input[name="duplex"]');
@@ -22,7 +21,6 @@
 
   const state = {
     service: serviceInput.value || "photo",
-    size: sizeInput.value || "",
     colorMode: colorModeInput.value || "bw",
     duplex: duplexInput.value || "",
     files: [],
@@ -75,10 +73,6 @@
   function setService(service) {
     state.service = service;
     serviceInput.value = service;
-    if (service !== "photo") {
-      state.size = "";
-      sizeInput.value = "";
-    }
     sizePicker.classList.toggle("hidden", service !== "photo");
     documentOptions.classList.toggle("hidden", service !== "document");
     document.querySelectorAll("[data-service-pick]").forEach((btn) => {
@@ -97,20 +91,12 @@
     updateUI();
   }
 
-  function setSize(size) {
-    state.size = size;
-    sizeInput.value = size;
-    document.querySelectorAll("[data-size-pick]").forEach((btn) => {
-      const active = btn.dataset.sizePick === size;
-      btn.classList.toggle("bg-[#1A1A1A]", active);
-      btn.classList.toggle("bg-white", !active);
-      btn.classList.toggle("text-white", active);
-      btn.classList.toggle("border-2", active);
-      btn.classList.toggle("border", !active);
-      btn.classList.toggle("border-[#1A1A1A]", active);
-      btn.classList.toggle("border-[#DEDEDB]", !active);
+  function photoQtyTotal() {
+    let total = 0;
+    document.querySelectorAll('#size-picker [data-stepper-input]').forEach((input) => {
+      total += parseInt(input.value || "0", 10) || 0;
     });
-    updateUI();
+    return total;
   }
 
   function setColorMode(colorMode) {
@@ -146,13 +132,13 @@
   function isReady() {
     const nameOk = nameInput.value.trim().length > 0;
     const codeOk = /^\d{4}$/.test(codeInput.value.trim());
-    const sizeOk = state.service !== "photo" || !!state.size;
+    const qtyOk = state.service !== "photo" || photoQtyTotal() > 0;
     const filesOk = state.files.length > 0;
-    return { nameOk, codeOk, sizeOk, filesOk, ready: nameOk && codeOk && sizeOk && filesOk };
+    return { nameOk, codeOk, qtyOk, filesOk, ready: nameOk && codeOk && qtyOk && filesOk };
   }
 
   function updateUI() {
-    const { nameOk, codeOk, sizeOk, filesOk, ready } = isReady();
+    const { nameOk, codeOk, qtyOk, filesOk, ready } = isReady();
 
     submitBtn.disabled = !ready;
     submitBtn.classList.toggle("cursor-not-allowed", !ready);
@@ -165,8 +151,8 @@
 
     helperText.textContent = ready
       ? "Bring your phone to the counter if we need you."
-      : !sizeOk
-        ? "Pick a photo size to continue."
+      : !qtyOk
+        ? "Pick at least one size and quantity to continue."
         : !filesOk
           ? "Add at least one file to continue."
           : !nameOk
@@ -194,9 +180,6 @@
   document.querySelectorAll("[data-service-pick]").forEach((btn) => {
     btn.addEventListener("click", () => setService(btn.dataset.servicePick));
   });
-  document.querySelectorAll("[data-size-pick]").forEach((btn) => {
-    btn.addEventListener("click", () => setSize(btn.dataset.sizePick));
-  });
   document.querySelectorAll("[data-color-pick]").forEach((btn) => {
     btn.addEventListener("click", () => setColorMode(btn.dataset.colorPick));
   });
@@ -213,9 +196,11 @@
   form.addEventListener("submit", (e) => {
     if (!isReady().ready) e.preventDefault();
   });
+  form.addEventListener("change", (e) => {
+    if (e.target.matches("[data-stepper-input]")) updateUI();
+  });
 
   setService(state.service);
-  if (state.size) setSize(state.size);
   setColorMode(state.colorMode);
   setDuplex(state.duplex);
   renderFileList();
