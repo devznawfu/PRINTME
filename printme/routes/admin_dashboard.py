@@ -17,20 +17,27 @@ bp = Blueprint("admin_dashboard", __name__, url_prefix="/admin")
 
 def _card(job):
     if job.service_type == "photo":
-        row = job.photo_items[0] if job.photo_items else None
-        thumb = row.size_name if row else "Photo"
-        qty = row.quantity if row else 1
+        rows = [
+            {"row_id": row.id, "size_name": row.size_name, "quantity": row.quantity}
+            for row in job.photo_items
+        ]
+        total_qty = sum(r["quantity"] for r in rows)
+        thumb = rows[0]["size_name"] if len(rows) == 1 else f"{len(rows)} sizes" if rows else "Photo"
         service_label = "Photo printing"
+        file_line = f"{total_qty} {'print' if total_qty == 1 else 'prints'} total"
     else:
+        rows = None
         thumb = job.original_filename
         qty = job.copies or 1
         service_label = "Document printing"
+        file_line = f"{qty} {'copy' if qty == 1 else 'copies'}"
 
     return {
         "job": job,
         "thumb": thumb,
         "service_label": service_label,
-        "file_line": f"{qty} {'copy' if qty == 1 else 'copies'}",
+        "file_line": file_line,
+        "rows": rows,
     }
 
 

@@ -44,11 +44,22 @@ def adjust_qty(job_id):
     if job is None:
         return jsonify(error="job not found"), 404
 
-    direction = request.json.get("direction") if request.is_json else request.form.get("direction")
+    payload = request.json if request.is_json else request.form
+    direction = payload.get("direction")
     delta = 1 if direction == "inc" else -1 if direction == "dec" else 0
 
     if job.service_type == "photo" and job.photo_items:
-        row = job.photo_items[0]
+        row_id_raw = payload.get("row_id")
+        row = None
+        if row_id_raw is not None:
+            try:
+                row_id = int(row_id_raw)
+            except (TypeError, ValueError):
+                row_id = None
+            if row_id is not None:
+                row = next((r for r in job.photo_items if r.id == row_id), None)
+        if row is None:
+            row = job.photo_items[0]
         row.quantity = max(1, min(99, row.quantity + delta))
         new_qty = row.quantity
     else:

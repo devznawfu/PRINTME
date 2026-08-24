@@ -9,10 +9,12 @@
     const inc = root.querySelector("[data-qty-inc]");
 
     function adjust(direction) {
+      const body = { direction };
+      if (root.dataset.rowId) body.row_id = root.dataset.rowId;
       fetch(`/admin/jobs/${jobId}/qty`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ direction }),
+        body: JSON.stringify(body),
       })
         .then((r) => r.json())
         .then((data) => {

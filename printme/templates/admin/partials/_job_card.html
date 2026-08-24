@@ -22,14 +22,27 @@
   </div>
   <a href="{{ url_for('admin_review.review', job_id=card.job.id) }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl bg-warn-accent text-lg font-bold text-warn-accent-text">Review</a>
   {% else %}
+  {% if card.job.service_type == "photo" %}
+  {% for row in card.rows %}
+  <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
+    <span class="text-[15px] font-bold">{{ row.size_name }}</span>
+    <div class="flex items-center gap-2" data-qty-stepper data-job-id="{{ card.job.id }}" data-row-id="{{ row.row_id }}">
+      <button type="button" data-qty-dec aria-label="Decrease {{ row.size_name }} quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">&minus;</button>
+      <span data-qty-display class="min-w-[40px] text-center text-lg font-bold">{{ row.quantity }}</span>
+      <button type="button" data-qty-inc aria-label="Increase {{ row.size_name }} quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">+</button>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
   <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
     <span class="text-[15px] font-bold">Quantity</span>
     <div class="flex items-center gap-2" data-qty-stepper data-job-id="{{ card.job.id }}">
       <button type="button" data-qty-dec aria-label="Decrease quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">&minus;</button>
-      <span data-qty-display class="min-w-[40px] text-center text-lg font-bold">{{ card.file_line.split(' ')[0] }}</span>
+      <span data-qty-display class="min-w-[40px] text-center text-lg font-bold">{{ card.job.copies or 1 }}</span>
       <button type="button" data-qty-inc aria-label="Increase quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">+</button>
     </div>
   </div>
+  {% endif %}
   {% if card.job.service_type == "document" %}
   <form method="post" action="{{ url_for('api.print_document', job_id=card.job.id) }}" class="flex flex-wrap items-center gap-3">
     <select name="printer" aria-label="Printer" class="h-[54px] flex-1 rounded-xl border border-line bg-inset px-4 text-[15px]">
