@@ -6,8 +6,8 @@
 - DB: SQLite
 - Frontend: HTML/CSS (Tailwind), reference files provided — see Design Reference below
 - Printing: Windows native via `win32print`, USB-connected printers (no network printing)
-- Target deployment: Windows 10 admin PC. Currently developing on [dev machine OS] —
-  do not assume printer/USB access is available during local development.
+- Target deployment: Windows 10 admin PC. Currently developing in a Linux dev
+  container — do not assume printer/USB access is available during local development.
 
 ## Design Reference
 Use these files as the exact visual and structural reference — rebuild into Flask
@@ -25,7 +25,11 @@ templates, do not redesign from scratch:
 ## Core Architecture — do not deviate
 
 ### Services (chosen by customer at upload)
-- **Photo Printing**: sizes 1x1, 2x2, Passport, Visa (fixed set — no custom dimensions).
+- **Photo Printing**: fixed size set only, no custom dimensions — 1x1, 2x2, Passport,
+  Visa, Wallet (2.5x3.5), 4x6, 5x7, 4x4. 8x8/8x10 and anything poster-sized (11x14 and
+  up) were considered and explicitly excluded: 8x8/8x10 don't fit A4's usable width
+  after the shop's cutting margin, and poster sizes don't fit A4 or this printer
+  hardware at all. Don't add them without new large-format printer hardware.
   Pipeline: face detection (OpenCV) → auto-crop/center → background removal (rembg) →
   white background applied → queued for layout packing.
 - **Document Printing**: PDF, DOCX, JPG, PNG. Printed as close to as-is as possible.
@@ -36,7 +40,7 @@ templates, do not redesign from scratch:
 
 ### Smart Layout Engine
 - Packs pending photo jobs (potentially from multiple customers, mixed sizes among
-  1x1/2x2/Passport/Visa) onto the minimum number of A4 sheets at 300 DPI.
+  the fixed photo size set above) onto the minimum number of A4 sheets at 300 DPI.
 - Output includes grid lines/margins for the admin to preview before printing.
 - This is the hardest algorithmic piece of the system — treat it as its own module,
   test it in isolation before wiring into the main flow.
@@ -75,7 +79,8 @@ a flagged job silently.
 - Computes cost only — does NOT track or process payment. Payment stays physical/cash,
   handled at the counter, outside this system.
 - Editable rates in admin: ₱5/page (B&W), ₱10/page (color), ₱15 (1x1), ₱15 (2x2),
-  ₱20 (Passport), ₱20 (Visa) — defaults, admin can edit.
+  ₱20 (Passport), ₱20 (Visa), ₱20 (Wallet), ₱35 (4x6), ₱50 (5x7), ₱25 (4x4) —
+  defaults, admin can edit.
 - Auto-total per job, shown on the job card.
 
 ### File Retention
@@ -103,6 +108,7 @@ a flagged job silently.
 - Photocopy tracking
 - Public/customer-facing queue display
 - Custom millimeter photo sizing
+- Poster/large-format printing (11x14 and up) — exceeds A4 and current printer hardware
 
 ## Workflow
 1. Plan mode first — propose file structure + build order before writing any code
@@ -117,5 +123,7 @@ a flagged job silently.
   might have changed.
 - Never add a "Co-Authored-By" line or any AI-attribution trailer to commits.
 - Before the first commit on any machine, verify: `git config user.email`
-  matches impasjohnfranz@gmail.com. If not, stop and flag it — do not commit.
+  matches the address configured in `.githooks/pre-commit` (that script checks
+  it against a stored hash rather than publishing it here). If not, stop and
+  flag it — do not commit.
 - Ask before every `git push`, even if the change seems small.

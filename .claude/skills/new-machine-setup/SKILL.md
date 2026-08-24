@@ -9,8 +9,10 @@ Before writing any code on a machine you haven't used for this project before:
    Check: `python --version` should show 3.11.x and `pip list` should show
    opencv-python and rembg already installed. If not, you're not in the
    container — stop and reopen in container first.
-2. Confirm git identity: `git config user.email` must be
-   impasjohnfranz@gmail.com. If wrong, fix it before touching any files.
+2. Confirm git identity: `git config user.email` must match the address
+   configured in `.githooks/pre-commit` (checked there against a stored
+   hash, not published in plaintext). If wrong, fix it before touching
+   any files.
 3. Run `git pull origin main` before making any changes.
 4. Confirm the pre-commit hook is active: `git config core.hooksPath` should
    output `.githooks`. If empty, run:

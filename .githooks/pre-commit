@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 # Blocks any commit made under the wrong git identity.
+#
+# The allowed email is stored as a SHA-256 hash, not plaintext, so the
+# address itself isn't published in this public repo. If you're the
+# maintainer and need to check/change it, hash the address yourself:
+#   printf '%s' "the-address" | sha256sum
 
-ALLOWED_EMAIL="impasjohnfranz@gmail.com"
+ALLOWED_EMAIL_SHA256="cb3b5f7b72379f3466322e5dacaa032492337c376e9553575ac1f7147f60f015"
 current_email=$(git config user.email)
+current_email_sha256=$(printf '%s' "$current_email" | sha256sum | awk '{print $1}')
 
-if [ "$current_email" != "$ALLOWED_EMAIL" ]; then
+if [ "$current_email_sha256" != "$ALLOWED_EMAIL_SHA256" ]; then
   echo "❌ Commit blocked."
   echo "   Current git email: $current_email"
-  echo "   Expected:          $ALLOWED_EMAIL"
+  echo "   This doesn't match the address configured for this project."
   echo ""
   echo "   Fix with:"
-  echo "   git config user.email \"$ALLOWED_EMAIL\""
+  echo "   git config user.email \"<the correct address>\""
+  echo "   (ask the maintainer if you don't have it)"
   exit 1
 fi
 
