@@ -28,10 +28,13 @@ from printme.services.pricing import price_job
 # top of the head.
 FACE_HEIGHT_RATIO = 0.33
 
-# High enough for good print quality at any fixed size (largest is
-# 2x2in @ 300 DPI = 600x600 px) even after a further center-crop to a
-# narrower target aspect ratio at render time.
-CANONICAL_SIZE_PX = 1200
+# High enough for good print quality at any fixed size even after a
+# further center-crop to a narrower target aspect ratio at render time.
+# Largest kept size is 5x7 (7in long side @ 300 DPI = 2100px); for a
+# square source cropped down to a narrower aspect ratio, the source
+# side must be >= the target's longer dimension to avoid upscaling -
+# 2100 is the exact minimum that clears every current fixed size.
+CANONICAL_SIZE_PX = 2100
 
 
 @dataclass
