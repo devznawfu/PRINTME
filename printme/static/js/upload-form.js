@@ -217,4 +217,16 @@
   setDuplex(state.duplex);
   renderFileList();
   updateUI();
+
+  // Splash flash: brief brand moment before the form beneath is
+  // revealed. Only present when there are no validation errors (see
+  // the {% if not errors %} guard in the template) - a failed submit
+  // re-renders this same page and shouldn't re-flash over the error.
+  const splash = document.getElementById("splash");
+  if (splash) {
+    setTimeout(() => {
+      splash.classList.add("opacity-0");
+      setTimeout(() => splash.remove(), 300);
+    }, 650);
+  }
 })();
