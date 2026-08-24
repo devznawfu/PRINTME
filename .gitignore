@@ -226,3 +226,5 @@ preview/
 # Claude Code local session config (already excluded via global gitignore
 # for this machine, but keep this project-local too for portability)
 .claude/settings.local.json
+*.db
+*.sqlite3

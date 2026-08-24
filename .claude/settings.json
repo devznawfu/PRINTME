@@ -93,6 +93,7 @@
     "code-simplifier@claude-plugins-official": true,
     "hookify@claude-plugins-official": true
   },
+  "includeCoAuthoredBy": false,
   "permissions": {
     "deny": [
       "Bash(git push)",
@@ -100,11 +101,16 @@
       "Bash(git push:*)",
       "PowerShell(git push)",
       "PowerShell(git push *)",
-      "PowerShell(git push:*)"
+      "PowerShell(git push:*)",
+      "Bash(git reset --hard*)",
+      "PowerShell(git reset --hard*)"
     ]
   },
   "attribution": {
     "commit": "",
     "pr": ""
   }
+  
+  
 }
+

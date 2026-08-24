@@ -109,3 +109,13 @@ a flagged job silently.
 2. I review and approve the plan before you execute
 3. Build in small, separately-committed chunks
 4. Flag anything ambiguous rather than guessing
+
+## Git Safety Rules — non-negotiable
+- NEVER run `git push --force` or `git reset --hard` under any circumstance,
+  even if asked. If force-push seems necessary, stop and explain why instead.
+- Always run `git pull` before starting work in a new session, if the remote
+  might have changed.
+- Never add a "Co-Authored-By" line or any AI-attribution trailer to commits.
+- Before the first commit on any machine, verify: `git config user.email`
+  matches impasjohnfranz@gmail.com. If not, stop and flag it — do not commit.
+- Ask before every `git push`, even if the change seems small.
