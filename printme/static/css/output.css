@@ -40,6 +40,7 @@
     --color-muted: var(--pm-muted);
     --color-faint: var(--pm-faint);
     --color-panel: var(--pm-panel);
+    --color-panel-soft: var(--pm-panel-soft);
     --color-border: var(--pm-border);
     --color-line: var(--pm-line);
     --color-header: var(--pm-header);
@@ -48,6 +49,8 @@
     --color-btn-bg: var(--pm-btn-bg);
     --color-btn-text: var(--pm-btn-text);
     --color-btn-hover: var(--pm-btn-hover);
+    --color-btn-disabled-bg: var(--pm-btn-disabled-bg);
+    --color-btn-disabled-text: var(--pm-btn-disabled-text);
     --color-chip: var(--pm-chip);
     --color-chip-text: var(--pm-chip-text);
     --color-chip-dot: var(--pm-chip-dot);
@@ -55,6 +58,7 @@
     --color-thumb-b: var(--pm-thumb-b);
     --color-thumb-text: var(--pm-thumb-text);
     --color-dash: var(--pm-dash);
+    --color-text-soft: var(--pm-text-soft);
     --color-err-bg: var(--pm-err-bg);
     --color-err-line: var(--pm-err-line);
     --color-err-text: var(--pm-err-text);
@@ -594,18 +598,6 @@
     --tw-border-style: dashed;
     border-style: dashed;
   }
-  .border-\[\#1A1A1A\] {
-    border-color: #1A1A1A;
-  }
-  .border-\[\#DEDEDB\] {
-    border-color: #DEDEDB;
-  }
-  .border-\[\#E4E4E1\] {
-    border-color: #E4E4E1;
-  }
-  .border-\[\#EFD5B3\] {
-    border-color: #EFD5B3;
-  }
   .border-border {
     border-color: var(--color-border);
   }
@@ -621,6 +613,9 @@
   .border-line {
     border-color: var(--color-line);
   }
+  .border-text {
+    border-color: var(--color-text);
+  }
   .border-warn-accent {
     border-color: var(--color-warn-accent);
   }
@@ -630,26 +625,14 @@
   .border-warn-line {
     border-color: var(--color-warn-line);
   }
-  .bg-\[\#1A1A1A\] {
-    background-color: #1A1A1A;
-  }
-  .bg-\[\#E4E4E1\] {
-    background-color: #E4E4E1;
-  }
-  .bg-\[\#F2F2F0\] {
-    background-color: #F2F2F0;
-  }
-  .bg-\[\#FAFAF9\] {
-    background-color: #FAFAF9;
-  }
-  .bg-\[\#FDF1E3\] {
-    background-color: #FDF1E3;
-  }
   .bg-bg {
     background-color: var(--color-bg);
   }
   .bg-btn-bg {
     background-color: var(--color-btn-bg);
+  }
+  .bg-btn-disabled-bg {
+    background-color: var(--color-btn-disabled-bg);
   }
   .bg-chip {
     background-color: var(--color-chip);
@@ -668,6 +651,9 @@
   }
   .bg-panel {
     background-color: var(--color-panel);
+  }
+  .bg-panel-soft {
+    background-color: var(--color-panel-soft);
   }
   .bg-text {
     background-color: var(--color-text);
@@ -695,26 +681,6 @@
   }
   .bg-warn-title {
     background-color: var(--color-warn-title);
-  }
-  .bg-white {
-    background-color: var(--color-white);
-  }
-  .bg-gradient-to-b {
-    --tw-gradient-position: to bottom in oklab;
-    background-image: linear-gradient(var(--tw-gradient-stops));
-  }
-  .from-white {
-    --tw-gradient-from: var(--color-white);
-    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
-  }
-  .via-\[\#F6F6F5\] {
-    --tw-gradient-via: #F6F6F5;
-    --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
-    --tw-gradient-stops: var(--tw-gradient-via-stops);
-  }
-  .to-\[\#ECECEA\] {
-    --tw-gradient-to: #ECECEA;
-    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
   }
   .object-contain {
     object-fit: contain;
@@ -984,20 +950,8 @@
     --tw-tracking: var(--tracking-wider);
     letter-spacing: var(--tracking-wider);
   }
-  .text-\[\#1A1A1A\] {
-    color: #1A1A1A;
-  }
-  .text-\[\#6B6B68\] {
-    color: #6B6B68;
-  }
-  .text-\[\#45453F\] {
-    color: #45453F;
-  }
-  .text-\[\#95591A\] {
-    color: #95591A;
-  }
-  .text-\[\#A3A39F\] {
-    color: #A3A39F;
+  .text-btn-disabled-text {
+    color: var(--color-btn-disabled-text);
   }
   .text-btn-text {
     color: var(--color-btn-text);
@@ -1017,6 +971,9 @@
   .text-text {
     color: var(--color-text);
   }
+  .text-text-soft {
+    color: var(--color-text-soft);
+  }
   .text-thumb-text {
     color: var(--color-thumb-text);
   }
@@ -1034,9 +991,6 @@
   }
   .text-warn-title {
     color: var(--color-warn-title);
-  }
-  .text-white {
-    color: var(--color-white);
   }
   .uppercase {
     text-transform: uppercase;
@@ -1084,17 +1038,20 @@
     outline-style: none;
   }
   @media (hover: hover) {
-    .hover\:border-\[\#1A1A1A\]:hover {
-      border-color: #1A1A1A;
+    .hover\:border-text:hover {
+      border-color: var(--color-text);
     }
     .hover\:bg-btn-hover:hover {
       background-color: var(--color-btn-hover);
     }
+    .hover\:bg-inset:hover {
+      background-color: var(--color-inset);
+    }
     .hover\:bg-warn-accent-hover:hover {
       background-color: var(--color-warn-accent-hover);
     }
-    .hover\:text-\[\#1A1A1A\]:hover {
-      color: #1A1A1A;
+    .hover\:text-text:hover {
+      color: var(--color-text);
     }
     .hover\:text-warn-accent-text:hover {
       color: var(--color-warn-accent-text);
@@ -1133,6 +1090,7 @@
   --pm-muted: #9b9b95;
   --pm-faint: #6e6e68;
   --pm-panel: #1d1d1b;
+  --pm-panel-soft: #201f1d;
   --pm-border: #2e2e2b;
   --pm-line: #3a3a36;
   --pm-header: #161615;
@@ -1179,6 +1137,7 @@
   --pm-muted: #6b6b66;
   --pm-faint: #8c8c86;
   --pm-panel: #ffffff;
+  --pm-panel-soft: #fafaf9;
   --pm-border: #e4e4df;
   --pm-line: #dcdcd6;
   --pm-header: #ffffff;
@@ -1284,48 +1243,6 @@ button:not(:disabled):hover {
   syntax: "*";
   inherits: false;
   initial-value: solid;
-}
-@property --tw-gradient-position {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-gradient-from {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: #0000;
-}
-@property --tw-gradient-via {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: #0000;
-}
-@property --tw-gradient-to {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: #0000;
-}
-@property --tw-gradient-stops {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-gradient-via-stops {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-gradient-from-position {
-  syntax: "<length-percentage>";
-  inherits: false;
-  initial-value: 0%;
-}
-@property --tw-gradient-via-position {
-  syntax: "<length-percentage>";
-  inherits: false;
-  initial-value: 50%;
-}
-@property --tw-gradient-to-position {
-  syntax: "<length-percentage>";
-  inherits: false;
-  initial-value: 100%;
 }
 @property --tw-leading {
   syntax: "*";
@@ -1511,15 +1428,6 @@ button:not(:disabled):hover {
       --tw-skew-x: initial;
       --tw-skew-y: initial;
       --tw-border-style: solid;
-      --tw-gradient-position: initial;
-      --tw-gradient-from: #0000;
-      --tw-gradient-via: #0000;
-      --tw-gradient-to: #0000;
-      --tw-gradient-stops: initial;
-      --tw-gradient-via-stops: initial;
-      --tw-gradient-from-position: 0%;
-      --tw-gradient-via-position: 50%;
-      --tw-gradient-to-position: 100%;
       --tw-leading: initial;
       --tw-font-weight: initial;
       --tw-tracking: initial;

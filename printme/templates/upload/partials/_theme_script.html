@@ -1,0 +1,10 @@
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("printme-customer-theme");
+      if (t !== "dark") document.documentElement.setAttribute("data-theme", "light");
+    } catch (e) {
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  })();
+</script>

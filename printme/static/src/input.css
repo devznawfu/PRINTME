@@ -44,6 +44,7 @@
   --color-muted: var(--pm-muted);
   --color-faint: var(--pm-faint);
   --color-panel: var(--pm-panel);
+  --color-panel-soft: var(--pm-panel-soft);
   --color-border: var(--pm-border);
   --color-line: var(--pm-line);
   --color-header: var(--pm-header);
@@ -101,6 +102,7 @@
   --pm-muted: #9b9b95;
   --pm-faint: #6e6e68;
   --pm-panel: #1d1d1b;
+  --pm-panel-soft: #201f1d;
   --pm-border: #2e2e2b;
   --pm-line: #3a3a36;
   --pm-header: #161615;
@@ -155,6 +157,7 @@
   --pm-muted: #6b6b66;
   --pm-faint: #8c8c86;
   --pm-panel: #ffffff;
+  --pm-panel-soft: #fafaf9;
   --pm-border: #e4e4df;
   --pm-line: #dcdcd6;
   --pm-header: #ffffff;

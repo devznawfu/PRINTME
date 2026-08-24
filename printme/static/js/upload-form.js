@@ -81,12 +81,12 @@
       // also removing its inactive counterpart leaves both present,
       // and Tailwind's cascade order (not DOM order) decides the
       // winner, which is not reliably the one added last.
-      btn.classList.toggle("border-[#1A1A1A]", active);
+      btn.classList.toggle("border-text", active);
       btn.classList.toggle("border-2", active);
       btn.classList.toggle("border", !active);
-      btn.classList.toggle("border-[#DEDEDB]", !active);
-      btn.classList.toggle("bg-white", active);
-      btn.classList.toggle("bg-[#FAFAF9]", !active);
+      btn.classList.toggle("border-line", !active);
+      btn.classList.toggle("bg-panel", active);
+      btn.classList.toggle("bg-panel-soft", !active);
     });
     updateUI();
   }
@@ -104,13 +104,13 @@
     colorModeInput.value = colorMode;
     document.querySelectorAll("[data-color-pick]").forEach((btn) => {
       const active = btn.dataset.colorPick === colorMode;
-      btn.classList.toggle("bg-[#1A1A1A]", active);
-      btn.classList.toggle("bg-white", !active);
-      btn.classList.toggle("text-white", active);
+      btn.classList.toggle("bg-btn-bg", active);
+      btn.classList.toggle("bg-panel", !active);
+      btn.classList.toggle("text-btn-text", active);
       btn.classList.toggle("border-2", active);
       btn.classList.toggle("border", !active);
-      btn.classList.toggle("border-[#1A1A1A]", active);
-      btn.classList.toggle("border-[#DEDEDB]", !active);
+      btn.classList.toggle("border-text", active);
+      btn.classList.toggle("border-line", !active);
     });
   }
 
@@ -119,13 +119,13 @@
     duplexInput.value = duplex;
     document.querySelectorAll("[data-duplex-pick]").forEach((btn) => {
       const active = btn.dataset.duplexPick === duplex;
-      btn.classList.toggle("bg-[#1A1A1A]", active);
-      btn.classList.toggle("bg-white", !active);
-      btn.classList.toggle("text-white", active);
+      btn.classList.toggle("bg-btn-bg", active);
+      btn.classList.toggle("bg-panel", !active);
+      btn.classList.toggle("text-btn-text", active);
       btn.classList.toggle("border-2", active);
       btn.classList.toggle("border", !active);
-      btn.classList.toggle("border-[#1A1A1A]", active);
-      btn.classList.toggle("border-[#DEDEDB]", !active);
+      btn.classList.toggle("border-text", active);
+      btn.classList.toggle("border-line", !active);
     });
   }
 
@@ -143,10 +143,10 @@
     submitBtn.disabled = !ready;
     submitBtn.classList.toggle("cursor-not-allowed", !ready);
     submitBtn.classList.toggle("cursor-pointer", ready);
-    submitBtn.classList.toggle("bg-[#E4E4E1]", !ready);
-    submitBtn.classList.toggle("text-[#A3A39F]", !ready);
-    submitBtn.classList.toggle("bg-[#1A1A1A]", ready);
-    submitBtn.classList.toggle("text-white", ready);
+    submitBtn.classList.toggle("bg-btn-disabled-bg", !ready);
+    submitBtn.classList.toggle("text-btn-disabled-text", !ready);
+    submitBtn.classList.toggle("bg-btn-bg", ready);
+    submitBtn.classList.toggle("text-btn-text", ready);
     submitBtn.classList.toggle("shadow-[0_8px_20px_rgba(0,0,0,0.18)]", ready);
 
     helperText.textContent = ready
