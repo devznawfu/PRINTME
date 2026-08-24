@@ -33,7 +33,7 @@
 
   <div class="flex flex-wrap gap-3.5">
     <form method="post" action="{{ url_for('admin_review.approve', job_id=job.id) }}" class="flex-1 basis-[260px]">
-      <button type="submit" class="min-h-[76px] w-full rounded-2xl bg-btn-bg text-xl font-bold text-btn-text">Looks good &mdash; Approve</button>
+      <button type="submit" class="min-h-[76px] w-full rounded-2xl bg-btn-bg text-xl font-bold text-btn-text transition-colors hover:bg-btn-hover">Looks good &mdash; Approve</button>
     </form>
     <form method="post" action="{{ url_for('admin_review.use_original', job_id=job.id) }}" class="flex-1 basis-[220px]">
       <button type="submit" class="min-h-[76px] w-full rounded-2xl border border-line text-lg font-bold">Use original instead</button>

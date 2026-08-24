@@ -16,11 +16,11 @@
   </div>
 
   {% if flagged %}
-  <div class="flex gap-3 rounded-2xl border border-warn-card-line bg-warn-note p-4">
+  <div class="animate-pop-in flex gap-3 rounded-2xl border border-warn-card-line bg-warn-note p-4">
     <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-warn-accent text-sm font-bold text-warn-accent-text">!</span>
     <span class="text-[15px] leading-snug text-warn-note-text">{{ card.job.attention_reason }}</span>
   </div>
-  <a href="{{ url_for('admin_review.review', job_id=card.job.id) }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl bg-warn-accent text-lg font-bold text-warn-accent-text">Review</a>
+  <a href="{{ url_for('admin_review.review', job_id=card.job.id) }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl bg-warn-accent text-lg font-bold text-warn-accent-text transition-colors hover:bg-warn-accent-hover hover:text-warn-accent-text">Review</a>
   {% else %}
   {% if card.job.service_type == "photo" %}
   {% for row in card.rows %}
@@ -50,7 +50,7 @@
       <option value="{{ p }}">{{ p }}</option>
       {% endfor %}
     </select>
-    <button type="submit" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl bg-btn-bg text-lg font-bold text-btn-text">Print</button>
+    <button type="submit" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl bg-btn-bg text-lg font-bold text-btn-text transition-colors hover:bg-btn-hover">Print</button>
   </form>
   {% else %}
   <a href="{{ url_for('admin_photo_sheets.photo_sheets') }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl border border-line text-center text-[15px] font-bold">Part of the next Photo Sheets batch</a>
