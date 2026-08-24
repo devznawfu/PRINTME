@@ -160,6 +160,18 @@
             : "Enter today's 4-digit code to continue.";
   }
 
+  const moreSizesToggle = document.getElementById("more-sizes-toggle");
+  const moreSizes = document.getElementById("more-sizes");
+  const moreSizesLabel = document.getElementById("more-sizes-toggle-label");
+  const moreSizesIcon = document.getElementById("more-sizes-toggle-icon");
+  moreSizesToggle.addEventListener("click", () => {
+    const expanded = moreSizesToggle.getAttribute("aria-expanded") === "true";
+    moreSizesToggle.setAttribute("aria-expanded", String(!expanded));
+    moreSizes.classList.toggle("hidden", expanded);
+    moreSizesLabel.textContent = expanded ? "More sizes" : "Fewer sizes";
+    moreSizesIcon.innerHTML = expanded ? "&#9662;" : "&#9652;";
+  });
+
   document.getElementById("open-camera").addEventListener("click", () => {
     document.getElementById("camera-input").click();
   });

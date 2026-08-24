@@ -11,7 +11,7 @@ problem in the Needs Attention queue.
 
 from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
 
-from config import PHOTO_SIZES
+from config import MORE_PHOTO_SIZES, PHOTO_SIZES, PRIMARY_PHOTO_SIZES
 from printme.extensions import db
 from printme.models.job import COLOR_MODES, PAPER_SIZES, PhotoItemRow, create_job_with_ticket
 from printme.services import job_state
@@ -47,7 +47,13 @@ def _process(job):
 
 @bp.route("/", methods=["GET"])
 def form():
-    return render_template("upload/index.html", photo_sizes=PHOTO_SIZES, paper_sizes=PAPER_SIZES)
+    return render_template(
+        "upload/index.html",
+        photo_sizes=PHOTO_SIZES,
+        primary_photo_sizes=PRIMARY_PHOTO_SIZES,
+        more_photo_sizes=MORE_PHOTO_SIZES,
+        paper_sizes=PAPER_SIZES,
+    )
 
 
 @bp.route("/upload", methods=["POST"])
@@ -90,6 +96,8 @@ def submit():
         return render_template(
             "upload/index.html",
             photo_sizes=PHOTO_SIZES,
+            primary_photo_sizes=PRIMARY_PHOTO_SIZES,
+            more_photo_sizes=MORE_PHOTO_SIZES,
             paper_sizes=PAPER_SIZES,
             errors=errors,
             name=name,

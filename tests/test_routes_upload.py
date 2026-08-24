@@ -106,6 +106,16 @@ class TestUploadSubmitHappyPathMocked:
             assert job.photo_items[0].size_name == "Passport"
             assert job.photo_items[0].quantity == 3
 
+    def test_creates_a_job_using_a_more_size(self, app, client):
+        with patch("printme.routes.upload.process_photo_job"):
+            submit_form(client, todays_code(app), qty_2x2="0", qty_4x6="2")
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Maria Alvarez").one()
+            assert len(job.photo_items) == 1
+            assert job.photo_items[0].size_name == "4x6"
+            assert job.photo_items[0].quantity == 2
+
     def test_creates_multiple_photo_item_rows_for_mixed_sizes(self, app, client):
         with patch("printme.routes.upload.process_photo_job"):
             submit_form(client, todays_code(app), qty_2x2="0", qty_Passport="2", qty_1x1="4")

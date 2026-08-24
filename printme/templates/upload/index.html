@@ -44,7 +44,7 @@
     <div id="size-picker" class="flex flex-col gap-3.5">
       <h2 class="text-[19px] font-bold tracking-tight">What size?</h2>
       <div class="flex flex-col gap-2.5">
-        {% for s in photo_sizes %}
+        {% for s in primary_photo_sizes %}
         <div class="flex items-center justify-between gap-4 rounded-2xl border border-[#DEDEDB] bg-white px-4 py-3">
           <span class="text-[17px] font-bold">{{ s }}</span>
           <div data-stepper data-min="0" data-max="99" data-value="{{ (qty_by_size or {}).get(s, 0) }}" class="flex items-center gap-1.5 rounded-[18px] border border-[#DEDEDB] bg-[#FAFAF9] p-1.5">
@@ -55,6 +55,24 @@
           </div>
         </div>
         {% endfor %}
+
+        <button type="button" id="more-sizes-toggle" aria-expanded="false" aria-controls="more-sizes" class="flex min-h-[52px] w-full items-center justify-between rounded-2xl border border-[#DEDEDB] bg-[#FAFAF9] px-4 text-[15px] font-bold">
+          <span id="more-sizes-toggle-label">More sizes</span>
+          <span id="more-sizes-toggle-icon">&#9662;</span>
+        </button>
+        <div id="more-sizes" class="hidden flex flex-col gap-2.5">
+          {% for s in more_photo_sizes %}
+          <div class="flex items-center justify-between gap-4 rounded-2xl border border-[#DEDEDB] bg-white px-4 py-3">
+            <span class="text-[17px] font-bold">{{ s }}</span>
+            <div data-stepper data-min="0" data-max="99" data-value="{{ (qty_by_size or {}).get(s, 0) }}" class="flex items-center gap-1.5 rounded-[18px] border border-[#DEDEDB] bg-[#FAFAF9] p-1.5">
+              <button type="button" data-stepper-dec aria-label="Decrease {{ s }} quantity" class="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#F2F2F0] text-2xl leading-none">&minus;</button>
+              <span data-stepper-display class="min-w-[32px] text-center text-[19px] font-bold">0</span>
+              <input type="hidden" data-stepper-input name="qty_{{ s }}">
+              <button type="button" data-stepper-inc aria-label="Increase {{ s }} quantity" class="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#F2F2F0] text-2xl leading-none">+</button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
       </div>
     </div>
 
