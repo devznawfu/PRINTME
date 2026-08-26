@@ -26,6 +26,7 @@ def create_app(config_name=None):
 
     from printme.routes.admin_auth import bp as admin_auth_bp
     from printme.routes.admin_dashboard import bp as admin_dashboard_bp
+    from printme.routes.admin_history import bp as admin_history_bp
     from printme.routes.admin_photo_sheets import bp as admin_photo_sheets_bp
     from printme.routes.admin_pricing import bp as admin_pricing_bp
     from printme.routes.admin_review import bp as admin_review_bp
@@ -38,6 +39,7 @@ def create_app(config_name=None):
     app.register_blueprint(admin_review_bp)
     app.register_blueprint(admin_photo_sheets_bp)
     app.register_blueprint(admin_pricing_bp)
+    app.register_blueprint(admin_history_bp)
     app.register_blueprint(api_bp)
 
     from scheduler import init_scheduler

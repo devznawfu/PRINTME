@@ -897,6 +897,9 @@
   .text-\[16\.5px\] {
     font-size: 16.5px;
   }
+  .text-\[16px\] {
+    font-size: 16px;
+  }
   .text-\[17\.5px\] {
     font-size: 17.5px;
   }
@@ -1096,6 +1099,12 @@
     .hover\:text-warn-accent-text:hover {
       color: var(--color-warn-accent-text);
     }
+  }
+  .disabled\:cursor-not-allowed:disabled {
+    cursor: not-allowed;
+  }
+  .disabled\:opacity-40:disabled {
+    opacity: 40%;
   }
   @media (prefers-reduced-motion: reduce) {
     .motion-reduce\:hidden {
