@@ -56,5 +56,9 @@
   <a href="{{ url_for('admin_photo_sheets.photo_sheets') }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl border border-line text-center text-[15px] font-bold">Part of the next Photo Sheets batch</a>
   {% endif %}
   {% endif %}
+
+  <form method="post" action="{{ url_for('api.cancel_job', job_id=card.job.id) }}" onsubmit="return confirm('Cancel this job? This removes it from the queue - it can be restored later from History.');">
+    <button type="submit" class="flex min-h-[44px] w-full items-center justify-center rounded-xl text-[14px] font-bold text-err-text">Cancel job</button>
+  </form>
 </div>
 {% endmacro %}

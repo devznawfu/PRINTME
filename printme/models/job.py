@@ -23,9 +23,12 @@ class JobStatus:
     PRINTING = "printing"
     DONE = "done"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
-    ALL = (UPLOADED, PROCESSING, READY_FOR_REVIEW, PRINTING, DONE, FAILED)
+    ALL = (UPLOADED, PROCESSING, READY_FOR_REVIEW, PRINTING, DONE, FAILED, CANCELLED)
     ACTIVE = (UPLOADED, PROCESSING, READY_FOR_REVIEW, PRINTING)
+    # Terminal, non-active statuses shown on the admin History page.
+    TERMINAL = (DONE, FAILED, CANCELLED)
 
 
 _ACTIVE_STATUSES_SQL = ", ".join(f"'{s}'" for s in JobStatus.ACTIVE)

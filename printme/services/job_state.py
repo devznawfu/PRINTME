@@ -15,10 +15,11 @@ from printme.models.job import JobStatus
 _ALLOWED_TRANSITIONS = {
     JobStatus.UPLOADED: {JobStatus.PROCESSING, JobStatus.FAILED},
     JobStatus.PROCESSING: {JobStatus.READY_FOR_REVIEW, JobStatus.FAILED},
-    JobStatus.READY_FOR_REVIEW: {JobStatus.PRINTING, JobStatus.FAILED},
+    JobStatus.READY_FOR_REVIEW: {JobStatus.PRINTING, JobStatus.FAILED, JobStatus.CANCELLED},
     JobStatus.PRINTING: {JobStatus.DONE, JobStatus.FAILED},
     JobStatus.DONE: set(),
     JobStatus.FAILED: set(),
+    JobStatus.CANCELLED: set(),
 }
 
 
@@ -55,3 +56,12 @@ def mark_failed(session, job, reason):
     that fails) - flags it with the specific reason so it isn't lost."""
     job.flag_for_attention(reason)
     return transition(session, job, JobStatus.FAILED)
+
+
+def mark_cancelled(session, job, reason="Cancelled by staff"):
+    """Staff-initiated cancel from the Ready to Print / Needs Attention
+    queues. Records `reason` as a plain note (not via flag_for_attention -
+    a cancelled job isn't "needing attention", it's already been dealt
+    with) so it's visible on the History page."""
+    job.attention_reason = reason
+    return transition(session, job, JobStatus.CANCELLED)

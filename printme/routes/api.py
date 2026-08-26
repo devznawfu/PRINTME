@@ -77,6 +77,30 @@ def adjust_qty(job_id):
     return redirect(url_for("admin_dashboard.dashboard"))
 
 
+@bp.route("/jobs/<int:job_id>/cancel", methods=["POST"])
+@admin_required
+def cancel_job(job_id):
+    """Staff-initiated cancel from the Ready to Print / Needs Attention
+    queues - only legal from ready_for_review (job_state's transition
+    graph), which is the only status admins actually act on. For a
+    photo job whose items are on an already-packed, unprinted sheet,
+    cancelling it here is the whole fix: it drops out of
+    pack_pending_photo_jobs()'s READY_FOR_REVIEW query, so the next
+    Photo Sheets page load repacks the sheet without it automatically -
+    no separate "remove from sheet" logic needed."""
+    job = db.session.get(Job, job_id)
+    if job is None:
+        return redirect(url_for("admin_dashboard.dashboard"))
+
+    reason = (request.form.get("reason") or "").strip() or "Cancelled by staff"
+    try:
+        job_state.mark_cancelled(db.session, job, reason)
+    except job_state.IllegalTransition:
+        pass  # already past the point where cancelling makes sense
+
+    return redirect(url_for("admin_dashboard.dashboard"))
+
+
 @bp.route("/jobs/<int:job_id>/print", methods=["POST"])
 @admin_required
 def print_document(job_id):

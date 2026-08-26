@@ -4,6 +4,7 @@ from printme.extensions import db
 from printme.models import Job, JobStatus
 from printme.services.job_state import (
     IllegalTransition,
+    mark_cancelled,
     mark_done,
     mark_failed,
     mark_printing,
@@ -121,3 +122,50 @@ class TestFailedIsReachableFromEveryActiveState:
             with pytest.raises(ValueError):
                 mark_failed(db.session, job, "")
             assert job.status == JobStatus.UPLOADED  # unchanged
+
+
+class TestMarkCancelled:
+    def test_cancel_from_ready_for_review(self, app):
+        with app.app_context():
+            job = make_job(status=JobStatus.READY_FOR_REVIEW)
+            db.session.add(job)
+            db.session.commit()
+
+            mark_cancelled(db.session, job, "Customer wants a redo")
+
+            assert job.status == JobStatus.CANCELLED
+            assert job.attention_reason == "Customer wants a redo"
+            assert job.needs_attention is False
+
+    def test_default_reason(self, app):
+        with app.app_context():
+            job = make_job(status=JobStatus.READY_FOR_REVIEW)
+            db.session.add(job)
+            db.session.commit()
+
+            mark_cancelled(db.session, job)
+
+            assert job.attention_reason == "Cancelled by staff"
+
+    @pytest.mark.parametrize(
+        "status",
+        [JobStatus.UPLOADED, JobStatus.PROCESSING, JobStatus.PRINTING, JobStatus.DONE],
+    )
+    def test_cannot_cancel_from_other_statuses(self, app, status):
+        with app.app_context():
+            job = make_job(status=status)
+            db.session.add(job)
+            db.session.commit()
+
+            with pytest.raises(IllegalTransition):
+                mark_cancelled(db.session, job)
+            assert job.status == status  # unchanged
+
+    def test_cancelled_is_terminal(self, app):
+        with app.app_context():
+            job = make_job(status=JobStatus.CANCELLED)
+            db.session.add(job)
+            db.session.commit()
+
+            with pytest.raises(IllegalTransition):
+                mark_printing(db.session, job)
