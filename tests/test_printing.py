@@ -1,12 +1,31 @@
+import sys
+from unittest.mock import MagicMock
+
 import pytest
 
 from config import PRINTER_NAMES
+from printme.services.printing import get_printer_backend
 from printme.services.printing.base import PrintError, PrinterBackend
 from printme.services.printing.mock_backend import MockPrinterBackend
 from printme.services.printing.printer_registry import (
     available_printers,
     is_valid_printer,
 )
+
+
+class TestGetPrinterBackend:
+    def test_non_windows_returns_mock_backend(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "linux")
+        assert isinstance(get_printer_backend(), MockPrinterBackend)
+
+    def test_windows_returns_win32_backend(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setitem(sys.modules, "win32api", MagicMock())
+        monkeypatch.delitem(sys.modules, "printme.services.printing.win32_backend", raising=False)
+
+        from printme.services.printing.win32_backend import Win32PrinterBackend
+
+        assert isinstance(get_printer_backend(), Win32PrinterBackend)
 
 
 class TestPrinterRegistry:
