@@ -2,6 +2,7 @@ from pathlib import Path
 
 from printme.extensions import db
 from printme.models import Job, JobStatus, PhotoItemRow, PhotoSheet, PhotoSheetItem
+from printme.services import job_state
 from printme.services.photo_sheet import pack_pending_photo_jobs
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -120,6 +121,40 @@ class TestPackPendingPhotoJobs:
                 )
             }
             assert job_ids == {job.id, job2.id}
+
+    def test_cancelling_one_job_repacks_without_it(self, app):
+        """Part B of the job-lifecycle plan: cancelling a job that's on
+        an already-packed, unprinted sheet needs no special "remove
+        from sheet" code of its own - it drops out of this query's
+        READY_FOR_REVIEW filter, which the existing idempotent-repack
+        check above already treats as a changed pending set."""
+        with app.app_context():
+            j1 = make_ready_photo_job("P-001", size_name="2x2", quantity=1)
+            j2 = make_ready_photo_job("P-002", size_name="2x2", quantity=1)
+            j3 = make_ready_photo_job("P-003", size_name="2x2", quantity=1)
+            db.session.add_all([j1, j2, j3])
+            db.session.commit()
+
+            first_batch_id = pack_pending_photo_jobs(db.session)
+            first_job_ids = {
+                i.job_id
+                for i in PhotoSheetItem.query.join(PhotoSheet).filter(
+                    PhotoSheet.batch_id == first_batch_id
+                )
+            }
+            assert first_job_ids == {j1.id, j2.id, j3.id}
+
+            job_state.mark_cancelled(db.session, j2)
+
+            second_batch_id = pack_pending_photo_jobs(db.session)
+            second_job_ids = {
+                i.job_id
+                for i in PhotoSheetItem.query.join(PhotoSheet).filter(
+                    PhotoSheet.batch_id == second_batch_id
+                )
+            }
+            assert second_batch_id != first_batch_id
+            assert second_job_ids == {j1.id, j3.id}
 
     def test_mixes_multiple_jobs_onto_shared_sheets(self, app):
         with app.app_context():
