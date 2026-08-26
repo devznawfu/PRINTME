@@ -1,4 +1,5 @@
 import io
+from pathlib import Path
 
 import pytest
 from werkzeug.datastructures import FileStorage
@@ -11,8 +12,12 @@ from printme.services.uploads import (
     is_allowed_extension,
     is_within_size_limit,
     save_upload,
+    validate_file_storage,
     validate_upload,
 )
+
+FIXTURES = Path(__file__).parent / "fixtures"
+REAL_JPEG_BYTES = (FIXTURES / "face_one.jpg").read_bytes()
 
 
 def fake_file(filename, content=b"hello", content_type="application/octet-stream"):
@@ -86,15 +91,49 @@ class TestBuildStorageFilename:
         assert "/" not in name and ".." not in name
 
 
+class TestContentValidation:
+    def test_real_jpeg_passes(self):
+        f = fake_file("photo.jpg", REAL_JPEG_BYTES)
+        validate_file_storage(f)  # does not raise
+
+    def test_text_renamed_to_jpg_is_rejected(self):
+        f = fake_file("photo.jpg", b"just some plain text, not an image")
+        with pytest.raises(UploadRejected, match="doesn't look like a real JPG"):
+            validate_file_storage(f)
+
+    def test_jpeg_bytes_renamed_to_png_is_rejected(self):
+        """Real image data, but the wrong format for its extension -
+        content has to match the claimed type, not just decode as
+        *some* image."""
+        f = fake_file("photo.png", REAL_JPEG_BYTES)
+        with pytest.raises(UploadRejected, match="doesn't look like a real PNG"):
+            validate_file_storage(f)
+
+    def test_text_renamed_to_pdf_is_rejected(self):
+        f = fake_file("scan.pdf", b"not actually a pdf")
+        with pytest.raises(UploadRejected, match="doesn't look like a real PDF"):
+            validate_file_storage(f)
+
+    def test_text_renamed_to_docx_is_rejected(self):
+        f = fake_file("form.docx", b"not actually a docx")
+        with pytest.raises(UploadRejected, match="doesn't look like a real DOCX"):
+            validate_file_storage(f)
+
+
 class TestSaveUpload:
     def test_saves_file_and_returns_original_name_and_path(self, tmp_path):
-        f = fake_file("photo.jpg", b"fake-jpeg-bytes")
+        f = fake_file("photo.jpg", REAL_JPEG_BYTES)
         original_name, saved_path = save_upload(f, tmp_path)
 
         assert original_name == "photo.jpg"
         assert saved_path.parent == tmp_path
         assert saved_path.exists()
-        assert saved_path.read_bytes() == b"fake-jpeg-bytes"
+        assert saved_path.read_bytes() == REAL_JPEG_BYTES
+
+    def test_saved_file_is_not_executable(self, tmp_path):
+        f = fake_file("photo.jpg", REAL_JPEG_BYTES)
+        _, saved_path = save_upload(f, tmp_path)
+        assert not (saved_path.stat().st_mode & 0o111)
 
     def test_rejects_bad_extension_without_writing_anything(self, tmp_path):
         f = fake_file("virus.exe", b"x")

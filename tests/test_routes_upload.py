@@ -2,11 +2,25 @@ import io
 from pathlib import Path
 from unittest.mock import patch
 
+from pypdf import PdfWriter
+
 from printme.extensions import db
 from printme.models import Job, seed_defaults
 from printme.services.secret_code import reset_now
 
 FIXTURES = Path(__file__).parent / "fixtures"
+REAL_JPEG_BYTES = (FIXTURES / "face_one.jpg").read_bytes()
+
+
+def _minimal_pdf_bytes():
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
+
+
+REAL_PDF_BYTES = _minimal_pdf_bytes()
 
 
 def todays_code(app):
@@ -20,7 +34,7 @@ def submit_form(client, code, **overrides):
         "code": code,
         "service": "photo",
         "qty_2x2": "1",
-        "files": (io.BytesIO(b"fake jpeg bytes"), "photo.jpg"),
+        "files": (io.BytesIO(REAL_JPEG_BYTES), "photo.jpg"),
     }
     data.update(overrides)
     return client.post("/upload", data=data, content_type="multipart/form-data")
@@ -174,8 +188,8 @@ class TestUploadSubmitHappyPathMocked:
                     "service": "document",
                     "qty": "1",
                     "files": [
-                        (io.BytesIO(b"pdf bytes"), "a.pdf"),
-                        (io.BytesIO(b"pdf bytes"), "b.pdf"),
+                        (io.BytesIO(REAL_PDF_BYTES), "a.pdf"),
+                        (io.BytesIO(REAL_PDF_BYTES), "b.pdf"),
                     ],
                 },
                 content_type="multipart/form-data",
@@ -196,7 +210,7 @@ class TestUploadSubmitHappyPathMocked:
                     "code": todays_code(app),
                     "service": "document",
                     "qty": "2",
-                    "files": (io.BytesIO(b"pdf bytes"), "form.pdf"),
+                    "files": (io.BytesIO(REAL_PDF_BYTES), "form.pdf"),
                 },
                 content_type="multipart/form-data",
             )
@@ -220,7 +234,7 @@ class TestUploadSubmitHappyPathMocked:
                     "color_mode": "color",
                     "duplex": "1",
                     "paper_size": "A4",
-                    "files": (io.BytesIO(b"pdf bytes"), "form.pdf"),
+                    "files": (io.BytesIO(REAL_PDF_BYTES), "form.pdf"),
                 },
                 content_type="multipart/form-data",
             )
@@ -242,7 +256,7 @@ class TestUploadSubmitHappyPathMocked:
                     "qty": "1",
                     "color_mode": "sepia",
                     "paper_size": "Tabloid",
-                    "files": (io.BytesIO(b"pdf bytes"), "form.pdf"),
+                    "files": (io.BytesIO(REAL_PDF_BYTES), "form.pdf"),
                 },
                 content_type="multipart/form-data",
             )
@@ -268,24 +282,26 @@ class TestUploadSubmitHappyPathMocked:
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/")
 
-    def test_a_processing_failure_does_not_fail_the_request(self, app, client):
-        """No mocking - a genuinely corrupt image (valid extension, but
-        not a real photo) triggers a REAL failure inside process_photo_job,
-        proving both that the route survives it (customer still gets
-        their ticket) and that the job actually lands in failed+flagged,
-        not just that a raised exception is swallowed."""
+    def test_a_corrupt_image_is_rejected_before_a_job_is_created(self, app, client):
+        """Content validation now catches this at upload time - a job
+        never gets created for it in the first place, rather than being
+        created and then failing inside the pipeline. Pipeline-level
+        resilience to an unreadable image (for anything that somehow
+        gets past this layer) is covered directly at the unit level in
+        test_photo_pipeline.py::test_unreadable_image_marks_job_failed_and_reraises."""
+        with app.app_context():
+            before = Job.query.count()
+
         resp = submit_form(
             client,
             todays_code(app),
             files=(io.BytesIO(b"not a real jpeg"), "photo.jpg"),
         )
-        assert resp.status_code == 302
+        assert resp.status_code == 400
+        assert b"doesn&#39;t look like a real JPG" in resp.data
 
         with app.app_context():
-            job = Job.query.filter_by(customer_name="Maria Alvarez").one()
-            assert job.status == "failed"
-            assert job.needs_attention is True
-            assert "processing failed" in job.attention_reason.lower()
+            assert Job.query.count() == before
 
 
 class TestUploadSubmitRealPipeline:
