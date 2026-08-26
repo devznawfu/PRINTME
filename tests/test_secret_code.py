@@ -130,5 +130,46 @@ class TestValidate:
             assert secret_code.validate(old, db.session) is False
 
 
+class TestLockout:
+    def test_not_locked_out_before_max_attempts(self):
+        sess = {}
+        for _ in range(secret_code.MAX_CODE_ATTEMPTS - 1):
+            secret_code.record_failed_attempt(sess)
+        assert secret_code.is_locked_out(sess) is False
+
+    def test_locked_out_at_max_attempts_within_window(self):
+        sess = {}
+        for _ in range(secret_code.MAX_CODE_ATTEMPTS):
+            secret_code.record_failed_attempt(sess)
+        assert secret_code.is_locked_out(sess) is True
+
+    def test_first_attempt_stamps_first_at_only_once(self):
+        sess = {}
+        secret_code.record_failed_attempt(sess)
+        first = sess["code_fail_first_at"]
+        secret_code.record_failed_attempt(sess)
+        assert sess["code_fail_first_at"] == first
+        assert sess["code_fail_count"] == 2
+
+    def test_expired_window_unlocks_and_clears_counter(self):
+        sess = {
+            "code_fail_count": secret_code.MAX_CODE_ATTEMPTS,
+            "code_fail_first_at": (
+                secret_code.utc_now() - secret_code.LOCKOUT_WINDOW - timedelta(seconds=1)
+            ).isoformat(),
+        }
+        assert secret_code.is_locked_out(sess) is False
+        assert "code_fail_count" not in sess
+        assert "code_fail_first_at" not in sess
+
+    def test_clear_code_attempts_resets_state(self):
+        sess = {}
+        for _ in range(secret_code.MAX_CODE_ATTEMPTS):
+            secret_code.record_failed_attempt(sess)
+        secret_code.clear_code_attempts(sess)
+        assert secret_code.is_locked_out(sess) is False
+        assert "code_fail_count" not in sess
+
+
 def test_model_is_exported_from_models_package():
     assert ExportedSecretCode is SecretCode

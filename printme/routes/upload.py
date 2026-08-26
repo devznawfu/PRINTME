@@ -17,6 +17,7 @@ from printme.models.job import COLOR_MODES, PAPER_SIZES, PhotoItemRow, create_jo
 from printme.services import job_state
 from printme.services.document_pipeline import process_document_job
 from printme.services.photo_pipeline import process_photo_job
+from printme.services.secret_code import clear_code_attempts, is_locked_out, record_failed_attempt
 from printme.services.secret_code import validate as validate_code
 from printme.services.uploads import UploadRejected, save_upload, validate_file_storage
 
@@ -74,8 +75,13 @@ def submit():
     errors = []
     if not name:
         errors.append("Please enter your name.")
-    if not validate_code(code, db.session):
+    if is_locked_out(session):
+        errors.append("Too many incorrect codes. Please wait about 10 minutes and try again, or ask staff for help.")
+    elif not validate_code(code, db.session):
+        record_failed_attempt(session)
         errors.append("That code doesn't look right. Ask staff for today's code.")
+    else:
+        clear_code_attempts(session)
     if service == "photo" and sum(qty_by_size.values()) == 0:
         errors.append("Please pick at least one size and quantity.")
     if not files:

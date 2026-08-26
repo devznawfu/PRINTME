@@ -83,6 +83,45 @@ class TestUploadSubmitValidation:
             assert Job.query.count() == before  # nothing was created
 
 
+class TestCodeLockout:
+    def _wrong_code(self, correct):
+        return "0000" if correct != "0000" else "1111"
+
+    def test_sixth_attempt_after_five_failures_is_locked_out_even_with_correct_code(self, app, client):
+        correct = todays_code(app)
+        wrong = self._wrong_code(correct)
+        for _ in range(5):
+            submit_form(client, wrong)
+
+        resp = submit_form(client, correct)
+        assert resp.status_code == 400
+        assert b"Too many incorrect codes" in resp.data
+
+    def test_fewer_than_five_failures_does_not_lock_out(self, app, client):
+        correct = todays_code(app)
+        wrong = self._wrong_code(correct)
+        for _ in range(4):
+            submit_form(client, wrong)
+
+        with patch("printme.routes.upload.process_photo_job"):
+            resp = submit_form(client, correct)
+        assert resp.status_code == 302
+
+    def test_successful_code_clears_the_failure_counter(self, app, client):
+        correct = todays_code(app)
+        wrong = self._wrong_code(correct)
+        for _ in range(4):
+            submit_form(client, wrong)
+
+        with patch("printme.routes.upload.process_photo_job"):
+            resp = submit_form(client, correct)
+        assert resp.status_code == 302
+
+        resp2 = submit_form(client, wrong)
+        assert resp2.status_code == 400
+        assert b"Too many incorrect codes" not in resp2.data
+
+
 class TestUploadSubmitHappyPathMocked:
     """Mocks the processing pipelines so these stay fast and focused on
     routing/DB/session behavior - the real pipelines are covered by

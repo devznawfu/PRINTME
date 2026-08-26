@@ -10,9 +10,17 @@ CLAUDE.md rules implemented here:
 """
 
 import secrets
+from datetime import datetime, timedelta
 
 from printme.extensions import db
 from printme.models.secret_code import SecretCode, today, utc_now
+
+# Brute-force lockout (CLAUDE.md flag: a 4-digit code is only 10,000
+# combinations). Tracked in the customer's own Flask session - "same
+# session" per the ask - not a server-side store, so it resets if they
+# clear cookies but that's an acceptable tradeoff for a walk-in kiosk.
+MAX_CODE_ATTEMPTS = 5
+LOCKOUT_WINDOW = timedelta(minutes=10)
 
 
 def _random_code(previous):
@@ -54,6 +62,33 @@ def reset_now(session):
     current.last_reset_at = utc_now()
     session.commit()
     return current
+
+
+def is_locked_out(flask_session):
+    """True if this browser session has failed the code check
+    MAX_CODE_ATTEMPTS times within LOCKOUT_WINDOW of its first failure.
+    Clears the counter (and returns False) once the window has passed,
+    so a customer isn't locked out forever."""
+    count = flask_session.get("code_fail_count", 0)
+    first_at = flask_session.get("code_fail_first_at")
+    if count < MAX_CODE_ATTEMPTS or first_at is None:
+        return False
+    if utc_now() - datetime.fromisoformat(first_at) >= LOCKOUT_WINDOW:
+        flask_session.pop("code_fail_count", None)
+        flask_session.pop("code_fail_first_at", None)
+        return False
+    return True
+
+
+def record_failed_attempt(flask_session):
+    if "code_fail_first_at" not in flask_session:
+        flask_session["code_fail_first_at"] = utc_now().isoformat()
+    flask_session["code_fail_count"] = flask_session.get("code_fail_count", 0) + 1
+
+
+def clear_code_attempts(flask_session):
+    flask_session.pop("code_fail_count", None)
+    flask_session.pop("code_fail_first_at", None)
 
 
 def validate(submitted, session):
