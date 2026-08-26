@@ -14,12 +14,12 @@ from printme.routes.admin_auth import admin_required
 from printme.services import job_state
 from printme.services.photo_sheet import pack_pending_photo_jobs
 from printme.services.photo_sheet_renderer import render_photo_sheet
-from printme.services.printing.mock_backend import MockPrinterBackend
+from printme.services.printing import get_printer_backend
 from printme.services.printing.printer_registry import available_printers, is_valid_printer
 
 bp = Blueprint("admin_photo_sheets", __name__, url_prefix="/admin/photo-sheets")
 
-_printer_backend = MockPrinterBackend()
+_printer_backend = get_printer_backend()
 
 
 @bp.route("/", methods=["GET"])

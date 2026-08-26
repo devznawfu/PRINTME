@@ -10,17 +10,17 @@ from printme.models.job import Job, JobStatus
 from printme.routes.admin_auth import admin_required
 from printme.services import job_state
 from printme.services.pricing import price_job
-from printme.services.printing.mock_backend import MockPrinterBackend
+from printme.services.printing import get_printer_backend
 from printme.services.printing.printer_registry import available_printers, is_valid_printer
 from printme.services.retention import DEFAULT_RETENTION_DAYS, sweep_old_uploads
 from printme.services.secret_code import reset_now
 
 bp = Blueprint("api", __name__, url_prefix="/admin")
 
-# One process-lifetime mock backend so its print_log is inspectable
-# across requests during development. Swapped for the real win32
-# backend in Phase 8 - everything here only depends on PrinterBackend.
-_printer_backend = MockPrinterBackend()
+# One process-lifetime backend instance - the real win32 backend on
+# Windows, the mock (with an inspectable print_log) everywhere else.
+# Everything here only depends on the PrinterBackend interface.
+_printer_backend = get_printer_backend()
 
 
 @bp.route("/code/reset", methods=["POST"])
