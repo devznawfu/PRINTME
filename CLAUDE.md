@@ -35,7 +35,9 @@ templates, do not redesign from scratch:
 - **Document Printing**: PDF, DOCX, JPG, PNG. Printed as close to as-is as possible.
   DOCX is silently converted to PDF before printing (LibreOffice headless or equivalent) —
   no visible intermediate step shown to the customer.
-  Options: color/black-and-white, single/double-sided, paper size (Letter/A4/Legal), copies.
+  Options: color/black-and-white, copies. Always single-sided, always A4 — these
+  were previously customer choices but were dropped as unnecessary complexity;
+  every print job in practice is A4, single-sided.
 - Photocopying is explicitly OUT of scope — do not build any feature for it.
 
 ### Smart Layout Engine

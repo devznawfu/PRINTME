@@ -10,7 +10,6 @@
   const serviceInput = form.querySelector('input[name="service"]');
   const sizePicker = document.getElementById("size-picker");
   const colorModeInput = form.querySelector('input[name="color_mode"]');
-  const duplexInput = form.querySelector('input[name="duplex"]');
   const documentOptions = document.getElementById("document-options");
   const filesInput = document.getElementById("files-input");
   const fileListEl = document.getElementById("file-list");
@@ -22,7 +21,6 @@
   const state = {
     service: serviceInput.value || "photo",
     colorMode: colorModeInput.value || "bw",
-    duplex: duplexInput.value || "",
     files: [],
   };
 
@@ -114,21 +112,6 @@
     });
   }
 
-  function setDuplex(duplex) {
-    state.duplex = duplex;
-    duplexInput.value = duplex;
-    document.querySelectorAll("[data-duplex-pick]").forEach((btn) => {
-      const active = btn.dataset.duplexPick === duplex;
-      btn.classList.toggle("bg-btn-bg", active);
-      btn.classList.toggle("bg-panel", !active);
-      btn.classList.toggle("text-btn-text", active);
-      btn.classList.toggle("border-2", active);
-      btn.classList.toggle("border", !active);
-      btn.classList.toggle("border-text", active);
-      btn.classList.toggle("border-line", !active);
-    });
-  }
-
   function isReady() {
     const nameOk = nameInput.value.trim().length > 0;
     const codeOk = /^\d{4}$/.test(codeInput.value.trim());
@@ -195,9 +178,6 @@
   document.querySelectorAll("[data-color-pick]").forEach((btn) => {
     btn.addEventListener("click", () => setColorMode(btn.dataset.colorPick));
   });
-  document.querySelectorAll("[data-duplex-pick]").forEach((btn) => {
-    btn.addEventListener("click", () => setDuplex(btn.dataset.duplexPick));
-  });
 
   codeInput.addEventListener("input", () => {
     codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 4);
@@ -214,7 +194,6 @@
 
   setService(state.service);
   setColorMode(state.colorMode);
-  setDuplex(state.duplex);
   renderFileList();
   updateUI();
 

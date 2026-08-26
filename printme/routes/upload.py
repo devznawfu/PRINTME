@@ -19,7 +19,7 @@ from config import (
     PRIMARY_PHOTO_SIZES,
 )
 from printme.extensions import db
-from printme.models.job import COLOR_MODES, PAPER_SIZES, PhotoItemRow, create_job_with_ticket
+from printme.models.job import COLOR_MODES, PhotoItemRow, create_job_with_ticket
 from printme.services import job_state
 from printme.services.document_pipeline import process_document_job
 from printme.services.photo_pipeline import process_photo_job
@@ -59,7 +59,6 @@ def form():
         photo_sizes=PHOTO_SIZES,
         primary_photo_sizes=PRIMARY_PHOTO_SIZES,
         more_photo_sizes=MORE_PHOTO_SIZES,
-        paper_sizes=PAPER_SIZES,
     )
 
 
@@ -74,8 +73,6 @@ def submit():
     }
     qty = _clamp_qty(request.form.get("qty"))
     color_mode = request.form.get("color_mode") if request.form.get("color_mode") in COLOR_MODES else "bw"
-    duplex = bool(request.form.get("duplex"))
-    paper_size = request.form.get("paper_size") if request.form.get("paper_size") in PAPER_SIZES else "Letter"
     files = [f for f in request.files.getlist("files") if f and f.filename]
     allowed_extensions = PHOTO_ALLOWED_EXTENSIONS if service == "photo" else ALLOWED_UPLOAD_EXTENSIONS
 
@@ -111,15 +108,12 @@ def submit():
             photo_sizes=PHOTO_SIZES,
             primary_photo_sizes=PRIMARY_PHOTO_SIZES,
             more_photo_sizes=MORE_PHOTO_SIZES,
-            paper_sizes=PAPER_SIZES,
             errors=errors,
             name=name,
             service=service,
             qty_by_size=qty_by_size,
             qty=qty,
             color_mode=color_mode,
-            duplex="1" if duplex else "",
-            paper_size=paper_size,
         ), status
 
     if errors:
@@ -141,7 +135,9 @@ def submit():
             upload_path=str(saved_path),
         )
         if service == "document":
-            job_fields.update(color_mode=color_mode, duplex=duplex, paper_size=paper_size, copies=qty)
+            # Sides/paper size are no longer customer choices - every
+            # document prints single-sided on A4 (CLAUDE.md).
+            job_fields.update(color_mode=color_mode, duplex=False, paper_size="A4", copies=qty)
 
         job = create_job_with_ticket(db.session, **job_fields)
 

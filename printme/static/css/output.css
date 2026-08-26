@@ -354,9 +354,6 @@
   .h-\[54px\] {
     height: 54px;
   }
-  .h-\[58px\] {
-    height: 58px;
-  }
   .h-\[66px\] {
     height: 66px;
   }
@@ -1037,6 +1034,10 @@
   .outline {
     outline-style: var(--tw-outline-style);
     outline-width: 1px;
+  }
+  .grayscale {
+    --tw-grayscale: grayscale(100%);
+    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
   .sepia {
     --tw-sepia: sepia(100%);

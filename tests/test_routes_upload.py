@@ -228,10 +228,10 @@ class TestUploadSubmitHappyPathMocked:
             job = Job.query.filter_by(customer_name="Ben").one()
             assert job.color_mode == "bw"
             assert job.duplex is False
-            assert job.paper_size == "Letter"
+            assert job.paper_size == "A4"
             assert job.copies == 2
 
-    def test_document_job_honors_customer_chosen_options(self, app, client):
+    def test_document_job_honors_customer_chosen_color_mode(self, app, client):
         with patch("printme.routes.upload.process_document_job"):
             client.post(
                 "/upload",
@@ -241,8 +241,6 @@ class TestUploadSubmitHappyPathMocked:
                     "service": "document",
                     "qty": "2",
                     "color_mode": "color",
-                    "duplex": "1",
-                    "paper_size": "A4",
                     "files": (io.BytesIO(REAL_PDF_BYTES), "form.pdf"),
                 },
                 content_type="multipart/form-data",
@@ -251,10 +249,32 @@ class TestUploadSubmitHappyPathMocked:
         with app.app_context():
             job = Job.query.filter_by(customer_name="Ben").one()
             assert job.color_mode == "color"
-            assert job.duplex is True
+
+    def test_document_sides_and_paper_size_are_always_fixed(self, app, client):
+        """Sides/paper size are no longer customer choices - single-sided
+        A4 always, even if a stale/crafted client still posts these
+        fields (the route doesn't read them at all anymore)."""
+        with patch("printme.routes.upload.process_document_job"):
+            client.post(
+                "/upload",
+                data={
+                    "name": "Ben",
+                    "code": todays_code(app),
+                    "service": "document",
+                    "qty": "1",
+                    "duplex": "1",
+                    "paper_size": "Legal",
+                    "files": (io.BytesIO(REAL_PDF_BYTES), "form.pdf"),
+                },
+                content_type="multipart/form-data",
+            )
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Ben").one()
+            assert job.duplex is False
             assert job.paper_size == "A4"
 
-    def test_document_job_rejects_invalid_options_with_defaults(self, app, client):
+    def test_document_job_rejects_invalid_color_mode_with_default(self, app, client):
         with patch("printme.routes.upload.process_document_job"):
             client.post(
                 "/upload",
@@ -264,7 +284,6 @@ class TestUploadSubmitHappyPathMocked:
                     "service": "document",
                     "qty": "1",
                     "color_mode": "sepia",
-                    "paper_size": "Tabloid",
                     "files": (io.BytesIO(REAL_PDF_BYTES), "form.pdf"),
                 },
                 content_type="multipart/form-data",
@@ -273,7 +292,6 @@ class TestUploadSubmitHappyPathMocked:
         with app.app_context():
             job = Job.query.filter_by(customer_name="Ben").one()
             assert job.color_mode == "bw"
-            assert job.paper_size == "Letter"
 
     def test_confirmation_page_shows_ticket_then_clears_session(self, app, client):
         with patch("printme.routes.upload.process_photo_job"):

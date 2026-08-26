@@ -36,7 +36,6 @@
   <form id="upload-form" method="post" action="{{ url_for('upload.submit') }}" enctype="multipart/form-data" class="flex flex-col gap-[34px] px-[22px] pt-[26px] pb-10">
     <input type="hidden" name="service" value="{{ service or 'photo' }}">
     <input type="hidden" name="color_mode" value="{{ color_mode or 'bw' }}">
-    <input type="hidden" name="duplex" value="{{ duplex or '' }}">
 
     <div class="flex flex-col gap-3.5">
       <h2 class="text-[19px] font-bold tracking-tight">What are we printing?</h2>
@@ -96,21 +95,6 @@
           <button type="button" data-color-pick="bw" class="min-h-[58px] rounded-full border border-line bg-panel px-[22px] text-[17px] font-bold">Black &amp; white</button>
           <button type="button" data-color-pick="color" class="min-h-[58px] rounded-full border border-line bg-panel px-[22px] text-[17px] font-bold">Color</button>
         </div>
-      </div>
-      <div class="flex flex-col gap-3.5">
-        <h2 class="text-[19px] font-bold tracking-tight">Sides?</h2>
-        <div class="flex flex-wrap gap-2.5">
-          <button type="button" data-duplex-pick="" class="min-h-[58px] rounded-full border border-line bg-panel px-[22px] text-[17px] font-bold">Single-sided</button>
-          <button type="button" data-duplex-pick="1" class="min-h-[58px] rounded-full border border-line bg-panel px-[22px] text-[17px] font-bold">Double-sided</button>
-        </div>
-      </div>
-      <div class="flex flex-col gap-3.5">
-        <label for="paper_size" class="text-[19px] font-bold tracking-tight">Paper size</label>
-        <select id="paper_size" name="paper_size" class="h-[58px] rounded-2xl border border-line bg-panel px-5 text-[17px] outline-none">
-          {% for p in paper_sizes %}
-          <option value="{{ p }}" {{ "selected" if p == (paper_size or "Letter") else "" }}>{{ p }}</option>
-          {% endfor %}
-        </select>
       </div>
       <div class="flex items-center justify-between gap-4">
         <div class="flex flex-col gap-0.5">
