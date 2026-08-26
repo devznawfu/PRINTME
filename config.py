@@ -1,6 +1,10 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 BASE_DIR = Path(__file__).resolve().parent
 INSTANCE_DIR = BASE_DIR / "instance"
 UPLOAD_DIR = BASE_DIR / "uploads"
@@ -32,6 +36,7 @@ class Config:
     MAX_CONTENT_LENGTH = MAX_UPLOAD_SIZE_BYTES
     UPLOAD_DIR = UPLOAD_DIR
     PROCESSED_DIR = PROCESSED_DIR
+    ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "print")
     UPLOAD_RETENTION_DAYS = 2
     SCHEDULER_ENABLED = True

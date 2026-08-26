@@ -17,7 +17,7 @@
     <form method="post" action="{{ url_for('admin_auth.do_login') }}" class="flex flex-col gap-[22px] rounded-3xl border border-border bg-panel px-8 pt-[34px] pb-8 shadow-[0_18px_44px_var(--pm-shadow,rgba(0,0,0,0.25))]">
       <div class="flex flex-col gap-2.5">
         <label for="username" class="text-lg font-bold">Username</label>
-        <input id="username" name="username" type="text" placeholder="e.g. maria" value="{{ username or '' }}" class="h-[66px] rounded-2xl border border-line bg-inset px-5 text-xl text-text outline-none">
+        <input id="username" name="username" type="text" placeholder="Staff username" value="{{ username or '' }}" class="h-[66px] rounded-2xl border border-line bg-inset px-5 text-xl text-text outline-none">
       </div>
       <div class="flex flex-col gap-2.5">
         <label for="password" class="text-lg font-bold">Password</label>
@@ -29,8 +29,6 @@
       {% endif %}
 
       <button type="submit" class="min-h-[72px] w-full rounded-2xl bg-btn-bg text-xl font-bold text-btn-text transition-colors hover:bg-btn-hover">Sign in</button>
-
-      <div class="text-center text-[15.5px] leading-relaxed text-faint">Demo login &mdash; username <b class="text-muted">maria</b>, password <b class="text-muted">print</b></div>
     </form>
 
     <div class="text-center text-[15.5px] text-faint">Forgot your password? Ask the shop owner to reset it for you.</div>

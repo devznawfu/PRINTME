@@ -1,7 +1,6 @@
-"""Admin auth: single shared password (CLAUDE.md - not per-staff
-accounts). The login form's "Username" field from the design reference
-is repurposed as a non-authenticating display name, feeding the
-"Signed in as X" greeting - only the password is actually checked.
+"""Admin auth: single shared username+password (CLAUDE.md - not
+per-staff accounts). Both are checked; the submitted username also
+doubles as the "Signed in as X" display name on success.
 """
 
 import secrets
@@ -34,7 +33,9 @@ def do_login():
     username = (request.form.get("username") or "").strip()
     password = request.form.get("password") or ""
 
-    if secrets.compare_digest(password, current_app.config["ADMIN_PASSWORD"]):
+    username_ok = secrets.compare_digest(username, current_app.config["ADMIN_USERNAME"])
+    password_ok = secrets.compare_digest(password, current_app.config["ADMIN_PASSWORD"])
+    if username_ok and password_ok:
         session["admin_authed"] = True
         session["admin_display_name"] = username or "staff"
         return redirect(url_for("admin_dashboard.dashboard"))
