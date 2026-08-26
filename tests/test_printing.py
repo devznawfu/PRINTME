@@ -63,6 +63,16 @@ class TestMockPrinterBackend:
         backend = MockPrinterBackend()
         assert backend.list_printers() == available_printers()
 
+    def test_grayscale_flag_is_logged(self):
+        backend = MockPrinterBackend()
+        backend.print_file("/a.pdf", "Brother DCP-T420W", grayscale=True)
+        assert backend.print_log[0]["grayscale"] is True
+
+    def test_grayscale_defaults_to_false(self):
+        backend = MockPrinterBackend()
+        backend.print_file("/a.pdf", "Brother DCP-T420W")
+        assert backend.print_log[0]["grayscale"] is False
+
     def test_print_file_logs_the_job_and_returns_a_job_id(self):
         backend = MockPrinterBackend()
         job_id = backend.print_file("/uploads/doc.pdf", "Brother DCP-T420W", copies=2)

@@ -81,6 +81,32 @@ class TestImagesFor:
         assert abs(img.width - round(200 / 72 * 300)) <= 1
         assert abs(img.height - round(100 / 72 * 300)) <= 1
 
+    def test_grayscale_png_is_l_mode(self, tmp_path):
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (40, 30), "white").save(path)
+
+        images = _images_for(path, grayscale=True)
+
+        assert images[0].mode == "L"
+
+    def test_grayscale_pdf_pages_are_l_mode(self, tmp_path):
+        path = tmp_path / "doc.pdf"
+        path.write_bytes(_multi_page_pdf_bytes(2))
+
+        images = _images_for(path, grayscale=True)
+
+        assert all(img.mode == "L" for img in images)
+
+    def test_default_is_not_grayscale(self, tmp_path):
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (40, 30), "white").save(path)
+
+        assert _images_for(path)[0].mode == "RGB"
+
 
 @pytest.fixture
 def fake_pywin32(monkeypatch):
@@ -140,6 +166,20 @@ class TestPrintFile:
         assert fake_hdc.StartDoc.call_count == 3
         assert fake_hdc.EndDoc.call_count == 3
         assert fake_hdc.StartPage.call_count == 3  # one page per copy, one image
+
+    def test_grayscale_flag_reaches_the_drawn_image(self, fake_pywin32, tmp_path):
+        import printme.services.printing.win32_backend as mod
+
+        path = tmp_path / "sheet.png"
+        from PIL import Image
+
+        Image.new("RGB", (10, 10), "white").save(path)
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W", grayscale=True)
+
+        drawn_image = mod.ImageWin.Dib.call_args[0][0]
+        assert drawn_image.mode == "L"
 
     def test_returns_a_job_id(self, fake_pywin32, tmp_path):
         path = tmp_path / "sheet.png"

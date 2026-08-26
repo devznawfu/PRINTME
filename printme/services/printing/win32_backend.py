@@ -36,21 +36,24 @@ from printme.services.printing.printer_registry import available_printers, is_va
 _PDF_ZOOM = 300 / 72
 
 
-def _images_for(path):
-    """Every page of `path` as an RGB PIL Image - one element for a
-    PNG/JPG, one per page for a PDF."""
+def _images_for(path, grayscale=False):
+    """Every page of `path` as a PIL Image (RGB, or "L" when grayscale
+    is requested) - one element for a PNG/JPG, one per page for a PDF.
+    PIL's ImageWin.Dib supports "L" mode directly, so grayscale pages
+    don't need an RGB round-trip."""
+    mode = "L" if grayscale else "RGB"
     if Path(path).suffix.lower() == ".pdf":
         doc = pymupdf.open(str(path))
         try:
             matrix = pymupdf.Matrix(_PDF_ZOOM, _PDF_ZOOM)
             return [
-                Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+                Image.frombytes("RGB", (pix.width, pix.height), pix.samples).convert(mode)
                 for pix in (page.get_pixmap(matrix=matrix) for page in doc)
             ]
         finally:
             doc.close()
     with Image.open(path) as img:
-        return [img.convert("RGB")]
+        return [img.convert(mode)]
 
 
 def _draw_images(images, printer_name):
@@ -84,14 +87,14 @@ class Win32PrinterBackend(PrinterBackend):
     def list_printers(self):
         return available_printers()
 
-    def print_file(self, file_path, printer_name, copies=1):
+    def print_file(self, file_path, printer_name, copies=1, grayscale=False):
         if not is_valid_printer(printer_name):
             raise PrintError(f"unknown printer: {printer_name!r}")
         if copies < 1:
             raise PrintError("copies must be at least 1")
 
         try:
-            images = _images_for(file_path)
+            images = _images_for(file_path, grayscale=grayscale)
             # No driver-level copy count is used (StartDoc/EndDoc is
             # per-copy below), so this loop is what "copies" means here.
             for _ in range(copies):

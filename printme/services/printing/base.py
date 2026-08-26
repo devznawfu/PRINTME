@@ -21,6 +21,7 @@ class PrinterBackend(ABC):
         """Printer names currently available through this backend."""
 
     @abstractmethod
-    def print_file(self, file_path, printer_name, copies=1):
+    def print_file(self, file_path, printer_name, copies=1, grayscale=False):
         """Send file_path to printer_name. Raises PrintError on
-        failure. Returns an opaque, backend-specific job identifier."""
+        failure. Returns an opaque, backend-specific job identifier.
+        grayscale=True means print in black and white only."""

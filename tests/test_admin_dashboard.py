@@ -121,3 +121,29 @@ class TestPrintDocumentHonorsSelectedPrinter:
         new_entries = _printer_backend.print_log[before:]
         assert len(new_entries) == 1
         assert new_entries[0]["printer_name"] == "Brother DCP-T430W"
+
+    def test_bw_job_prints_grayscale(self, app, client):
+        with app.app_context():
+            job = make_ready_document_job(color_mode="bw")
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        client.post(f"/admin/jobs/{job_id}/print", data={"printer": "Brother DCP-T430W"})
+
+        assert _printer_backend.print_log[before:][0]["grayscale"] is True
+
+    def test_color_job_does_not_print_grayscale(self, app, client):
+        with app.app_context():
+            job = make_ready_document_job(color_mode="color")
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        client.post(f"/admin/jobs/{job_id}/print", data={"printer": "Brother DCP-T430W"})
+
+        assert _printer_backend.print_log[before:][0]["grayscale"] is False

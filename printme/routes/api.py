@@ -95,7 +95,12 @@ def print_document(job_id):
 
     try:
         job_state.mark_printing(db.session, job)
-        _printer_backend.print_file(job.processed_path, printer_name, copies=job.copies or 1)
+        _printer_backend.print_file(
+            job.processed_path,
+            printer_name,
+            copies=job.copies or 1,
+            grayscale=job.color_mode == "bw",
+        )
         job_state.mark_done(db.session, job)
     except Exception as exc:
         job_state.mark_failed(db.session, job, f"Printing failed: {exc}")
