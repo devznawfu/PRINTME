@@ -1,33 +1,83 @@
 """Real printer backend for the Windows target deployment (CLAUDE.md:
-win32-based, local, never network/IPP). Only ever imported behind the
-sys.platform == "win32" check in printme/services/printing/__init__.py
-- win32api isn't installed on non-Windows platforms at all (matches
-requirements.txt's own pywin32==312; sys_platform == "win32" gating).
+win32-based, local, never network/IPP). Normally only ever imported
+behind the sys.platform == "win32" check in
+printme/services/printing/__init__.py - win32ui/win32con aren't
+installed on non-Windows platforms at all (matches requirements.txt's
+own pywin32==312; sys_platform == "win32" gating). They're imported
+lazily inside _draw_images() rather than at module level specifically
+so _images_for() (pure PyMuPDF/Pillow rasterization, no GDI) stays
+importable and directly testable on any platform, including this dev
+container.
 
-Uses the ShellExecute "printto" verb rather than the low-level
-win32print spooler API directly: win32print's raw interface sends
-bytes straight to the print queue and expects them already in a
-format the printer driver understands (PostScript/PCL/etc) - it does
-not rasterize a PDF, JPEG, or PNG for you. ShellExecute delegates that
-rendering to whichever application Windows already has registered to
-open .pdf/.jpg/.png (Edge, Photos, etc.), the same mechanism as
-right-click > Print in Explorer, and its "printto" verb lets you name
-a *specific* printer instead of the system default - which is exactly
-what the admin's printer dropdown needs.
-
-Known limitation, unverifiable from a Linux dev container: ShellExecute
-is fire-and-forget and hands off to whatever app is registered as the
-default handler for that file type - depending on that app, printing
-may not be fully silent (a window, or even a dialog, could appear).
-Confirm actual behavior on the real admin PC.
+Prints by drawing rasterized pages directly into a device context
+bound to the named printer (win32ui.CreateDC().CreatePrinterDC(...) +
+PIL's ImageWin.Dib), rather than the earlier ShellExecute("printto",
+...) approach. ShellExecute hands the file to whatever app Windows has
+registered as the default handler for that extension - the first
+real-world print attempt failed exactly there ("A device attached to
+the system is not functioning", from ShellExecute itself, not the
+printer), so this avoids depending on that registration existing or
+behaving at all. PDFs are rasterized page-by-page with PyMuPDF first
+(PIL can't read PDFs) so every supported file type goes through the
+same drawing code.
 """
 
 import time
+from pathlib import Path
 
-import win32api
+import pymupdf
+from PIL import Image, ImageWin
 
 from printme.services.printing.base import PrintError, PrinterBackend
 from printme.services.printing.printer_registry import available_printers, is_valid_printer
+
+# PDF page geometry is in points (1/72in); render at the same 300 DPI
+# the rest of the pipeline uses (printme/layout_engine/sizes.py).
+_PDF_ZOOM = 300 / 72
+
+
+def _images_for(path):
+    """Every page of `path` as an RGB PIL Image - one element for a
+    PNG/JPG, one per page for a PDF."""
+    if Path(path).suffix.lower() == ".pdf":
+        doc = pymupdf.open(str(path))
+        try:
+            matrix = pymupdf.Matrix(_PDF_ZOOM, _PDF_ZOOM)
+            return [
+                Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+                for pix in (page.get_pixmap(matrix=matrix) for page in doc)
+            ]
+        finally:
+            doc.close()
+    with Image.open(path) as img:
+        return [img.convert("RGB")]
+
+
+def _draw_images(images, printer_name):
+    """Print every image in `images` as its own page of one document,
+    scaled to fit the printer's printable area (preserving aspect
+    ratio, centered) - GDI's stretch-blit handles resampling, so this
+    is correct regardless of the printer's native DPI vs. the source
+    images' 300 DPI."""
+    import win32con
+    import win32ui
+
+    hdc = win32ui.CreateDC()
+    hdc.CreatePrinterDC(printer_name)
+    hdc.StartDoc("PRINTME print job")
+    try:
+        for img in images:
+            hdc.StartPage()
+            page_w = hdc.GetDeviceCaps(win32con.HORZRES)
+            page_h = hdc.GetDeviceCaps(win32con.VERTRES)
+            scale = min(page_w / img.width, page_h / img.height)
+            w, h = round(img.width * scale), round(img.height * scale)
+            x, y = (page_w - w) // 2, (page_h - h) // 2
+            ImageWin.Dib(img).draw(hdc.GetHandleOutput(), (x, y, x + w, y + h))
+            hdc.EndPage()
+    finally:
+        hdc.EndDoc()
+        hdc.DeleteDC()
 
 
 class Win32PrinterBackend(PrinterBackend):
@@ -41,12 +91,12 @@ class Win32PrinterBackend(PrinterBackend):
             raise PrintError("copies must be at least 1")
 
         try:
-            # ShellExecute's print verb has no native copies parameter -
-            # relaunching the handler once per copy is the standard
-            # workaround (each copy briefly reopens the handler app).
+            images = _images_for(file_path)
+            # No driver-level copy count is used (StartDoc/EndDoc is
+            # per-copy below), so this loop is what "copies" means here.
             for _ in range(copies):
-                win32api.ShellExecute(0, "printto", str(file_path), f'"{printer_name}"', ".", 0)
+                _draw_images(images, printer_name)
         except Exception as exc:
-            raise PrintError(f"could not send {file_path} to {printer_name}: {exc}") from exc
+            raise PrintError(f"could not print {file_path} to {printer_name}: {exc}") from exc
 
         return f"win32-{printer_name}-{int(time.time())}"

@@ -1,5 +1,4 @@
 import sys
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,8 +19,6 @@ class TestGetPrinterBackend:
 
     def test_windows_returns_win32_backend(self, monkeypatch):
         monkeypatch.setattr(sys, "platform", "win32")
-        monkeypatch.setitem(sys.modules, "win32api", MagicMock())
-        monkeypatch.delitem(sys.modules, "printme.services.printing.win32_backend", raising=False)
 
         from printme.services.printing.win32_backend import Win32PrinterBackend
 
