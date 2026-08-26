@@ -11,6 +11,16 @@
     <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to queue</a>
   </div>
 
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}
+  <div class="flex flex-col gap-2 rounded-2xl border border-err-line bg-err-bg p-4 text-sm text-err-text">
+    {% for message in messages %}
+    <div>{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
   {% if not sheets %}
   <div class="rounded-3xl border border-dashed border-dash p-14 text-center text-lg text-faint">No pending photo jobs to pack right now.</div>
   {% endif %}

@@ -5,7 +5,7 @@ no individual per-job print button; only Document jobs do)."""
 
 from pathlib import Path
 
-from flask import Blueprint, current_app, redirect, render_template, send_file, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, send_file, url_for
 
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
@@ -15,6 +15,7 @@ from printme.services import job_state
 from printme.services.photo_sheet import pack_pending_photo_jobs
 from printme.services.photo_sheet_renderer import render_photo_sheet
 from printme.services.printing import get_printer_backend
+from printme.services.printing.base import PrintError
 from printme.services.printing.printer_registry import available_printers, is_valid_printer
 
 bp = Blueprint("admin_photo_sheets", __name__, url_prefix="/admin/photo-sheets")
@@ -70,7 +71,12 @@ def print_sheet(sheet_id):
     if not is_valid_printer(printer_name):
         return redirect(url_for("admin_photo_sheets.photo_sheets"))
 
-    _printer_backend.print_file(sheet.rendered_path, printer_name, copies=1)
+    try:
+        _printer_backend.print_file(sheet.rendered_path, printer_name, copies=1)
+    except PrintError as exc:
+        current_app.logger.warning("print_sheet %s failed: %s", sheet_id, exc)
+        flash(f"Print failed: {printer_name} didn't respond. Check the printer and try again.")
+        return redirect(url_for("admin_photo_sheets.photo_sheets"))
 
     job_ids = {item.job_id for item in sheet.items}
     for job_id in job_ids:
