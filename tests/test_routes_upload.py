@@ -53,6 +53,15 @@ class TestUploadSubmitValidation:
         assert resp.status_code == 400
         assert b"enter your name" in resp.data
 
+    def test_pdf_rejected_for_photo_service(self, app, client):
+        resp = submit_form(
+            client,
+            todays_code(app),
+            files=(io.BytesIO(REAL_PDF_BYTES), "scan.pdf"),
+        )
+        assert resp.status_code == 400
+        assert b"supported file type" in resp.data
+
     def test_wrong_code_rerenders_with_error(self, app, client):
         submit_form(client, todays_code(app))  # establish a code exists
         resp = submit_form(client, "0000")

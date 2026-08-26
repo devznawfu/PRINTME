@@ -28,21 +28,23 @@ def extension_of(filename):
     return filename.rsplit(".", 1)[-1].lower()
 
 
-def is_allowed_extension(filename):
-    return extension_of(filename) in ALLOWED_UPLOAD_EXTENSIONS
+def is_allowed_extension(filename, allowed_extensions=ALLOWED_UPLOAD_EXTENSIONS):
+    return extension_of(filename) in allowed_extensions
 
 
 def is_within_size_limit(size_bytes):
     return 0 < size_bytes <= MAX_UPLOAD_SIZE_BYTES
 
 
-def validate_upload(filename, size_bytes):
+def validate_upload(filename, size_bytes, allowed_extensions=ALLOWED_UPLOAD_EXTENSIONS):
     """Raise UploadRejected with a customer-facing reason, or return
-    None if the file is acceptable."""
+    None if the file is acceptable. allowed_extensions lets a caller
+    narrow the allowlist (e.g. photo jobs shouldn't accept a PDF/DOCX)
+    - defaults to every extension CLAUDE.md allows."""
     if not filename:
         raise UploadRejected("No file selected.")
-    if not is_allowed_extension(filename):
-        allowed = ", ".join(sorted(ALLOWED_UPLOAD_EXTENSIONS))
+    if not is_allowed_extension(filename, allowed_extensions):
+        allowed = ", ".join(sorted(allowed_extensions))
         raise UploadRejected(f"'{filename}' isn't a supported file type ({allowed}).")
     if size_bytes <= 0:
         raise UploadRejected(f"'{filename}' is empty.")
@@ -122,7 +124,7 @@ def file_storage_size(file_storage):
     return size
 
 
-def validate_file_storage(file_storage):
+def validate_file_storage(file_storage, allowed_extensions=ALLOWED_UPLOAD_EXTENSIONS):
     """validate_upload() for a Werkzeug FileStorage directly, plus a
     real content check the metadata-only validate_upload() can't do
     (it doesn't have the bytes) - the claimed extension has to match
@@ -131,7 +133,7 @@ def validate_file_storage(file_storage):
     so one bad file can reject the submission atomically instead of
     silently dropping just that file."""
     filename = file_storage.filename or ""
-    validate_upload(filename, file_storage_size(file_storage))
+    validate_upload(filename, file_storage_size(file_storage), allowed_extensions)
 
     ext = extension_of(filename)
     check = _CONTENT_CHECKS.get(ext)
@@ -139,14 +141,14 @@ def validate_file_storage(file_storage):
         raise UploadRejected(f"'{filename}' doesn't look like a real {ext.upper()} file.")
 
 
-def save_upload(file_storage, upload_dir):
+def save_upload(file_storage, upload_dir, allowed_extensions=ALLOWED_UPLOAD_EXTENSIONS):
     """Validate and save a Flask/Werkzeug FileStorage to upload_dir.
 
     Returns (original_filename, saved_path). Raises UploadRejected
     without writing anything if validation fails.
     """
     filename = file_storage.filename or ""
-    validate_file_storage(file_storage)
+    validate_file_storage(file_storage, allowed_extensions)
 
     upload_dir = Path(upload_dir)
     dest = upload_dir / build_storage_filename(filename)

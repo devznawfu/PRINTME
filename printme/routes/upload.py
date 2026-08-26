@@ -11,7 +11,13 @@ problem in the Needs Attention queue.
 
 from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
 
-from config import MORE_PHOTO_SIZES, PHOTO_SIZES, PRIMARY_PHOTO_SIZES
+from config import (
+    ALLOWED_UPLOAD_EXTENSIONS,
+    MORE_PHOTO_SIZES,
+    PHOTO_ALLOWED_EXTENSIONS,
+    PHOTO_SIZES,
+    PRIMARY_PHOTO_SIZES,
+)
 from printme.extensions import db
 from printme.models.job import COLOR_MODES, PAPER_SIZES, PhotoItemRow, create_job_with_ticket
 from printme.services import job_state
@@ -71,6 +77,7 @@ def submit():
     duplex = bool(request.form.get("duplex"))
     paper_size = request.form.get("paper_size") if request.form.get("paper_size") in PAPER_SIZES else "Letter"
     files = [f for f in request.files.getlist("files") if f and f.filename]
+    allowed_extensions = PHOTO_ALLOWED_EXTENSIONS if service == "photo" else ALLOWED_UPLOAD_EXTENSIONS
 
     errors = []
     if not name:
@@ -94,7 +101,7 @@ def submit():
     # error, since we redirect past the point where errors render).
     for f in files:
         try:
-            validate_file_storage(f)
+            validate_file_storage(f, allowed_extensions)
         except UploadRejected as exc:
             errors.append(str(exc))
 
@@ -122,7 +129,7 @@ def submit():
     tickets = []
     for f in files:
         try:
-            original_filename, saved_path = save_upload(f, upload_dir)
+            original_filename, saved_path = save_upload(f, upload_dir, allowed_extensions)
         except UploadRejected as exc:
             errors.append(str(exc))
             continue

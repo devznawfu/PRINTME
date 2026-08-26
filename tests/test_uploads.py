@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from werkzeug.datastructures import FileStorage
 
-from config import MAX_UPLOAD_SIZE_BYTES
+from config import MAX_UPLOAD_SIZE_BYTES, PHOTO_ALLOWED_EXTENSIONS
 from printme.services.uploads import (
     UploadRejected,
     build_storage_filename,
@@ -43,6 +43,14 @@ class TestExtensionChecks:
 
     def test_extension_of_is_case_insensitive_and_takes_last_segment(self):
         assert extension_of("a.b.PDF") == "pdf"
+
+    @pytest.mark.parametrize("filename", ["photo.jpg", "id.png"])
+    def test_photo_allowlist_accepts_images(self, filename):
+        assert is_allowed_extension(filename, PHOTO_ALLOWED_EXTENSIONS) is True
+
+    @pytest.mark.parametrize("filename", ["scan.pdf", "form.docx"])
+    def test_photo_allowlist_rejects_documents(self, filename):
+        assert is_allowed_extension(filename, PHOTO_ALLOWED_EXTENSIONS) is False
         assert extension_of("noext") == ""
 
 
@@ -68,6 +76,13 @@ class TestValidateUpload:
     def test_bad_extension_rejected(self):
         with pytest.raises(UploadRejected, match="supported file type"):
             validate_upload("malware.exe", 1024)
+
+    def test_pdf_rejected_under_photo_allowlist(self):
+        with pytest.raises(UploadRejected, match="supported file type"):
+            validate_upload("scan.pdf", 1024, PHOTO_ALLOWED_EXTENSIONS)
+
+    def test_jpg_accepted_under_photo_allowlist(self):
+        validate_upload("photo.jpg", 1024, PHOTO_ALLOWED_EXTENSIONS)
 
     def test_empty_file_rejected(self):
         with pytest.raises(UploadRejected, match="empty"):
