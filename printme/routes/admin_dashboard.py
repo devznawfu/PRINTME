@@ -3,12 +3,13 @@
 each with its specific reason) - design-reference/admin-dashboard.html.
 """
 
-from flask import Blueprint, render_template, session
+from flask import Blueprint, Response, render_template, request, session
 
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
 from printme.routes.admin_auth import admin_required
 from printme.services.printing.printer_registry import available_printers
+from printme.services.qr import generate_upload_qr_png
 from printme.services.retention import free_space_bytes
 from printme.services.secret_code import get_current
 
@@ -74,3 +75,15 @@ def dashboard():
         display_name=session.get("admin_display_name", "staff"),
         printers=available_printers(),
     )
+
+
+@bp.route("/qr-code.png", methods=["GET"])
+@admin_required
+def qr_code():
+    """QR code encoding the upload portal's address as actually being
+    reached right now (request.host_url) - not a hardcoded address,
+    since the LAN IP can change whenever the router hands out a new
+    lease. Print this and post it at the counter for customers to
+    scan."""
+    png_bytes = generate_upload_qr_png(request.host_url)
+    return Response(png_bytes, mimetype="image/png")

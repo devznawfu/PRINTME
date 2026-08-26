@@ -24,6 +24,9 @@ rectpack==0.2.2
 pypdf==6.13.2
 pymupdf==1.28.2
 
+# QR code for the admin dashboard (customer upload portal link)
+qrcode==8.2
+
 # Windows printing (win32print) - Windows-only target deployment
 pywin32==312; sys_platform == "win32"
 

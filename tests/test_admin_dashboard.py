@@ -41,6 +41,19 @@ def make_ready_photo_job(**overrides):
     return Job(**defaults)
 
 
+class TestQrCodeRoute:
+    def test_requires_admin_login(self, client):
+        resp = client.get("/admin/qr-code.png")
+        assert resp.status_code == 302
+
+    def test_returns_a_real_png(self, client):
+        login(client)
+        resp = client.get("/admin/qr-code.png")
+        assert resp.status_code == 200
+        assert resp.mimetype == "image/png"
+        assert resp.data.startswith(b"\x89PNG\r\n\x1a\n")
+
+
 class TestDashboardPrinterDropdown:
     def test_document_job_card_lists_every_printer(self, app, client):
         with app.app_context():

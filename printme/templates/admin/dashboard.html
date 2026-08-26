@@ -43,6 +43,14 @@
     </div>
   </div>
 
+  <div class="flex flex-wrap items-center gap-6 rounded-[26px] border border-border bg-panel px-8 py-[22px]">
+    <img src="{{ url_for('admin_dashboard.qr_code') }}" alt="QR code linking to the upload portal" width="120" height="120" class="flex-none rounded-xl border border-line">
+    <div class="flex flex-col gap-1.5">
+      <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-muted">Upload portal QR code</h2>
+      <span class="max-w-[480px] text-[16.5px] leading-snug text-muted">Customers scan this to reach the upload page directly on their phone. Right-click the code and print it, then post it at the counter - it always points at wherever this dashboard is actually running, so it stays correct even if the router hands out a new address.</span>
+    </div>
+  </div>
+
   <div class="flex flex-col gap-5">
     <div class="flex items-baseline gap-4">
       <h2 class="text-[30px] font-bold tracking-tight">Ready to Print</h2>
