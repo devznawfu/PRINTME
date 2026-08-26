@@ -29,13 +29,13 @@ class TestPrinterRegistry:
     def test_available_printers_matches_claude_md_list(self):
         assert available_printers() == list(PRINTER_NAMES)
         assert set(available_printers()) == {
-            "DCP-L2540DW",
-            "DCP-T420W",
-            "DCP-T430W",
+            "Brother DCP-L2540DW series",
+            "Brother DCP-T420W",
+            "Brother DCP-T430W",
         }
 
     def test_is_valid_printer(self):
-        assert is_valid_printer("DCP-L2540DW") is True
+        assert is_valid_printer("Brother DCP-L2540DW series") is True
         assert is_valid_printer("HP LaserJet") is False
 
     def test_available_printers_returns_a_fresh_list_not_shared_state(self):
@@ -65,25 +65,25 @@ class TestMockPrinterBackend:
 
     def test_print_file_logs_the_job_and_returns_a_job_id(self):
         backend = MockPrinterBackend()
-        job_id = backend.print_file("/uploads/doc.pdf", "DCP-T420W", copies=2)
+        job_id = backend.print_file("/uploads/doc.pdf", "Brother DCP-T420W", copies=2)
 
         assert job_id
         assert len(backend.print_log) == 1
         entry = backend.print_log[0]
         assert entry["job_id"] == job_id
         assert entry["file_path"] == "/uploads/doc.pdf"
-        assert entry["printer_name"] == "DCP-T420W"
+        assert entry["printer_name"] == "Brother DCP-T420W"
         assert entry["copies"] == 2
 
     def test_default_copies_is_one(self):
         backend = MockPrinterBackend()
-        backend.print_file("/uploads/doc.pdf", "DCP-T420W")
+        backend.print_file("/uploads/doc.pdf", "Brother DCP-T420W")
         assert backend.print_log[0]["copies"] == 1
 
     def test_successive_jobs_get_distinct_ids(self):
         backend = MockPrinterBackend()
-        first = backend.print_file("/a.pdf", "DCP-T420W")
-        second = backend.print_file("/b.pdf", "DCP-T420W")
+        first = backend.print_file("/a.pdf", "Brother DCP-T420W")
+        second = backend.print_file("/b.pdf", "Brother DCP-T420W")
         assert first != second
         assert len(backend.print_log) == 2
 
@@ -96,11 +96,11 @@ class TestMockPrinterBackend:
     def test_zero_or_negative_copies_rejected(self):
         backend = MockPrinterBackend()
         with pytest.raises(PrintError, match="copies"):
-            backend.print_file("/a.pdf", "DCP-T420W", copies=0)
+            backend.print_file("/a.pdf", "Brother DCP-T420W", copies=0)
         assert backend.print_log == []
 
     def test_two_backend_instances_do_not_share_print_logs(self):
         a, b = MockPrinterBackend(), MockPrinterBackend()
-        a.print_file("/a.pdf", "DCP-T420W")
+        a.print_file("/a.pdf", "Brother DCP-T420W")
         assert a.print_log != []
         assert b.print_log == []

@@ -51,9 +51,9 @@ class TestDashboardPrinterDropdown:
         resp = client.get("/admin/")
 
         assert resp.status_code == 200
-        assert b"DCP-L2540DW" in resp.data
-        assert b"DCP-T420W" in resp.data
-        assert b"DCP-T430W" in resp.data
+        assert b"Brother DCP-L2540DW series" in resp.data
+        assert b"Brother DCP-T420W" in resp.data
+        assert b"Brother DCP-T430W" in resp.data
 
 
 class TestPhotoJobCardShowsAllSizes:
@@ -115,9 +115,9 @@ class TestPrintDocumentHonorsSelectedPrinter:
         login(client)
 
         before = len(_printer_backend.print_log)
-        resp = client.post(f"/admin/jobs/{job_id}/print", data={"printer": "DCP-T430W"})
+        resp = client.post(f"/admin/jobs/{job_id}/print", data={"printer": "Brother DCP-T430W"})
 
         assert resp.status_code == 302
         new_entries = _printer_backend.print_log[before:]
         assert len(new_entries) == 1
-        assert new_entries[0]["printer_name"] == "DCP-T430W"
+        assert new_entries[0]["printer_name"] == "Brother DCP-T430W"

@@ -117,10 +117,10 @@ class TestPrintFile:
         path.write_bytes(_multi_page_pdf_bytes(2))
 
         backend = _backend(fake_pywin32)
-        backend.print_file(path, "DCP-T420W", copies=1)
+        backend.print_file(path, "Brother DCP-T420W", copies=1)
 
         fake_win32ui.CreateDC.assert_called_once()
-        fake_hdc.CreatePrinterDC.assert_called_once_with("DCP-T420W")
+        fake_hdc.CreatePrinterDC.assert_called_once_with("Brother DCP-T420W")
         fake_hdc.StartDoc.assert_called_once()
         assert fake_hdc.StartPage.call_count == 2
         assert fake_hdc.EndPage.call_count == 2
@@ -135,7 +135,7 @@ class TestPrintFile:
         Image.new("RGB", (10, 10), "white").save(path)
 
         backend = _backend(fake_pywin32)
-        backend.print_file(path, "DCP-T420W", copies=3)
+        backend.print_file(path, "Brother DCP-T420W", copies=3)
 
         assert fake_hdc.StartDoc.call_count == 3
         assert fake_hdc.EndDoc.call_count == 3
@@ -148,8 +148,8 @@ class TestPrintFile:
         Image.new("RGB", (10, 10), "white").save(path)
 
         backend = _backend(fake_pywin32)
-        job_id = backend.print_file(path, "DCP-T420W")
-        assert "DCP-T420W" in job_id
+        job_id = backend.print_file(path, "Brother DCP-T420W")
+        assert "Brother DCP-T420W" in job_id
 
     def test_unknown_printer_rejected_without_touching_the_device_context(self, fake_pywin32, tmp_path):
         fake_win32ui, _ = fake_pywin32
@@ -162,7 +162,7 @@ class TestPrintFile:
         fake_win32ui, _ = fake_pywin32
         backend = _backend(fake_pywin32)
         with pytest.raises(PrintError, match="copies"):
-            backend.print_file(tmp_path / "x.png", "DCP-T420W", copies=0)
+            backend.print_file(tmp_path / "x.png", "Brother DCP-T420W", copies=0)
         fake_win32ui.CreateDC.assert_not_called()
 
     def test_gdi_failure_is_wrapped_in_print_error(self, fake_pywin32, tmp_path):
@@ -174,13 +174,13 @@ class TestPrintFile:
         Image.new("RGB", (10, 10), "white").save(path)
 
         backend = _backend(fake_pywin32)
-        with pytest.raises(PrintError, match="DCP-T420W"):
-            backend.print_file(path, "DCP-T420W")
+        with pytest.raises(PrintError, match="Brother DCP-T420W"):
+            backend.print_file(path, "Brother DCP-T420W")
 
     def test_missing_file_is_wrapped_in_print_error(self, fake_pywin32, tmp_path):
         backend = _backend(fake_pywin32)
         with pytest.raises(PrintError):
-            backend.print_file(tmp_path / "does-not-exist.png", "DCP-T420W")
+            backend.print_file(tmp_path / "does-not-exist.png", "Brother DCP-T420W")
 
 
 class TestListPrinters:

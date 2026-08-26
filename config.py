@@ -12,7 +12,15 @@ MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024
 PRIMARY_PHOTO_SIZES = ("1x1", "2x2", "Passport", "Visa")
 MORE_PHOTO_SIZES = ("Wallet", "4x6", "5x7", "4x4")
 PHOTO_SIZES = PRIMARY_PHOTO_SIZES + MORE_PHOTO_SIZES
-PRINTER_NAMES = ("DCP-L2540DW", "DCP-T420W", "DCP-T430W")
+# Must match the exact names Windows has these registered under
+# (Get-Printer | Select-Object Name, PortName) - win32ui.CreatePrinterDC
+# needs an exact string match, unlike the old ShellExecute approach.
+# Confirmed against the real admin PC: plain "DCP-T420W"/"DCP-T430W"
+# don't exist at all; Windows has them as "Brother DCP-<model>", each
+# with a stale "(Copy 1)" duplicate bound to a WSD virtual port rather
+# than the real USB001/USB003/USB005 ports - those duplicates are not
+# used here.
+PRINTER_NAMES = ("Brother DCP-L2540DW series", "Brother DCP-T420W", "Brother DCP-T430W")
 
 
 class Config:

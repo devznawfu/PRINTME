@@ -49,13 +49,13 @@ class TestPrintSheetFailure:
             "printme.routes.admin_photo_sheets._printer_backend.print_file",
             side_effect=PrintError("DCP-T420W didn't respond"),
         ):
-            resp = client.post(f"/admin/photo-sheets/{sheet_id}/print", data={"printer": "DCP-T420W"})
+            resp = client.post(f"/admin/photo-sheets/{sheet_id}/print", data={"printer": "Brother DCP-T420W"})
 
         assert resp.status_code == 302
 
         follow = client.get(resp.headers["Location"])
         assert b"Print failed" in follow.data
-        assert b"DCP-T420W" in follow.data
+        assert b"Brother DCP-T420W" in follow.data
 
     def test_print_error_leaves_jobs_untouched(self, app, client):
         with app.app_context():
@@ -75,7 +75,7 @@ class TestPrintSheetFailure:
             "printme.routes.admin_photo_sheets._printer_backend.print_file",
             side_effect=PrintError("no response"),
         ):
-            client.post(f"/admin/photo-sheets/{sheet_id}/print", data={"printer": "DCP-T420W"})
+            client.post(f"/admin/photo-sheets/{sheet_id}/print", data={"printer": "Brother DCP-T420W"})
 
         with app.app_context():
             job = db.session.get(Job, job_id)
@@ -99,7 +99,7 @@ class TestPrintSheetFailure:
             sheet_id = PhotoSheet.query.first().id
 
         with patch("printme.routes.admin_photo_sheets._printer_backend.print_file"):
-            resp = client.post(f"/admin/photo-sheets/{sheet_id}/print", data={"printer": "DCP-T420W"})
+            resp = client.post(f"/admin/photo-sheets/{sheet_id}/print", data={"printer": "Brother DCP-T420W"})
 
         assert resp.status_code == 302
         with app.app_context():
