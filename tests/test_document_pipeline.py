@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -60,7 +61,8 @@ class TestProcessDocumentJobPassthrough:
 
             fetched = db.session.get(Job, job.id)
             assert fetched.page_count == 2
-            assert fetched.processed_path == str(pdf)
+            assert fetched.processed_path != str(pdf)
+            assert Path(fetched.processed_path).read_bytes() == pdf.read_bytes()
             assert fetched.status == JobStatus.READY_FOR_REVIEW
             assert fetched.needs_attention is False
             assert fetched.total_cost is not None
@@ -78,7 +80,30 @@ class TestProcessDocumentJobPassthrough:
 
             fetched = db.session.get(Job, job.id)
             assert fetched.page_count == 1
-            assert fetched.processed_path == str(img)
+            assert fetched.processed_path != str(img)
+            assert Path(fetched.processed_path).read_bytes() == img.read_bytes()
+
+    def test_processed_copy_survives_deletion_of_the_original_upload(self, app, tmp_path):
+        """The whole point of Part C: processed_path must be a real,
+        independent file, not just a different-looking path to the
+        same inode - deleting the upload must not take the processed
+        copy down with it."""
+        with app.app_context():
+            seed_defaults(db.session)
+            pdf = make_pdf(tmp_path / "doc.pdf", n_pages=1)
+            job = make_document_job(pdf)
+            db.session.add(job)
+            db.session.commit()
+
+            process_document_job(db.session, job, tmp_path)
+
+            fetched = db.session.get(Job, job.id)
+            processed = Path(fetched.processed_path)
+            assert processed.exists()
+
+            pdf.unlink()
+
+            assert processed.exists()
 
 
 class TestProcessDocumentJobDocxConversion:

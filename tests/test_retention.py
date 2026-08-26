@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from printme.extensions import db
-from printme.models import Job
+from printme.models import Job, seed_defaults
+from printme.services.document_pipeline import process_document_job
 from printme.services.retention import free_space_bytes, sweep_old_uploads
 
 
@@ -84,6 +86,40 @@ class TestSweepOldUploads:
             assert processed.exists()
             fetched = db.session.get(Job, job.id)
             assert fetched.processed_path == str(processed)
+
+    def test_processed_copy_of_a_non_docx_document_job_survives_the_sweep(self, app, tmp_path):
+        """Regression coverage for the Part C bug: before the fix,
+        process_document_job() pointed processed_path at the exact
+        same file as upload_path for plain PDF/JPG/PNG jobs, so this
+        sweep would have silently destroyed the "processed" copy too.
+        Runs the real pipeline (not a hand-built Job) so this actually
+        exercises the fix rather than just the retention query."""
+        with app.app_context():
+            seed_defaults(db.session)
+            upload_dir = tmp_path / "uploads"
+            processed_dir = tmp_path / "processed"
+            upload = upload_dir / "scan.jpg"
+            upload.write_bytes(b"fake jpeg bytes")
+
+            job = Job(
+                ticket_number="P-001",
+                customer_name="Ben",
+                service_type="document",
+                original_filename="scan.jpg",
+                upload_path=str(upload),
+                created_at=days_ago(3),
+            )
+            db.session.add(job)
+            db.session.commit()
+
+            process_document_job(db.session, job, processed_dir)
+            processed_path = job.processed_path
+
+            deleted = sweep_old_uploads(db.session)
+
+            assert deleted == 1
+            assert not upload.exists()
+            assert Path(processed_path).exists()
 
     def test_custom_retention_window(self, app, tmp_path):
         with app.app_context():
