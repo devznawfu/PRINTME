@@ -11,11 +11,15 @@
     <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to queue</a>
   </div>
 
-  {% with messages = get_flashed_messages() %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
-  <div class="flex flex-col gap-2 rounded-2xl border border-err-line bg-err-bg p-4 text-sm text-err-text">
-    {% for message in messages %}
-    <div>{{ message }}</div>
+  <div class="flex flex-col gap-2">
+    {% for category, message in messages %}
+    {% if category == "success" %}
+    <div class="rounded-2xl border border-ok-line bg-ok-bg p-4 text-sm font-bold text-ok-dot">{{ message }}</div>
+    {% else %}
+    <div class="rounded-2xl border border-err-line bg-err-bg p-4 text-sm text-err-text">{{ message }}</div>
+    {% endif %}
     {% endfor %}
   </div>
   {% endif %}

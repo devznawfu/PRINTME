@@ -137,6 +137,29 @@ class TestRestoreRoute:
             assert Path(new_job.upload_path).exists()
             assert new_job.processed_path == str(FIXTURES / "face_one.jpg")
 
+    def test_restore_flashes_a_visible_success_message(self, app, client):
+        """Regression: restore() used to redirect silently on success -
+        the row looked completely untouched, giving staff no sign
+        anything happened (they'd have to go check the main queue).
+        Now it flashes what ticket the job was restored as, styled as
+        success (ok-* tokens), not lumped in with error styling."""
+        with app.app_context():
+            seed_defaults(db.session)
+            old = make_terminal_photo_job(app, JobStatus.DONE, ticket="P-001")
+            db.session.add(old)
+            db.session.commit()
+            old_id = old.id
+        login(client)
+
+        with patch("printme.services.photo_pipeline.process_photo_job"):
+            resp = client.post(f"/admin/jobs/{old_id}/restore", follow_redirects=True)
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert "Restored P-001 as" in body
+        assert "now in the print queue" in body
+        assert "bg-ok-bg" in body  # success styling, not the error banner
+
     def test_restore_document_job_copies_print_options(self, app, client):
         with app.app_context():
             seed_defaults(db.session)
@@ -176,6 +199,9 @@ class TestRestoreRoute:
 
         assert resp.status_code == 200
         assert b"no longer on disk" in resp.data
+        body = resp.get_data(as_text=True)
+        assert "bg-err-bg" in body
+        assert "bg-ok-bg" not in body  # a failure must never render as success
         with app.app_context():
             assert Job.query.count() == jobs_before
 
@@ -313,6 +339,26 @@ class TestReprintRoute:
         login(client)
         resp = client.post("/admin/jobs/999999/reprint", data={"reprint_reason": "bad_print"})
         assert resp.status_code == 302
+
+    def test_reprint_success_flash_renders_with_ok_styling_not_error(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            old = make_terminal_photo_job(app, JobStatus.DONE, ticket="P-001")
+            db.session.add(old)
+            db.session.commit()
+            old_id = old.id
+
+        login(client)
+        resp = client.post(
+            f"/admin/jobs/{old_id}/reprint",
+            data={"reprint_reason": "bad_print"},
+            follow_redirects=True,
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert "Reprint" in body and "created" in body
+        assert "bg-ok-bg" in body
 
     def test_history_page_shows_reprint_form(self, app, client):
         with app.app_context():

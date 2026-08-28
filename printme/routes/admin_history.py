@@ -69,7 +69,7 @@ def restore(job_id):
         return redirect(url_for("admin_history.history"))
 
     if not old.processed_path or not Path(old.processed_path).exists():
-        flash(f"Can't restore {old.ticket_number} - its file is no longer on disk.")
+        flash(f"Can't restore {old.ticket_number} - its file is no longer on disk.", "error")
         return redirect(url_for("admin_history.history"))
 
     fields = dict(
@@ -114,6 +114,10 @@ def restore(job_id):
     db.session.commit()
     price_job(db.session, new_job)
 
+    flash(
+        f"Restored {old.display_ticket} as {new_job.display_ticket} - now in the print queue.",
+        "success",
+    )
     return redirect(url_for("admin_history.history"))
 
 
@@ -130,12 +134,12 @@ def reprint(job_id):
         return redirect(url_for("admin_history.history"))
 
     if not old.processed_path or not Path(old.processed_path).exists():
-        flash(f"Can't reprint {old.display_ticket} - its file is no longer on disk.")
+        flash(f"Can't reprint {old.display_ticket} - its file is no longer on disk.", "error")
         return redirect(url_for("admin_history.history"))
 
     reason = request.form.get("reprint_reason")
     if reason not in REPRINT_REASONS:
-        flash("Pick a reason for the reprint.")
+        flash("Pick a reason for the reprint.", "error")
         return redirect(url_for("admin_history.history"))
 
     charge_normally = request.form.get("charge_normally") == "on"
@@ -193,5 +197,8 @@ def reprint(job_id):
         new_job.total_cost = 0.0
         db.session.commit()
 
-    flash(f"Reprint {new_job.display_ticket} created ({REPRINT_REASON_LABELS[reason]}).")
+    flash(
+        f"Reprint {new_job.display_ticket} created ({REPRINT_REASON_LABELS[reason]}).",
+        "success",
+    )
     return redirect(url_for("admin_history.history"))
