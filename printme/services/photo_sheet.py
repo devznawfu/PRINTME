@@ -85,10 +85,24 @@ def _latest_batch_item_ids(session):
 
 def pack_pending_photo_jobs(session):
     """Gather every ready-for-review, unflagged photo job's requested
-    prints, pack them onto the minimum number of A4 sheets, and persist
-    the result. Flagged jobs are excluded - CLAUDE.md: never auto-print
-    a flagged job before staff have reviewed it; once approved, staff
-    clear the flag and it's picked up by the next pack.
+    prints and persist a fresh batch of A4 sheets. Flagged jobs are
+    excluded - CLAUDE.md: never auto-print a flagged job before staff
+    have reviewed it; once approved, staff clear the flag and it's
+    picked up by the next pack.
+
+    Each job is packed onto its OWN dedicated sheet(s) - never mixed
+    with another job's prints on the same physical sheet. This is a
+    shop-owner decision, not a technical limitation: automatically
+    combining different customers' orders onto shared sheets added
+    cutting/handout complexity the shop doesn't want, even though it
+    can cost a little extra paper compared to a fully general combined
+    pack (real orders are usually placed in the shop's own standard
+    sets - e.g. 10x "1x1" + 10x "2x2" - which already pack tightly on
+    their own). A single job's own mixed sizes still pack together
+    normally; only packing ACROSS different jobs is disabled. Every
+    job's own sheet(s) still land in the same batch and show up
+    together on the Photo Sheets page - only which sheet a print
+    physically lands on changed, not what staff see in one place.
 
     Idempotent: if the exact set of individual prints requested (one
     entry per copy) is unchanged since the last pack, the existing
@@ -122,20 +136,40 @@ def pack_pending_photo_jobs(session):
     if not jobs:
         return None
 
-    item_to_job = {}
-    items = []
+    items_by_job = {}
     for job in jobs:
-        for row in job.photo_items:
-            for layout_item in row.to_layout_items():
-                items.append(layout_item)
-                item_to_job[layout_item.item_id] = job.id
+        job_items = [
+            layout_item
+            for row in job.photo_items
+            for layout_item in row.to_layout_items()
+        ]
+        if job_items:
+            items_by_job[job.id] = job_items
 
-    if not items:
+    if not items_by_job:
         return None
 
+    item_to_job = {
+        item.item_id: job_id
+        for job_id, job_items in items_by_job.items()
+        for item in job_items
+    }
+
     latest_batch_id, latest_item_ids = _latest_batch_item_ids(session)
-    if {item.item_id for item in items} == latest_item_ids:
+    if set(item_to_job) == latest_item_ids:
         return latest_batch_id
 
-    packed_sheets = pack(items)
+    packed_sheets = []
+    for job_items in items_by_job.values():
+        for sheet in pack(job_items):
+            packed_sheets.append(
+                PackedSheet(
+                    sheet_index=len(packed_sheets),
+                    width=sheet.width,
+                    height=sheet.height,
+                    margin=sheet.margin,
+                    items=sheet.items,
+                )
+            )
+
     return record_packing_result(session, packed_sheets, item_to_job)

@@ -215,7 +215,14 @@ class TestPackPendingPhotoJobs:
             assert second_batch_id != first_batch_id
             assert second_count == 4
 
-    def test_mixes_multiple_jobs_onto_shared_sheets(self, app):
+    def test_never_mixes_different_jobs_onto_the_same_physical_sheet(self, app):
+        """Shop-owner decision, not a technical limitation: two small
+        jobs that WOULD tightly co-pack onto one shared sheet (a
+        general packer's whole point) must still land on separate
+        sheets - each job gets its own dedicated sheet(s), even if
+        that costs a little extra paper. Both jobs still show up
+        together in the same batch (one Photo Sheets screen), just
+        never on the same physical piece of paper."""
         with app.app_context():
             j1 = make_ready_photo_job("P-001", size_name="1x1", quantity=2)
             j2 = make_ready_photo_job("P-002", size_name="Visa", quantity=2)
@@ -223,11 +230,35 @@ class TestPackPendingPhotoJobs:
             db.session.commit()
 
             batch_id = pack_pending_photo_jobs(db.session)
+            sheets = PhotoSheet.query.filter_by(batch_id=batch_id).all()
 
-            job_ids_on_sheets = {
-                i.job_id
-                for i in PhotoSheetItem.query.join(PhotoSheet).filter(
-                    PhotoSheet.batch_id == batch_id
-                )
-            }
+            job_ids_on_sheets = {i.job_id for s in sheets for i in s.items}
             assert job_ids_on_sheets == {j1.id, j2.id}
+
+            for sheet in sheets:
+                job_ids_on_this_sheet = {i.job_id for i in sheet.items}
+                assert len(job_ids_on_this_sheet) == 1, (
+                    f"sheet {sheet.sheet_number} mixed jobs {job_ids_on_this_sheet} "
+                    "onto one physical sheet"
+                )
+
+            # Two separate sheets, sequentially numbered across the batch.
+            assert len(sheets) == 2
+            assert sorted(s.sheet_number for s in sheets) == [0, 1]
+
+    def test_a_single_jobs_own_mixed_sizes_still_pack_together(self, app):
+        """Not mixing ACROSS jobs is the new rule - a single job's own
+        multiple sizes must still combine onto shared sheets exactly
+        as before (that's normal packing within one order, not the
+        cross-customer merging that was removed)."""
+        with app.app_context():
+            job = make_ready_photo_job("P-001", size_name="2x2", quantity=10)
+            job.photo_items.append(PhotoItemRow(size_name="1x1", quantity=10))
+            db.session.add(job)
+            db.session.commit()
+
+            batch_id = pack_pending_photo_jobs(db.session)
+            sheets = PhotoSheet.query.filter_by(batch_id=batch_id).all()
+
+            assert len(sheets) == 1
+            assert len(sheets[0].items) == 20

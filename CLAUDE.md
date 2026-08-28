@@ -41,8 +41,19 @@ templates, do not redesign from scratch:
 - Photocopying is explicitly OUT of scope — do not build any feature for it.
 
 ### Smart Layout Engine
-- Packs pending photo jobs (potentially from multiple customers, mixed sizes among
-  the fixed photo size set above) onto the minimum number of A4 sheets at 300 DPI.
+- Packs each ready-for-review, unflagged photo job's own requested prints (mixed
+  sizes among the fixed photo size set above, all belonging to that one job) onto
+  the minimum number of A4 sheets at 300 DPI.
+- Never mixes different jobs onto the same physical sheet — a shop-owner decision,
+  not a technical limitation: automatic cross-customer merging was tried and
+  explicitly removed, since it added cutting/handout complexity the shop didn't
+  want, even though it costs a little extra paper versus a fully general combined
+  pack. Real orders are usually placed in the shop's own standard sets (e.g. 10x
+  "1x1" + 10x "2x2"), which already pack tightly on their own. Every pending job's
+  own sheet(s) still land in one batch and show up together on the admin's Photo
+  Sheets page — only which sheet a print physically lands on is restricted, not
+  what staff see in one place. Don't reintroduce cross-job merging without the
+  shop owner asking for it again.
 - Output includes grid lines/margins for the admin to preview before printing.
 - This is the hardest algorithmic piece of the system — treat it as its own module,
   test it in isolation before wiring into the main flow.
