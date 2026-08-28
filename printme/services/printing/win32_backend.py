@@ -107,14 +107,18 @@ def _borderless_dc(printer_name):
         return None
 
 
-def _images_for(path, grayscale=False):
+def _images_for(path, grayscale=False, page_range=None):
     """Every page of `path` as a PIL Image (RGB, or "L" when grayscale
     is requested) - one element for a PNG/JPG, one per page for a PDF.
     PIL's ImageWin.Dib supports "L" mode directly, so grayscale pages
-    don't need an RGB round-trip."""
+    don't need an RGB round-trip. page_range (1-indexed page numbers,
+    PDF only) is ignored for non-PDF files - a single image is always
+    exactly one page, and callers are expected to have already
+    validated any range against the real page count (see
+    services/page_range.py) before it ever reaches here."""
     mode = "L" if grayscale else "RGB"
     if Path(path).suffix.lower() == ".pdf":
-        return [img.convert(mode) for img in rasterize_pdf(path)]
+        return [img.convert(mode) for img in rasterize_pdf(path, page_numbers=page_range)]
     with Image.open(path) as img:
         return [img.convert(mode)]
 
@@ -169,14 +173,16 @@ class Win32PrinterBackend(PrinterBackend):
     def list_printers(self):
         return available_printers()
 
-    def print_file(self, file_path, printer_name, copies=1, grayscale=False, borderless=False):
+    def print_file(
+        self, file_path, printer_name, copies=1, grayscale=False, borderless=False, page_range=None
+    ):
         if not is_valid_printer(printer_name):
             raise PrintError(f"unknown printer: {printer_name!r}")
         if copies < 1:
             raise PrintError("copies must be at least 1")
 
         try:
-            images = _images_for(file_path, grayscale=grayscale)
+            images = _images_for(file_path, grayscale=grayscale, page_range=page_range)
             # No driver-level copy count is used (StartDoc/EndDoc is
             # per-copy below), so this loop is what "copies" means here.
             for _ in range(copies):

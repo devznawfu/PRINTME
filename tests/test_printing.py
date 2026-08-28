@@ -83,6 +83,16 @@ class TestMockPrinterBackend:
         backend.print_file("/a.pdf", "Brother DCP-T420W")
         assert backend.print_log[0]["borderless"] is False
 
+    def test_page_range_is_logged(self):
+        backend = MockPrinterBackend()
+        backend.print_file("/a.pdf", "Brother DCP-T420W", page_range=[1, 3])
+        assert backend.print_log[0]["page_range"] == [1, 3]
+
+    def test_page_range_defaults_to_none(self):
+        backend = MockPrinterBackend()
+        backend.print_file("/a.pdf", "Brother DCP-T420W")
+        assert backend.print_log[0]["page_range"] is None
+
     def test_print_file_logs_the_job_and_returns_a_job_id(self):
         backend = MockPrinterBackend()
         job_id = backend.print_file("/uploads/doc.pdf", "Brother DCP-T420W", copies=2)

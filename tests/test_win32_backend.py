@@ -107,6 +107,30 @@ class TestImagesFor:
 
         assert _images_for(path)[0].mode == "RGB"
 
+    def test_page_range_selects_a_subset_of_pdf_pages(self, tmp_path):
+        path = tmp_path / "doc.pdf"
+        path.write_bytes(_multi_page_pdf_bytes(5))
+
+        images = _images_for(path, page_range=[3, 1])
+
+        assert len(images) == 2
+
+    def test_page_range_none_returns_every_pdf_page(self, tmp_path):
+        path = tmp_path / "doc.pdf"
+        path.write_bytes(_multi_page_pdf_bytes(4))
+
+        assert len(_images_for(path, page_range=None)) == 4
+
+    def test_page_range_is_ignored_for_non_pdf_files(self, tmp_path):
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (10, 10), "white").save(path)
+
+        images = _images_for(path, page_range=[1, 2, 3])
+
+        assert len(images) == 1
+
 
 class TestMatchBorderlessPaperId:
     """Pure function over plain lists - no win32 module needed at all,
@@ -198,6 +222,16 @@ class TestPrintFile:
         assert fake_hdc.StartDoc.call_count == 3
         assert fake_hdc.EndDoc.call_count == 3
         assert fake_hdc.StartPage.call_count == 3  # one page per copy, one image
+
+    def test_page_range_reaches_the_printed_page_count(self, fake_pywin32, tmp_path):
+        _, fake_hdc = fake_pywin32
+        path = tmp_path / "doc.pdf"
+        path.write_bytes(_multi_page_pdf_bytes(5))
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W", page_range=[1, 3])
+
+        assert fake_hdc.StartPage.call_count == 2
 
     def test_grayscale_flag_reaches_the_drawn_image(self, fake_pywin32, tmp_path):
         import printme.services.printing.win32_backend as mod

@@ -21,7 +21,9 @@ class PrinterBackend(ABC):
         """Printer names currently available through this backend."""
 
     @abstractmethod
-    def print_file(self, file_path, printer_name, copies=1, grayscale=False, borderless=False):
+    def print_file(
+        self, file_path, printer_name, copies=1, grayscale=False, borderless=False, page_range=None
+    ):
         """Send file_path to printer_name. Raises PrintError on
         failure. Returns an opaque, backend-specific job identifier.
         grayscale=True means print in black and white only.
@@ -29,4 +31,7 @@ class PrinterBackend(ABC):
         only meaningful for photo sheets on a printer whose driver
         actually supports it (see printer_registry.borderless_capable);
         backends should fall back to normal printing rather than fail
-        the job if it isn't achievable."""
+        the job if it isn't achievable. page_range, if given, is a
+        1-indexed list of page numbers to print (PDF only) - None means
+        every page. Callers are expected to have already validated the
+        range against the real page count (see services/page_range.py)."""
