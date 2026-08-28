@@ -44,6 +44,14 @@ def photo_sheets():
         if not out_path.exists():
             render_photo_sheet(db.session, sheet, out_path)
         sheet.rendered_path = str(out_path)
+        # Every sheet belongs to exactly one job - pack_pending_photo_jobs
+        # never mixes different jobs' prints onto the same physical sheet
+        # (a shop-owner decision, see CLAUDE.md's Smart Layout Engine
+        # section) - so any item's job_id identifies the whole sheet's
+        # owner. Attached dynamically, same pattern as rendered_path
+        # above, so the template can show whose sheet this is and what
+        # paper it needs (finish/quality live on the Job, not the sheet).
+        sheet.job = db.session.get(Job, sheet.items[0].job_id) if sheet.items else None
     db.session.commit()
 
     printers = available_printers()

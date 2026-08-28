@@ -104,17 +104,7 @@
   </div>
 </div>
 
-<dialog id="print-confirm-dialog" class="rounded-3xl border border-border bg-panel p-0 backdrop:bg-black/40">
-  <div class="flex w-[380px] flex-col gap-5 p-7">
-    <h3 class="text-xl font-bold">Confirm print</h3>
-    <dl data-print-summary class="flex flex-col gap-2 text-[15px] text-muted"></dl>
-    <div data-print-thumbs class="flex flex-wrap gap-2"></div>
-    <div class="flex justify-end gap-3">
-      <button type="button" data-print-cancel-btn class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[15px] font-bold">Cancel</button>
-      <button type="submit" data-print-confirm-btn class="flex min-h-[54px] items-center rounded-2xl bg-btn-bg px-6 text-[15px] font-bold text-btn-text transition-colors hover:bg-btn-hover">Confirm &amp; Print</button>
-    </div>
-  </div>
-</dialog>
+{% include "admin/partials/_print_confirm_dialog.html" %}
 {% include "upload/partials/_crop_dialog.html" %}
 {% include "admin/partials/_photo_preview_dialog.html" %}
 {% endblock %}

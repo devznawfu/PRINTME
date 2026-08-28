@@ -1,17 +1,26 @@
-// Print confirmation popup for document jobs: shows a summary
-// (copies/pages/color) plus small per-page thumbnails before the
-// print form actually submits. The page-range grammar here mirrors
-// printme/services/page_range.py for instant UX feedback only - the
-// server re-validates independently and is the real authority (see
-// printme/routes/api.py's print_document).
+// Shared print confirmation dialog for both document jobs and photo
+// sheets, branching on data-print-kind. "Not yet" is the bold/focused
+// button, "Yes, print" is the plain one - deliberately inverted from
+// the usual primary-action styling, so a stray Enter or a fast click
+// lands on the safe action, not an irreversible print (turn 3b: print
+// is the one action in this app that can't be undone once it fires).
+//
+// The page-range grammar here mirrors printme/services/page_range.py
+// for instant UX feedback only - the server re-validates independently
+// and is the real authority (see printme/routes/api.py's print_document).
 (function () {
   const dialog = document.getElementById("print-confirm-dialog");
   if (!dialog) return;
 
+  const headingEl = dialog.querySelector("[data-print-heading]");
+  const paperNoteEl = dialog.querySelector("[data-print-paper-note]");
   const summaryEl = dialog.querySelector("[data-print-summary]");
   const thumbsEl = dialog.querySelector("[data-print-thumbs]");
   const confirmBtn = dialog.querySelector("[data-print-confirm-btn]");
   const cancelBtn = dialog.querySelector("[data-print-cancel-btn]");
+
+  const FINISH_LABELS = { glossy: "Glossy", bond: "Bond paper" };
+  const QUALITY_LABELS = { standard: "Standard", high: "High" };
 
   function parsePageRange(spec, maxPages) {
     const trimmed = (spec || "").trim();
@@ -78,44 +87,81 @@
     summaryEl.appendChild(row);
   }
 
+  function heading(form, fallback) {
+    const ticket = form.dataset.ticket;
+    const name = form.dataset.customerName;
+    if (ticket && name) return `Print ${ticket} for ${name}?`;
+    if (ticket) return `Print ${ticket}?`;
+    return fallback || "Confirm print";
+  }
+
+  function openDocumentConfirm(form) {
+    const maxPages = parseInt(form.dataset.pageCount, 10) || 1;
+    const copies = form.dataset.copies || "1";
+    const colorMode = form.dataset.colorMode === "color" ? "Color" : "Black & white";
+    const rangeInput = form.querySelector("[data-page-range-input]");
+
+    const pages = parsePageRange(rangeInput ? rangeInput.value : "", maxPages);
+    if (pages === null) {
+      if (rangeInput) {
+        rangeInput.setCustomValidity(
+          `Enter a valid page range, e.g. 1-3,5 (this document has ${maxPages} page${maxPages !== 1 ? "s" : ""}).`
+        );
+        rangeInput.reportValidity();
+      }
+      return false;
+    }
+    if (rangeInput) rangeInput.setCustomValidity("");
+
+    headingEl.textContent = heading(form);
+    paperNoteEl.textContent = `Load A4 paper - ${colorMode.toLowerCase()}.`;
+
+    summaryEl.innerHTML = "";
+    addSummaryRow("Copies", copies);
+    addSummaryRow("Pages", describePageRange(pages, maxPages));
+    addSummaryRow("Color", colorMode);
+
+    thumbsEl.innerHTML = "";
+    thumbsEl.classList.remove("hidden");
+    const jobId = form.dataset.jobId;
+    pages.forEach((p) => {
+      const img = document.createElement("img");
+      img.src = `/admin/jobs/${jobId}/preview/${p}.png`;
+      img.alt = `Page ${p}`;
+      img.className = "h-[70px] w-[70px] rounded-lg border border-line object-cover";
+      thumbsEl.appendChild(img);
+    });
+    return true;
+  }
+
+  function openSheetConfirm(form) {
+    const sheetNumber = form.dataset.sheetNumber || "1";
+    const sheetCount = form.dataset.sheetCount || "1";
+    const finish = FINISH_LABELS[form.dataset.paperFinish] || "Bond paper";
+    const quality = QUALITY_LABELS[form.dataset.paperQuality] || "Standard";
+
+    headingEl.textContent = heading(form, `Print sheet ${sheetNumber} of ${sheetCount}?`);
+    paperNoteEl.textContent = `Load ${finish}, ${quality.toLowerCase()} quality, before printing.`;
+
+    summaryEl.innerHTML = "";
+    addSummaryRow("Sheet", `${sheetNumber} of ${sheetCount}`);
+    addSummaryRow("Paper", `${finish}, ${quality}`);
+
+    thumbsEl.innerHTML = "";
+    thumbsEl.classList.add("hidden"); // the sheet preview is already visible on the page itself
+    return true;
+  }
+
   document.querySelectorAll("[data-print-trigger]").forEach((trigger) => {
     trigger.addEventListener("click", () => {
       const form = trigger.closest("[data-print-form]");
       if (!form) return;
 
-      const jobId = form.dataset.jobId;
-      const maxPages = parseInt(form.dataset.pageCount, 10) || 1;
-      const copies = form.dataset.copies || "1";
-      const colorMode = form.dataset.colorMode === "color" ? "Color" : "Black & white";
-      const rangeInput = form.querySelector("[data-page-range-input]");
+      const kind = form.dataset.printKind || "document";
+      const ok = kind === "sheet" ? openSheetConfirm(form) : openDocumentConfirm(form);
+      if (!ok) return;
 
-      const pages = parsePageRange(rangeInput ? rangeInput.value : "", maxPages);
-      if (pages === null) {
-        if (rangeInput) {
-          rangeInput.setCustomValidity(
-            `Enter a valid page range, e.g. 1-3,5 (this document has ${maxPages} page${maxPages !== 1 ? "s" : ""}).`
-          );
-          rangeInput.reportValidity();
-        }
-        return;
-      }
-      if (rangeInput) rangeInput.setCustomValidity("");
-
-      summaryEl.innerHTML = "";
-      addSummaryRow("Copies", copies);
-      addSummaryRow("Pages", describePageRange(pages, maxPages));
-      addSummaryRow("Color", colorMode);
-
-      thumbsEl.innerHTML = "";
-      pages.forEach((p) => {
-        const img = document.createElement("img");
-        img.src = `/admin/jobs/${jobId}/preview/${p}.png`;
-        img.alt = `Page ${p}`;
-        img.className = "h-[70px] w-[70px] rounded-lg border border-line object-cover";
-        thumbsEl.appendChild(img);
-      });
-
-      confirmBtn.setAttribute("form", `print-form-${jobId}`);
+      confirmBtn.setAttribute("form", form.id);
       dialog.showModal();
     });
   });

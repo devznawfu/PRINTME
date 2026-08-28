@@ -31,6 +31,58 @@ def make_ready_photo_job(**overrides):
     return job
 
 
+class TestPrintConfirmDialogWiring:
+    """Turn 3b: printing a sheet now routes through the shared confirm
+    dialog (previously the button submitted directly) - the form needs
+    the right data-* attributes for print-confirm.js to build the
+    "load this paper" note and heading from."""
+
+    def test_sheet_form_carries_job_and_paper_data(self, app, client):
+        with app.app_context():
+            db.session.add(
+                make_ready_photo_job(
+                    ticket_number="P-777",
+                    customer_name="Ramon Villanueva",
+                    paper_finish="glossy",
+                    quality="high",
+                )
+            )
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/photo-sheets/")
+        body = resp.data.decode()
+        assert 'data-print-form' in body
+        assert 'data-print-kind="sheet"' in body
+        assert 'data-ticket="P-777"' in body
+        assert 'data-customer-name="Ramon Villanueva"' in body
+        assert 'data-paper-finish="glossy"' in body
+        assert 'data-paper-quality="high"' in body
+        # the button no longer submits directly - it opens the dialog
+        assert 'data-print-trigger' in body
+
+    def test_print_button_is_no_longer_a_direct_submit(self, app, client):
+        with app.app_context():
+            db.session.add(make_ready_photo_job())
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/photo-sheets/")
+        body = resp.data.decode()
+        assert '<button type="button" data-print-trigger' in body
+
+    def test_shared_confirm_dialog_is_present(self, app, client):
+        with app.app_context():
+            db.session.add(make_ready_photo_job())
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/photo-sheets/")
+        body = resp.data.decode()
+        assert 'id="print-confirm-dialog"' in body
+        assert "print-confirm.js" in body
+
+
 class TestPrintSheetFailure:
     def test_print_error_shows_flash_message_instead_of_500(self, app, client):
         with app.app_context():

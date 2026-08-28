@@ -69,7 +69,7 @@
   </div>
   {% endif %}
   {% if card.job.service_type == "document" %}
-  <form id="print-form-{{ card.job.id }}" method="post" action="{{ url_for('api.print_document', job_id=card.job.id) }}" class="flex flex-wrap items-center gap-3" data-print-form data-job-id="{{ card.job.id }}" data-page-count="{{ card.job.page_count or 1 }}" data-copies="{{ card.job.copies or 1 }}" data-color-mode="{{ card.job.color_mode or 'bw' }}">
+  <form id="print-form-{{ card.job.id }}" method="post" action="{{ url_for('api.print_document', job_id=card.job.id) }}" class="flex flex-wrap items-center gap-3" data-print-form data-print-kind="document" data-job-id="{{ card.job.id }}" data-page-count="{{ card.job.page_count or 1 }}" data-copies="{{ card.job.copies or 1 }}" data-color-mode="{{ card.job.color_mode or 'bw' }}" data-ticket="{{ card.job.ticket_number }}" data-customer-name="{{ card.job.customer_name }}">
     <select name="printer" aria-label="Printer" class="h-[54px] flex-1 rounded-xl border border-line bg-inset px-4 text-[15px]">
       {% for p in printers %}
       <option value="{{ p }}">{{ p }}</option>
