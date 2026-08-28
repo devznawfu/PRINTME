@@ -14,7 +14,7 @@ background-removal artifacts, each with the SPECIFIC reason.
 
 from dataclasses import dataclass
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from printme.models.job import JobStatus
 from printme.services.background_removal import detect_artifacts, remove_background
@@ -35,6 +35,13 @@ FACE_HEIGHT_RATIO = 0.33
 # side must be >= the target's longer dimension to avoid upscaling -
 # 2100 is the exact minimum that clears every current fixed size.
 CANONICAL_SIZE_PX = 2100
+
+# A manual crop this small in its *source* pixel dimensions would need
+# more than a 10x LANCZOS upscale to reach CANONICAL_SIZE_PX - visibly
+# soft in a real print. Treat a crop this degenerate as if none was
+# supplied at all (silent fallback to automatic), rather than printing
+# a blurry photo just because the customer drew a tiny box.
+MIN_MANUAL_CROP_SIDE_PX = 200
 
 
 @dataclass
@@ -86,12 +93,46 @@ def _clamp_span(start, end, limit):
     return start, end
 
 
-def process_photo_job(session, job, source_image_path, processed_dir):
+def compute_manual_crop_box(image_size, crop_fractions):
+    """A square (left, top, right, bottom) crop box in `image_size`,
+    centered on the customer-supplied crop_fractions (x, y, w, h - all
+    0-1, from manual_crop.parse_crop_fractions). Mirrors
+    compute_square_crop_box: the customer's frame is UI-constrained to
+    be square, but fractions are trusted input from the wire, not the
+    box itself, so this still derives a square side (the smaller of the
+    fraction box's own width/height) rather than assuming w == h.
+    Returns None if that side is smaller than MIN_MANUAL_CROP_SIDE_PX -
+    callers must treat that exactly like no manual crop was supplied.
+    """
+    img_w, img_h = image_size
+    x, y, w, h = crop_fractions
+
+    px_w, px_h = w * img_w, h * img_h
+    cx, cy = (x * img_w) + px_w / 2, (y * img_h) + px_h / 2
+    side = min(px_w, px_h, img_w, img_h)
+    if side < MIN_MANUAL_CROP_SIDE_PX:
+        return None
+
+    left, right = _clamp_span(cx - side / 2, cx + side / 2, img_w)
+    top, bottom = _clamp_span(cy - side / 2, cy + side / 2, img_h)
+    return (round(left), round(top), round(right), round(bottom))
+
+
+def process_photo_job(
+    session, job, source_image_path, processed_dir, manual_crop_fractions=None
+):
     """Run the full pipeline for one photo Job and persist the result:
     Job.processed_path, needs_attention/attention_reason, and status ->
     ready_for_review. The caller is expected to have already moved the
     job to `processing` before calling this (this function owns the
     processing step itself, not the "processing has started" marker).
+
+    manual_crop_fractions (optional): an (x, y, w, h) tuple from
+    manual_crop.parse_crop_fractions - a customer-drawn crop to use
+    instead of the automatic face-centered one. Face detection always
+    runs regardless (needs_attention's 0/2+-face check is about the
+    source photo's content, not which crop path was used). A missing
+    or degenerate manual crop silently falls back to automatic.
 
     On an unrecoverable processing error, the job is flagged and moved
     to `failed` instead of raising - a photo job that can't be processed
@@ -104,8 +145,31 @@ def process_photo_job(session, job, source_image_path, processed_dir):
 
         with Image.open(source_image_path) as src:
             src = src.convert("RGB")
-            box = compute_square_crop_box(src.size, face_box)
-            cropped = src.crop(box).resize(
+
+            manual_box = None
+            transposed = None
+            if manual_crop_fractions is not None:
+                # Browsers auto-rotate the <img> preview per EXIF
+                # orientation for display - everything the customer
+                # dragged/zoomed against is in that rotated space, so
+                # the crop must be applied there too. detect_faces()
+                # (cv2.imread) never auto-rotates, so face_box stays in
+                # raw space and the automatic fallback below must keep
+                # using the untransposed `src`, not this one.
+                transposed = ImageOps.exif_transpose(src)
+                manual_box = compute_manual_crop_box(
+                    transposed.size, manual_crop_fractions
+                )
+
+            if manual_box is not None:
+                crop_source, box = transposed, manual_box
+                job.processed_source = "manual"
+            else:
+                crop_source = src
+                box = compute_square_crop_box(src.size, face_box)
+                job.processed_source = "auto"
+
+            cropped = crop_source.crop(box).resize(
                 (CANONICAL_SIZE_PX, CANONICAL_SIZE_PX), Image.LANCZOS
             )
 
