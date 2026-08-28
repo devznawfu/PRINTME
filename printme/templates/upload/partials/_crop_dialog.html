@@ -1,0 +1,19 @@
+<dialog id="crop-dialog" class="rounded-3xl border border-line bg-panel p-0 backdrop:bg-black/50">
+  <div class="flex w-[320px] flex-col gap-5 p-7">
+    <h3 class="text-xl font-bold tracking-tight">Crop photo</h3>
+    <div data-crop-frame class="relative mx-auto h-[280px] w-[280px] touch-none select-none overflow-hidden rounded-2xl bg-inset">
+      <img data-crop-image alt="" draggable="false" class="absolute left-0 top-0 max-w-none select-none">
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-sm text-muted">Zoom</span>
+      <input type="range" data-crop-zoom min="1" max="3" step="0.01" value="1" class="flex-1">
+    </div>
+    <div class="flex flex-col gap-2.5">
+      <button type="button" data-crop-save-btn class="flex min-h-[54px] items-center justify-center rounded-2xl bg-btn-bg px-6 text-[15px] font-bold text-btn-text transition-colors hover:bg-btn-hover">Save crop</button>
+      <div class="flex gap-2.5">
+        <button type="button" data-crop-clear-btn class="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl border border-line px-3 text-[13.5px] font-bold">Use automatic crop</button>
+        <button type="button" data-crop-cancel-btn class="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl border border-line px-3 text-[13.5px] font-bold">Cancel</button>
+      </div>
+    </div>
+  </div>
+</dialog>
