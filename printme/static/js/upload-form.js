@@ -15,6 +15,7 @@
   const documentOptions = document.getElementById("document-options");
   const filesInput = document.getElementById("files-input");
   const fileListEl = document.getElementById("file-list");
+  const cropFieldsEl = document.getElementById("crop-fields");
   const submitBtn = document.getElementById("submit-btn");
   const helperText = document.getElementById("helper-text");
   const nameInput = form.querySelector('input[name="name"]');
@@ -25,18 +26,37 @@
     colorMode: colorModeInput.value || "bw",
     paperFinish: paperFinishInput.value || "bond",
     quality: qualityInput.value || "standard",
-    files: [],
+    files: [], // {id, file}[] - a stable id survives removal-by-splice, a bare index doesn't
+    crops: new Map(), // file id -> {x, y, w, h} fractions from photo-crop.js
+    nextFileId: 1,
   };
 
   function syncFilesInput() {
     const dt = new DataTransfer();
-    state.files.forEach((f) => dt.items.add(f));
+    state.files.forEach((entry) => dt.items.add(entry.file));
     filesInput.files = dt.files;
+  }
+
+  // Rebuilds the hidden crop_<i> fields from the CURRENT order of
+  // state.files x state.crops - <i> is the file's position in that
+  // order, matching how routes/upload.py positionally correlates
+  // crop_<original_index> to request.files.getlist("files").
+  function renderCropFields() {
+    cropFieldsEl.innerHTML = "";
+    state.files.forEach((entry, i) => {
+      const crop = state.crops.get(entry.id);
+      if (!crop) return;
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = `crop_${i}`;
+      input.value = JSON.stringify(crop);
+      cropFieldsEl.appendChild(input);
+    });
   }
 
   function renderFileList() {
     fileListEl.innerHTML = "";
-    state.files.forEach((file, i) => {
+    state.files.forEach((entry, i) => {
       const row = document.createElement("div");
       row.className =
         "flex items-center gap-3 rounded-xl bg-inset px-3.5 py-3";
@@ -46,7 +66,37 @@
 
       const name = document.createElement("span");
       name.className = "flex-1 truncate text-sm";
-      name.textContent = file.name;
+      name.textContent = entry.file.name;
+
+      row.append(dot, name);
+
+      const canCrop =
+        state.service === "photo" &&
+        window.PrintmePhotoCrop &&
+        window.PrintmePhotoCrop.isImageFile(entry.file);
+      if (canCrop) {
+        const cropBtn = document.createElement("button");
+        cropBtn.type = "button";
+        cropBtn.className = "cursor-pointer px-2 py-1 text-sm text-muted";
+        cropBtn.textContent = state.crops.has(entry.id) ? "Edit crop" : "Crop";
+        cropBtn.addEventListener("click", () => {
+          window.PrintmePhotoCrop.openCropDialog({
+            file: entry.file,
+            existingCrop: state.crops.get(entry.id) || null,
+            onSave: (fractions) => {
+              state.crops.set(entry.id, fractions);
+              renderFileList();
+              renderCropFields();
+            },
+            onClear: () => {
+              state.crops.delete(entry.id);
+              renderFileList();
+              renderCropFields();
+            },
+          });
+        });
+        row.append(cropBtn);
+      }
 
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
@@ -54,21 +104,26 @@
       removeBtn.textContent = "Remove";
       removeBtn.addEventListener("click", () => {
         state.files.splice(i, 1);
+        state.crops.delete(entry.id);
         syncFilesInput();
         renderFileList();
+        renderCropFields();
         updateUI();
       });
 
-      row.append(dot, name, removeBtn);
+      row.append(removeBtn);
       fileListEl.appendChild(row);
     });
     fileListEl.classList.toggle("hidden", state.files.length === 0);
   }
 
   function addFiles(fileList) {
-    Array.from(fileList || []).forEach((f) => state.files.push(f));
+    Array.from(fileList || []).forEach((file) => {
+      state.files.push({ id: state.nextFileId++, file });
+    });
     syncFilesInput();
     renderFileList();
+    renderCropFields();
     updateUI();
   }
 
@@ -90,6 +145,7 @@
       btn.classList.toggle("bg-panel", active);
       btn.classList.toggle("bg-panel-soft", !active);
     });
+    renderFileList();
     updateUI();
   }
 

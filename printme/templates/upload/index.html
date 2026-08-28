@@ -167,6 +167,7 @@
       </button>
 
       <div id="file-list" class="mt-1 hidden flex-col gap-2"></div>
+      <div id="crop-fields" class="hidden"></div>
     </div>
 
     <div class="flex flex-col gap-3.5">
@@ -185,9 +186,11 @@
     </div>
   </form>
 </div>
+{% include "upload/partials/_crop_dialog.html" %}
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/stepper.js') }}"></script>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/photo-crop.js') }}"></script>
 <script src="{{ url_for('static', filename='js/upload-form.js') }}"></script>
 {% endblock %}
