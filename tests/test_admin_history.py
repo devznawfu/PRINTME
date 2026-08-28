@@ -183,3 +183,148 @@ class TestRestoreRoute:
         login(client)
         resp = client.post("/admin/jobs/999999/restore")
         assert resp.status_code == 302
+
+
+class TestReprintRoute:
+    def test_requires_admin_login(self, client):
+        resp = client.post("/admin/jobs/1/reprint", data={"reprint_reason": "bad_print"})
+        assert resp.status_code == 302
+        assert "/admin/login" in resp.headers["Location"]
+
+    def test_reprint_photo_job_defaults_to_zero_cost(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            old = make_terminal_photo_job(app, JobStatus.DONE, ticket="P-001")
+            old.paper_finish = "glossy"
+            old.quality = "high"
+            db.session.add(old)
+            db.session.commit()
+            old_id = old.id
+
+        login(client)
+        resp = client.post(
+            f"/admin/jobs/{old_id}/reprint",
+            data={"reprint_reason": "bad_print"},
+        )
+
+        assert resp.status_code == 302
+        with app.app_context():
+            new_job = Job.query.filter(Job.id != old_id).order_by(Job.id.desc()).first()
+            assert new_job is not None
+            assert new_job.reprint_of == old_id
+            assert new_job.reprint_reason == "bad_print"
+            assert new_job.status == JobStatus.READY_FOR_REVIEW
+            assert new_job.total_cost == 0.0
+            assert new_job.paper_finish == "glossy"
+            assert new_job.quality == "high"
+            assert [r.size_name for r in new_job.photo_items] == ["2x2"]
+            assert new_job.display_ticket == "P-001-R"
+            # Same aliasing protection as restore(): a fresh upload_path copy.
+            assert new_job.upload_path != new_job.processed_path
+            assert Path(new_job.upload_path).exists()
+
+    def test_charge_normally_prices_the_reprint(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            old = make_terminal_photo_job(app, JobStatus.DONE, ticket="P-001")
+            db.session.add(old)
+            db.session.commit()
+            old_id = old.id
+
+        login(client)
+        resp = client.post(
+            f"/admin/jobs/{old_id}/reprint",
+            data={"reprint_reason": "wants_more", "charge_normally": "on"},
+        )
+
+        assert resp.status_code == 302
+        with app.app_context():
+            new_job = Job.query.filter(Job.id != old_id).order_by(Job.id.desc()).first()
+            assert new_job.total_cost is not None
+            assert new_job.total_cost > 0
+
+    def test_second_reprint_of_the_same_original_gets_r2(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            old = make_terminal_photo_job(app, JobStatus.DONE, ticket="P-001")
+            db.session.add(old)
+            db.session.commit()
+            old_id = old.id
+
+        login(client)
+        client.post(f"/admin/jobs/{old_id}/reprint", data={"reprint_reason": "bad_print"})
+        client.post(f"/admin/jobs/{old_id}/reprint", data={"reprint_reason": "paper_jam"})
+
+        with app.app_context():
+            reprints = (
+                Job.query.filter(Job.reprint_of == old_id).order_by(Job.created_at).all()
+            )
+            assert len(reprints) == 2
+            assert reprints[0].display_ticket == "P-001-R"
+            assert reprints[1].display_ticket == "P-001-R2"
+
+    def test_invalid_reason_shows_error_and_creates_no_job(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            old = make_terminal_photo_job(app, JobStatus.DONE, ticket="P-001")
+            db.session.add(old)
+            db.session.commit()
+            old_id = old.id
+            jobs_before = Job.query.count()
+
+        login(client)
+        resp = client.post(
+            f"/admin/jobs/{old_id}/reprint",
+            data={"reprint_reason": "not-a-real-reason"},
+            follow_redirects=True,
+        )
+
+        assert resp.status_code == 200
+        assert b"Pick a reason" in resp.data
+        with app.app_context():
+            assert Job.query.count() == jobs_before
+
+    def test_reprint_with_missing_file_shows_error_and_creates_no_job(
+        self, app, client, tmp_path
+    ):
+        with app.app_context():
+            ghost = tmp_path / "gone.jpg"  # never created
+            old = make_terminal_photo_job(
+                app, JobStatus.DONE, ticket="P-001", processed_path=str(ghost)
+            )
+            db.session.add(old)
+            db.session.commit()
+            old_id = old.id
+            jobs_before = Job.query.count()
+
+        login(client)
+        resp = client.post(
+            f"/admin/jobs/{old_id}/reprint",
+            data={"reprint_reason": "bad_print"},
+            follow_redirects=True,
+        )
+
+        assert resp.status_code == 200
+        assert b"no longer on disk" in resp.data
+        with app.app_context():
+            assert Job.query.count() == jobs_before
+
+    def test_missing_job_redirects_without_error(self, client):
+        login(client)
+        resp = client.post("/admin/jobs/999999/reprint", data={"reprint_reason": "bad_print"})
+        assert resp.status_code == 302
+
+    def test_history_page_shows_reprint_form(self, app, client):
+        with app.app_context():
+            old = make_terminal_photo_job(app, JobStatus.DONE, ticket="P-001")
+            db.session.add(old)
+            db.session.commit()
+
+        login(client)
+        resp = client.get("/admin/history/")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert "reprint_reason" in body
+        assert "Bad print" in body
+        assert "charge_normally" in body

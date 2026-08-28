@@ -153,6 +153,107 @@ class TestNeedsAttention:
                 db.session.commit()
 
 
+class TestReprints:
+    """Turn 3c: a reprint is a new Job row pointing at the original via
+    reprint_of, never a mutation of the original. display_ticket
+    computes the "-R"/"-R2" suffix at read time from reprint_of + a
+    count of prior reprints of the same original - never stored in
+    ticket_number itself, so generate_ticket_number()'s own parsing/
+    active-uniqueness logic is completely untouched by this feature."""
+
+    def test_normal_job_display_ticket_is_unchanged(self, app):
+        with app.app_context():
+            job = make_job()
+            assert job.display_ticket == job.ticket_number
+
+    def test_first_reprint_gets_r_suffix(self, app):
+        with app.app_context():
+            original = make_job(ticket_number="P-014")
+            db.session.add(original)
+            db.session.commit()
+
+            reprint = make_job(
+                ticket_number="P-020",  # its own independently-generated ticket
+                reprint_of=original.id,
+                reprint_reason="bad_print",
+            )
+            db.session.add(reprint)
+            db.session.commit()
+
+            assert reprint.display_ticket == "P-014-R"
+
+    def test_second_reprint_of_the_same_original_gets_r2(self, app):
+        with app.app_context():
+            original = make_job(ticket_number="P-014")
+            db.session.add(original)
+            db.session.commit()
+
+            first = make_job(
+                ticket_number="P-020", reprint_of=original.id, reprint_reason="paper_jam"
+            )
+            db.session.add(first)
+            db.session.commit()
+
+            second = make_job(
+                ticket_number="P-021", reprint_of=original.id, reprint_reason="bad_print"
+            )
+            db.session.add(second)
+            db.session.commit()
+
+            assert first.display_ticket == "P-014-R"
+            assert second.display_ticket == "P-014-R2"
+
+    def test_original_job_exposes_its_reprints(self, app):
+        with app.app_context():
+            original = make_job(ticket_number="P-014")
+            db.session.add(original)
+            db.session.commit()
+
+            reprint = make_job(
+                ticket_number="P-020", reprint_of=original.id, reprint_reason="wrong_crop"
+            )
+            db.session.add(reprint)
+            db.session.commit()
+
+            assert len(original.reprints) == 1
+            assert original.reprints[0].id == reprint.id
+            assert reprint.original_job.id == original.id
+
+    def test_reprint_reason_without_reprint_of_is_rejected(self, app):
+        with app.app_context():
+            job = make_job(reprint_reason="bad_print")
+            with pytest.raises(ValueError):
+                db.session.add(job)
+                db.session.commit()
+
+    def test_invalid_reprint_reason_is_rejected(self, app):
+        with app.app_context():
+            original = make_job(ticket_number="P-014")
+            db.session.add(original)
+            db.session.commit()
+
+            job = make_job(
+                ticket_number="P-020", reprint_of=original.id, reprint_reason="not-a-real-reason"
+            )
+            with pytest.raises(ValueError):
+                db.session.add(job)
+                db.session.commit()
+
+    def test_reprint_of_without_reason_is_allowed(self, app):
+        """reprint_of alone (no reason yet) shouldn't be blocked - only
+        the reverse (a reason with no reprint_of) is nonsensical."""
+        with app.app_context():
+            original = make_job(ticket_number="P-014")
+            db.session.add(original)
+            db.session.commit()
+
+            reprint = make_job(ticket_number="P-020", reprint_of=original.id)
+            db.session.add(reprint)
+            db.session.commit()  # must not raise
+
+            assert reprint.reprint_reason is None
+
+
 class TestTicketNumbers:
     def test_first_ticket_is_p001(self, app):
         with app.app_context():

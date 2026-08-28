@@ -48,6 +48,17 @@ QUALITY_LEVELS = ("standard", "high")
 # existed, or a document job - not "auto" by default, since we
 # genuinely don't know for those.
 PROCESSED_SOURCE = ("auto", "manual")
+# Turn 3c: why a reprint was needed - only set on a job that IS a
+# reprint (reprint_of is not None). Not DB-enforced, same pattern as
+# every other "enum-like" column in this model - validated at the
+# route layer.
+REPRINT_REASONS = ("bad_print", "paper_jam", "wrong_crop", "wants_more")
+REPRINT_REASON_LABELS = {
+    "bad_print": "Bad print",
+    "paper_jam": "Paper jam",
+    "wrong_crop": "Wrong crop",
+    "wants_more": "Customer wants more",
+}
 
 
 def generate_ticket_number():
@@ -137,6 +148,13 @@ class Job(db.Model):
     quality = db.Column(db.String(8))  # standard|high
     processed_source = db.Column(db.String(8))  # auto|manual
 
+    # Turn 3c: a reprint is a brand-new Job row pointing at the original
+    # it replaces, NOT a mutation of the original - the original's own
+    # history (what actually happened to it) stays intact. reprint_of
+    # is NULL for every normal job.
+    reprint_of = db.Column(db.Integer, db.ForeignKey("jobs.id"), nullable=True, index=True)
+    reprint_reason = db.Column(db.String(24))  # REPRINT_REASONS, see above
+
     # Cost snapshot written by the pricing engine when it computes a total.
     total_cost = db.Column(db.Float)
 
@@ -157,6 +175,13 @@ class Job(db.Model):
         lazy="joined",
     )
 
+    # Self-referential: original_job navigates a reprint back to what it
+    # replaces; reprints (the backref) navigates the original forward to
+    # every reprint made of it, in creation order via display_ticket's
+    # own sort - needed there since a 2nd/3rd reprint of the same
+    # original displays as "-R2"/"-R3", not stored anywhere directly.
+    original_job = db.relationship("Job", remote_side=[id], backref="reprints")
+
     def flag_for_attention(self, reason):
         """Mark this job as needing staff review, with the specific reason."""
         if not reason or not str(reason).strip():
@@ -167,6 +192,23 @@ class Job(db.Model):
     def clear_attention(self):
         self.needs_attention = False
         self.attention_reason = None
+
+    @property
+    def display_ticket(self):
+        """Ticket number as shown to staff/customers. Unchanged for a
+        normal job. A reprint displays with a "-R" ("-R2", "-R3", ... for
+        a 2nd/3rd reprint of the same original) suffix appended to the
+        ORIGINAL's ticket number - computed here at display time, never
+        stored in ticket_number itself (Decision #4: keeps generate_
+        ticket_number()'s parsing/active-uniqueness logic untouched, and
+        a reprint still gets its own independently-generated ticket_
+        number under the hood, just not the one shown)."""
+        if self.reprint_of is None:
+            return self.ticket_number
+        siblings = sorted(self.original_job.reprints, key=lambda j: j.created_at)
+        index = siblings.index(self) + 1
+        suffix = "R" if index == 1 else f"R{index}"
+        return f"{self.original_job.ticket_number}-{suffix}"
 
 
 def _require_reason_when_flagged(mapper, connection, target):
@@ -179,8 +221,19 @@ def _require_reason_when_flagged(mapper, connection, target):
         raise ValueError("needs_attention requires a specific reason")
 
 
+def _require_reprint_of_when_reason_set(mapper, connection, target):
+    """Mirrors the flag+reason pairing above: reprint_reason only makes
+    sense on a job that IS a reprint."""
+    if target.reprint_reason and target.reprint_of is None:
+        raise ValueError("reprint_reason requires reprint_of to be set")
+    if target.reprint_reason and target.reprint_reason not in REPRINT_REASONS:
+        raise ValueError(f"invalid reprint_reason: {target.reprint_reason!r}")
+
+
 event.listens_for(Job, "before_insert")(_require_reason_when_flagged)
 event.listens_for(Job, "before_update")(_require_reason_when_flagged)
+event.listens_for(Job, "before_insert")(_require_reprint_of_when_reason_set)
+event.listens_for(Job, "before_update")(_require_reprint_of_when_reason_set)
 
 
 class PhotoItemRow(db.Model):

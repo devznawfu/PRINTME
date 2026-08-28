@@ -32,7 +32,7 @@
       <div class="flex min-w-0 flex-1 flex-col gap-1.5">
         <div class="flex flex-wrap items-center gap-3">
           <h3 class="text-lg font-bold leading-tight">{{ job.customer_name }}</h3>
-          <span class="text-muted">Ticket {{ job.ticket_number }}</span>
+          <span class="text-muted">Ticket {{ job.display_ticket }}</span>
           <span class="inline-flex w-fit items-center gap-2 rounded-full bg-chip px-3 py-1 text-[13px] font-bold text-chip-text">
             <span class="h-2 w-2 rounded-sm bg-chip-dot"></span>{{ "Photo printing" if job.service_type == "photo" else "Document printing" }}
           </span>
@@ -51,9 +51,23 @@
         <span class="text-[14px] font-bold text-err-text">File no longer on disk - can't restore.</span>
         {% endif %}
       </div>
-      <form method="post" action="{{ url_for('admin_history.restore', job_id=job.id) }}">
-        <button type="submit" {{ "disabled" if not row.file_available }} class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[16px] font-bold disabled:cursor-not-allowed disabled:opacity-40">Restore</button>
-      </form>
+      <div class="flex flex-wrap items-center gap-3">
+        <form method="post" action="{{ url_for('admin_history.restore', job_id=job.id) }}">
+          <button type="submit" {{ "disabled" if not row.file_available }} class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[16px] font-bold disabled:cursor-not-allowed disabled:opacity-40">Restore</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_history.reprint', job_id=job.id) }}" class="flex flex-wrap items-center gap-2">
+          <select name="reprint_reason" aria-label="Reprint reason" {{ "disabled" if not row.file_available }} class="h-[54px] rounded-xl border border-line bg-inset px-4 text-[15px] disabled:cursor-not-allowed disabled:opacity-40">
+            {% for value, label in reprint_reason_labels.items() %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+          <label class="flex items-center gap-2 text-[14px] text-muted">
+            <input type="checkbox" name="charge_normally" {{ "disabled" if not row.file_available }}>
+            Charge normally
+          </label>
+          <button type="submit" {{ "disabled" if not row.file_available }} class="flex min-h-[54px] items-center rounded-2xl bg-btn-bg px-6 text-[16px] font-bold text-btn-text transition-colors hover:bg-btn-hover disabled:cursor-not-allowed disabled:opacity-40">Reprint</button>
+        </form>
+      </div>
     </div>
     {% endfor %}
   </div>
