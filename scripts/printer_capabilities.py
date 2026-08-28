@@ -74,12 +74,23 @@ def report_printer(printer_name):
     paper_sizes = _query(printer_name, port, DC_PAPERSIZE, "DC_PAPERSIZE")
 
     if paper_ids and paper_names and paper_sizes:
-        print("  paper sizes (id, name, width_mm, height_mm):")
+        # DC_PAPERSIZE's real return shape from pywin32 hasn't been
+        # confirmed (assuming (width, height) tenths-of-mm tuples per
+        # POINT-array structs failed on the real printer with a str, not
+        # an int) - stay defensive and print the raw value on anything
+        # unexpected instead of crashing, so this still gets us real
+        # ground-truth data to build the actual parsing from.
+        print("  paper sizes (id, name, size):")
         hints = []
-        for pid, name, (w, h) in zip(paper_ids, paper_names, paper_sizes):
-            clean_name = name.strip("\x00").strip()
-            w_mm, h_mm = w / 10, h / 10  # DC_PAPERSIZE is in tenths of a mm
-            print(f"    {pid:>4}  {clean_name!r:30}  {w_mm:.1f} x {h_mm:.1f} mm")
+        for pid, name, size in zip(paper_ids, paper_names, paper_sizes):
+            clean_name = name.strip("\x00").strip() if isinstance(name, str) else repr(name)
+            try:
+                w, h = size
+                w_mm, h_mm = float(w) / 10, float(h) / 10
+                size_repr = f"{w_mm:.1f} x {h_mm:.1f} mm"
+            except (TypeError, ValueError):
+                size_repr = f"RAW (unrecognized shape): {size!r}"
+            print(f"    {pid:>4}  {clean_name!r:30}  {size_repr}")
             if any(word in clean_name.lower() for word in BORDERLESS_HINT_WORDS):
                 hints.append((pid, clean_name))
         if hints:
@@ -94,7 +105,8 @@ def report_printer(printer_name):
     if media_ids and media_names:
         print("  media types (id, name) - glossy vs. plain is often exposed here:")
         for mid, name in zip(media_ids, media_names):
-            print(f"    {mid:>4}  {name.strip(chr(0)).strip()!r}")
+            clean_name = name.strip("\x00").strip() if isinstance(name, str) else repr(name)
+            print(f"    {mid:>4}  {clean_name!r}")
 
 
 def main():
