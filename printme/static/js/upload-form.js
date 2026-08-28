@@ -310,7 +310,7 @@
     submitBtn.classList.toggle("text-btn-disabled-text", !ready);
     submitBtn.classList.toggle("bg-btn-bg", ready);
     submitBtn.classList.toggle("text-btn-text", ready);
-    submitBtn.classList.toggle("shadow-[0_8px_20px_rgba(0,0,0,0.18)]", ready);
+    submitBtn.classList.toggle("shadow-cta", ready);
 
     helperText.textContent = ready
       ? "Bring your phone to the counter if we need you."

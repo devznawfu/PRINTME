@@ -4,6 +4,7 @@ specific fixed size, placed at its packed position, with cutting-guide
 grid lines - what the admin previews before printing a batch.
 """
 
+import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -14,8 +15,37 @@ from printme.layout_engine.types import PackedSheet, PlacedItem
 from printme.models.job import Job
 
 MISSING_PHOTO_OUTLINE = "red"
-GRID_LINE_COLOR = "black"
+# Mid-grey, not black: at zero print gutter (CLAUDE.md), this line is the
+# ONLY thing separating two touching photos - solid black reads as too
+# harsh a mark on glossy photo paper, cutting into the image itself.
+GRID_LINE_COLOR = "#9a9a9a"
+# Wide enough at native 300 DPI to still read as a clear ~2px line once
+# the admin's on-screen preview downscales the sheet (photo_sheets.html
+# renders it at CSS `w-full`, well under its native pixel width) - a
+# thin line at print resolution all but disappears after that downscale.
+GRID_LINE_WIDTH = 6
+GRID_DASH_PX = 24
+GRID_GAP_PX = 14
 MARGIN_OUTLINE_COLOR = "#999999"
+
+
+def _draw_dashed_line(draw, x1, y1, x2, y2, fill, width, dash=GRID_DASH_PX, gap=GRID_GAP_PX):
+    """Axis-aligned dashed line - grid lines here are always horizontal or
+    vertical (see layout_engine/render.py's per-item box lines). PIL has
+    no built-in dash support, so this walks the line in dash/gap steps."""
+    length = math.hypot(x2 - x1, y2 - y1)
+    if length == 0:
+        return
+    dx, dy = (x2 - x1) / length, (y2 - y1) / length
+    pos = 0.0
+    while pos < length:
+        seg_end = min(pos + dash, length)
+        draw.line(
+            [x1 + dx * pos, y1 + dy * pos, x1 + dx * seg_end, y1 + dy * seg_end],
+            fill=fill,
+            width=width,
+        )
+        pos += dash + gap
 
 
 def _to_packed_sheet(photo_sheet):
@@ -96,7 +126,9 @@ def render_photo_sheet(session, photo_sheet, out_path):
         canvas.paste(fitted, (item.x_px, item.y_px))
 
     for line in sheet_render.grid_lines:
-        draw.line([line.x1, line.y1, line.x2, line.y2], fill=GRID_LINE_COLOR, width=2)
+        _draw_dashed_line(
+            draw, line.x1, line.y1, line.x2, line.y2, fill=GRID_LINE_COLOR, width=GRID_LINE_WIDTH
+        )
 
     draw.rectangle(
         [

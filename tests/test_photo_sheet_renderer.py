@@ -1,15 +1,47 @@
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from printme.extensions import db
 from printme.layout_engine import sizes
 from printme.models import Job, JobStatus, PhotoItemRow, PhotoSheet, seed_defaults
 from printme.services.photo_pipeline import process_photo_job
 from printme.services.photo_sheet import pack_pending_photo_jobs
-from printme.services.photo_sheet_renderer import render_photo_sheet
+from printme.services.photo_sheet_renderer import (
+    GRID_LINE_COLOR,
+    _draw_dashed_line,
+    render_photo_sheet,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+class TestDrawDashedLine:
+    """Regression coverage for the cutting-guide fix: at zero print
+    gutter, this line is the only thing separating two touching photos,
+    so it needs to actually read as a dashed guide (not solid black,
+    which cuts into the image on glossy paper) and stay visible after
+    the admin's on-screen preview downscales the sheet."""
+
+    def test_produces_genuine_gaps_not_a_solid_line(self):
+        canvas = Image.new("RGB", (400, 20), "white")
+        draw = ImageDraw.Draw(canvas)
+        _draw_dashed_line(draw, 0, 10, 400, 10, fill="black", width=4, dash=20, gap=10)
+
+        row = [canvas.getpixel((x, 10)) for x in range(400)]
+        assert any(p == (255, 255, 255) for p in row), "expected untouched gaps between dashes"
+        assert any(p == (0, 0, 0) for p in row), "expected drawn dash segments"
+
+    def test_zero_length_line_does_not_crash(self):
+        canvas = Image.new("RGB", (10, 10), "white")
+        draw = ImageDraw.Draw(canvas)
+        _draw_dashed_line(draw, 5, 5, 5, 5, fill="black", width=4)  # no-op, must not raise
+
+    def test_grid_line_color_is_not_pure_black(self):
+        """Solid black at 300 DPI with zero gutter reads as too harsh a
+        cut mark on white glossy paper - pinned as a mid grey instead."""
+        assert GRID_LINE_COLOR != "black"
+        assert GRID_LINE_COLOR != "#000000"
 
 
 def make_processed_photo_job(session, tmp_path, ticket="P-001", size_name="2x2", quantity=1):
