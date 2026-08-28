@@ -39,7 +39,7 @@ def get_current(session):
 
     if row is None:
         row = SecretCode(
-            id=1, code=_random_code(None), generated_on=now_date
+            id=1, code=_random_code(None), generated_on=now_date, rotated_at=utc_now()
         )
         session.add(row)
         session.commit()
@@ -48,6 +48,7 @@ def get_current(session):
         # last_reset_at alone.
         row.code = _random_code(row.code)
         row.generated_on = now_date
+        row.rotated_at = utc_now()
         session.commit()
 
     return row
@@ -60,6 +61,7 @@ def reset_now(session):
     current.code = _random_code(current.code)
     current.generated_on = today()
     current.last_reset_at = utc_now()
+    current.rotated_at = current.last_reset_at
     session.commit()
     return current
 

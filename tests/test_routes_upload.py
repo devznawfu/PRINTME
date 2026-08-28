@@ -455,6 +455,33 @@ class TestUploadSubmitHappyPathMocked:
             assert Job.query.count() == before
 
 
+class TestCodeUsedSnapshot:
+    """Turn 6a: Job.code_used snapshots the code actually checked at
+    submission, as a plain string - not an FK, since SecretCode mutates
+    its single row in place on rotation and has no history."""
+
+    def test_job_records_the_code_it_was_submitted_under(self, app, client):
+        code = todays_code(app)
+        with patch("printme.routes.upload.process_photo_job"):
+            submit_form(client, code)
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Maria Alvarez").one()
+            assert job.code_used == code
+
+    def test_code_used_is_unaffected_by_a_later_reset(self, app, client):
+        code = todays_code(app)
+        with patch("printme.routes.upload.process_photo_job"):
+            submit_form(client, code)
+
+        with app.app_context():
+            reset_now(db.session)  # code rotates after submission
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Maria Alvarez").one()
+            assert job.code_used == code
+
+
 class TestUploadWithManualCrop:
     def test_valid_crop_sets_processed_source_manual(self, app, client):
         """No mocking - proves the crop_0 field actually reaches the

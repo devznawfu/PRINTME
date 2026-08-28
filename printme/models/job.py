@@ -155,6 +155,14 @@ class Job(db.Model):
     reprint_of = db.Column(db.Integer, db.ForeignKey("jobs.id"), nullable=True, index=True)
     reprint_reason = db.Column(db.String(24))  # REPRINT_REASONS, see above
 
+    # Turn 6a: the daily code this job was submitted under, snapshotted
+    # as a plain string at submission time - NOT a foreign key. SecretCode
+    # mutates its single row in place on every rotation/reset (no history
+    # table), so a FK would silently point at whatever code is current
+    # NOW rather than the one actually checked at submission, miscounting
+    # "how many jobs used today's code" the moment the code next rotates.
+    code_used = db.Column(db.String(4))
+
     # Cost snapshot written by the pricing engine when it computes a total.
     total_cost = db.Column(db.Float)
 

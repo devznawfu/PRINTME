@@ -3,6 +3,8 @@
 each with its specific reason) - design-reference/admin-dashboard.html.
 """
 
+from datetime import datetime, timezone
+
 from flask import Blueprint, Response, jsonify, render_template, request, session
 
 from printme.extensions import db
@@ -14,6 +16,14 @@ from printme.services.retention import free_space_bytes
 from printme.services.secret_code import get_current
 
 bp = Blueprint("admin_dashboard", __name__, url_prefix="/admin")
+
+
+def _today_start():
+    # Same naive-UTC idiom as services/retention.py's _utc_now_naive():
+    # Job.created_at is written from an aware UTC datetime but SQLite has
+    # no timezone-aware column type, so it always reads back naive.
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def file_line_for(job):
@@ -69,6 +79,9 @@ def dashboard():
     )
     printed_today = Job.query.filter(Job.status == JobStatus.DONE).count()
     code = get_current(db.session)
+    code_usage_count = Job.query.filter(
+        Job.code_used == code.code, Job.created_at >= _today_start()
+    ).count()
 
     return render_template(
         "admin/dashboard.html",
@@ -76,11 +89,25 @@ def dashboard():
         flagged_cards=[_card(j) for j in flagged_jobs],
         todays_code=code.code,
         reset_at=code.last_reset_at,
+        code_usage_count=code_usage_count,
         printed_today=printed_today,
         free_space_gb=round(free_space_bytes(".") / (1024**3), 1),
         display_name=session.get("admin_display_name", "staff"),
         printers=available_printers(),
     )
+
+
+@bp.route("/code/sign", methods=["GET"])
+@admin_required
+def code_sign():
+    """Print-friendly, chrome-free page: just today's code, big, for
+    staff to print and post at the counter (CLAUDE.md: the daily code
+    "should always be ready and visible"). Shows rotated_at ("in effect
+    since") rather than last_reset_at - a sign posted at the counter
+    doesn't care whether the code changed via daily rotation or a
+    manual reset, just when the CURRENT value took effect."""
+    code = get_current(db.session)
+    return render_template("admin/code_sign.html", todays_code=code.code, rotated_at=code.rotated_at)
 
 
 @bp.route("/status", methods=["GET"])

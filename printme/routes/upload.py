@@ -176,6 +176,7 @@ def submit():
             service_type=service,
             original_filename=original_filename,
             upload_path=str(saved_path),
+            code_used=code,
         )
         # Document jobs never carry a manual crop - photo-only feature.
         crop_fractions = None

@@ -51,6 +51,26 @@ class TestGetCurrent:
             assert rotated.code != pre_rotation_code
             assert rotated.last_reset_at == stamp
 
+    def test_first_access_stamps_rotated_at(self, app):
+        with app.app_context():
+            row = secret_code.get_current(db.session)
+            assert row.rotated_at is not None
+
+    def test_daily_rotation_updates_rotated_at(self, app):
+        """Unlike last_reset_at (manual-only), rotated_at is the unified
+        "when did the current value last change, for any reason" stamp -
+        a lazy daily rotation DOES move it, even without a manual reset."""
+        with app.app_context():
+            row = secret_code.get_current(db.session)
+            first_stamp = row.rotated_at
+
+            row.generated_on = secret_code.today() - timedelta(days=1)
+            row.rotated_at = first_stamp - timedelta(days=1)
+            db.session.commit()
+
+            rotated = secret_code.get_current(db.session)
+            assert rotated.rotated_at > first_stamp - timedelta(days=1)
+
 
 class TestResetNow:
     def test_reset_changes_code_and_stamps_time(self, app):
@@ -68,6 +88,11 @@ class TestResetNow:
             first_code = secret_code.reset_now(db.session).code
             second_code = secret_code.reset_now(db.session).code
             assert first_code != second_code
+
+    def test_reset_stamps_rotated_at_matching_last_reset_at(self, app):
+        with app.app_context():
+            row = secret_code.reset_now(db.session)
+            assert row.rotated_at == row.last_reset_at
 
 
 class TestRandomness:

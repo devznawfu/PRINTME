@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% import "partials/_icons.html" as icons %}
+{% block title %}PRINTME! &mdash; Today's Code{% endblock %}
+{% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
+{% block body %}
+<div class="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg px-8 py-16 text-center print:min-h-0 print:gap-6 print:py-10">
+  <div class="print:hidden">
+    <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to dashboard</a>
+  </div>
+
+  <div class="flex items-center gap-3.5">
+    {{ icons.logo_mark(40) }}
+    <span class="text-[34px] font-bold tracking-tight">PRINTME!</span>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <span class="text-[22px] font-bold uppercase tracking-[0.14em] text-muted">Today's code</span>
+    <span class="text-[180px] font-bold leading-none tracking-[0.1em] tabular-nums">{{ todays_code }}</span>
+    {% if rotated_at %}
+    <span class="text-[17px] text-text-soft">In effect since {{ rotated_at.strftime("%I:%M %p").lstrip("0") }}</span>
+    {% endif %}
+  </div>
+
+  <button type="button" onclick="window.print()" class="print:hidden flex min-h-[64px] items-center rounded-2xl bg-btn-bg px-10 text-lg font-bold text-btn-text transition-colors hover:bg-btn-hover">Print this sign</button>
+</div>
+{% endblock %}

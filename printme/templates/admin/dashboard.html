@@ -42,6 +42,8 @@
     <div class="flex flex-col gap-1.5">
       <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-warn-title">Today's code</h2>
       <span class="text-lg text-warn-muted">Read this out to customers before they upload.</span>
+      <span class="text-[15px] text-warn-muted">{{ code_usage_count }} job{{ "s" if code_usage_count != 1 else "" }} submitted with this code today.</span>
+      <a href="{{ url_for('admin_dashboard.code_sign') }}" class="text-[15px] font-bold text-warn-title underline">Print a sign for the counter</a>
     </div>
     <div class="flex items-center gap-5">
       <span class="text-[68px] font-bold leading-none tracking-[0.14em] text-warn-note-text">{{ todays_code }}</span>
@@ -51,7 +53,10 @@
           New code
         </button>
       </form>
-      <span class="max-w-[150px] text-[16.5px] leading-snug text-warn-muted">{{ ("Code last reset at " + reset_at.strftime("%I:%M %p").lstrip("0")) if reset_at else "Code not reset today" }}</span>
+      <span class="max-w-[170px] text-[16.5px] leading-snug text-warn-muted">
+        {{ ("Code last reset at " + reset_at.strftime("%I:%M %p").lstrip("0")) if reset_at else "Code not reset today" }}
+        <br>Won't cancel jobs already accepted.
+      </span>
     </div>
   </div>
 

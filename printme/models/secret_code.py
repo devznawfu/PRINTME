@@ -23,6 +23,13 @@ class SecretCode(db.Model):
     # effect. Null until someone resets by hand.
     last_reset_at = db.Column(db.DateTime)
 
+    # Turn 6a: when the CURRENT code value last changed, for any reason -
+    # daily rotation OR a manual reset. Unlike last_reset_at (manual only,
+    # already shown on the dashboard), this is the single "code set at"
+    # timestamp the admin dashboard's code card needs regardless of why
+    # it changed.
+    rotated_at = db.Column(db.DateTime)
+
 
 def utc_now():
     return datetime.now(timezone.utc).replace(tzinfo=None)

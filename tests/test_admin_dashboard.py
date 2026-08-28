@@ -181,6 +181,74 @@ class TestTodaysCodeResetDisplay:
         assert b"Code not reset today" in resp.data
 
 
+class TestCodeUsageCount:
+    """Turn 6a: the dashboard's code card counts today's jobs submitted
+    under today's code - via Job.code_used, a plain snapshot string."""
+
+    def test_counts_only_jobs_submitted_with_todays_code(self, app, client):
+        with app.app_context():
+            code = reset_now(db.session)
+            db.session.add(make_ready_photo_job(ticket_number="P-001", code_used=code.code))
+            db.session.add(
+                make_ready_photo_job(
+                    ticket_number="P-002", customer_name="Ben", code_used=code.code
+                )
+            )
+            # An old job submitted under a since-rotated code shouldn't count.
+            db.session.add(
+                make_ready_photo_job(
+                    ticket_number="P-003", customer_name="Cy", code_used="9999"
+                )
+            )
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/")
+
+        assert resp.status_code == 200
+        assert b"2 jobs submitted with this code today." in resp.data
+
+    def test_zero_usage_shows_singular_free_text(self, client):
+        login(client)
+
+        resp = client.get("/admin/")
+
+        assert resp.status_code == 200
+        assert b"0 jobs submitted with this code today." in resp.data
+
+
+class TestCodeSignRoute:
+    def test_requires_admin_login(self, client):
+        resp = client.get("/admin/code/sign")
+        assert resp.status_code == 302
+        assert "/admin/login" in resp.headers["Location"]
+
+    def test_shows_todays_code_and_effective_time(self, app, client):
+        with app.app_context():
+            code = reset_now(db.session)
+            code.rotated_at = datetime(2026, 1, 1, 9, 5, tzinfo=timezone.utc)
+            db.session.commit()
+            code_value = code.code
+        login(client)
+
+        resp = client.get("/admin/code/sign")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert code_value in body
+        assert "In effect since 9:05 AM" in body
+
+
+class TestNewCodeReassurance:
+    def test_dashboard_reassures_staff_a_new_code_wont_cancel_jobs(self, client):
+        login(client)
+
+        resp = client.get("/admin/")
+
+        assert resp.status_code == 200
+        assert b"Won't cancel jobs already accepted." in resp.data
+
+
 class TestDashboardPrinterDropdown:
     def test_document_job_card_lists_every_printer(self, app, client):
         with app.app_context():
