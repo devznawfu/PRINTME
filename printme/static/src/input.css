@@ -218,6 +218,19 @@ body {
   transition: background 260ms ease, color 260ms ease;
 }
 
+/* Native <dialog> is the one element type whose UA stylesheet
+   re-asserts its own `color` (CanvasText, following the OS/browser's
+   own dark/light preference) instead of inheriting body's - so any
+   dialog that sets a themed background (bg-panel, etc.) but forgets a
+   themed text color on a child can end up with the app's light theme
+   and the OS's dark preference fighting each other, sometimes to the
+   point of unreadable/near-invisible text. This is a safety net for
+   any dialog that doesn't set text-text explicitly - it's still
+   correct to add text-text on individual <dialog> elements too. */
+dialog {
+  color: var(--color-text);
+}
+
 /* Entrance animations, transcribed from design-reference/*.html's
    `fade`/`pop` keyframes (prefixed pm- to match this file's --pm-*
    token naming and avoid colliding with Tailwind's built-in
