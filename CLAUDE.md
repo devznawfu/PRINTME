@@ -89,7 +89,8 @@ a flagged job silently.
 - Uploaded source files auto-delete after 2 days (scheduled task).
 - Processed ID photos (post-crop/bg-removal) are kept until manual admin cleanup.
 - Admin dashboard shows free storage space and a "Delete jobs older than 2 days" button.
-- Max upload size: 15 MB. Allowed extensions: .pdf, .jpg, .png, .docx.
+- Max upload size: 15 MB. Allowed extensions: .pdf, .jpg, .jfif, .png, .docx.
+  (.jfif is the same JPEG format under a different extension.)
 
 ### Printing
 - 3 Brother printers available via USB hub: DCP-L2540DW, DCP-T420W, DCP-T430W.

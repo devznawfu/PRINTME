@@ -30,7 +30,7 @@ def fake_file(filename, content=b"hello", content_type="application/octet-stream
 
 class TestExtensionChecks:
     @pytest.mark.parametrize(
-        "filename", ["photo.jpg", "photo.JPG", "scan.PDF", "form.docx", "id.png"]
+        "filename", ["photo.jpg", "photo.JPG", "scan.PDF", "form.docx", "id.png", "photo.jfif"]
     )
     def test_allowed_extensions_accepted(self, filename):
         assert is_allowed_extension(filename) is True
@@ -44,7 +44,7 @@ class TestExtensionChecks:
     def test_extension_of_is_case_insensitive_and_takes_last_segment(self):
         assert extension_of("a.b.PDF") == "pdf"
 
-    @pytest.mark.parametrize("filename", ["photo.jpg", "id.png"])
+    @pytest.mark.parametrize("filename", ["photo.jpg", "id.png", "photo.jfif"])
     def test_photo_allowlist_accepts_images(self, filename):
         assert is_allowed_extension(filename, PHOTO_ALLOWED_EXTENSIONS) is True
 
@@ -110,6 +110,17 @@ class TestContentValidation:
     def test_real_jpeg_passes(self):
         f = fake_file("photo.jpg", REAL_JPEG_BYTES)
         validate_file_storage(f)  # does not raise
+
+    def test_real_jpeg_bytes_under_jfif_extension_passes(self):
+        """.jfif is the same JPEG format under a different extension -
+        content-checked the same way as .jpg."""
+        f = fake_file("photo.jfif", REAL_JPEG_BYTES)
+        validate_file_storage(f)  # does not raise
+
+    def test_text_renamed_to_jfif_is_rejected(self):
+        f = fake_file("photo.jfif", b"just some plain text, not an image")
+        with pytest.raises(UploadRejected, match="doesn't look like a real JFIF"):
+            validate_file_storage(f)
 
     def test_text_renamed_to_jpg_is_rejected(self):
         f = fake_file("photo.jpg", b"just some plain text, not an image")

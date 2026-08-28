@@ -10,10 +10,13 @@ INSTANCE_DIR = BASE_DIR / "instance"
 UPLOAD_DIR = BASE_DIR / "uploads"
 PROCESSED_DIR = BASE_DIR / "processed"
 
-ALLOWED_UPLOAD_EXTENSIONS = {"pdf", "jpg", "png", "docx"}
+ALLOWED_UPLOAD_EXTENSIONS = {"pdf", "jpg", "jfif", "png", "docx"}
 # Photo Printing jobs go through face detection - a PDF/DOCX makes no
 # sense there, so they get a narrower allowlist than documents.
-PHOTO_ALLOWED_EXTENSIONS = {"jpg", "png"}
+# .jfif is the same JPEG format under a different extension (some
+# browsers/apps save images that way) - treated identically to .jpg
+# everywhere a JPEG is handled.
+PHOTO_ALLOWED_EXTENSIONS = {"jpg", "jfif", "png"}
 MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024
 
 PRIMARY_PHOTO_SIZES = ("1x1", "2x2", "Passport", "Visa")

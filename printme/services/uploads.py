@@ -1,5 +1,5 @@
 """Upload validation and storage. CLAUDE.md: max 15 MB, allowed
-extensions .pdf/.jpg/.png/.docx."""
+extensions .pdf/.jpg/.jfif/.png/.docx."""
 
 import os
 import uuid
@@ -99,6 +99,7 @@ def _looks_like_docx(stream):
 
 _CONTENT_CHECKS = {
     "jpg": lambda fs: _looks_like_image(fs.stream, "JPEG"),
+    "jfif": lambda fs: _looks_like_image(fs.stream, "JPEG"),  # same format, different extension
     "png": lambda fs: _looks_like_image(fs.stream, "PNG"),
     "pdf": lambda fs: _looks_like_pdf(fs.stream),
     "docx": lambda fs: _looks_like_docx(fs.stream),

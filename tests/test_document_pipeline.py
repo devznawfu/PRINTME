@@ -35,7 +35,7 @@ class TestCountPages:
         pdf = make_pdf(tmp_path / "doc.pdf", n_pages=4)
         assert count_pages(pdf) == 4
 
-    @pytest.mark.parametrize("ext", ["jpg", "jpeg", "png"])
+    @pytest.mark.parametrize("ext", ["jpg", "jpeg", "jfif", "png"])
     def test_image_formats_count_as_one_page(self, tmp_path, ext):
         img = tmp_path / f"scan.{ext}"
         img.write_bytes(b"not a real image, extension is all that matters here")

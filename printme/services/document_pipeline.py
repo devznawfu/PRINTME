@@ -13,7 +13,7 @@ from printme.models.job import JobStatus
 from printme.services.docx_convert import convert_docx_to_pdf
 from printme.services.pricing import price_job
 
-IMAGE_EXTENSIONS = ("jpg", "jpeg", "png")
+IMAGE_EXTENSIONS = ("jpg", "jpeg", "jfif", "png")
 
 
 def _copy_into_processed_dir(source, processed_dir, job_id):
