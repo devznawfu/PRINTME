@@ -21,8 +21,11 @@
 
     btn.addEventListener("click", () => {
       btn.disabled = true;
-      fetch(imageUrl)
-        .then((r) => r.blob())
+      fetch(imageUrl, { credentials: "same-origin" })
+        .then((r) => {
+          if (!r.ok) throw new Error(`fetching original photo failed: ${r.status}`);
+          return r.blob();
+        })
         .then((blob) => {
           btn.disabled = false;
           window.PrintmePhotoCrop.openCropDialog({
@@ -38,8 +41,10 @@
             },
           });
         })
-        .catch(() => {
+        .catch((err) => {
           btn.disabled = false;
+          console.error(err);
+          alert("Couldn't load the original photo to crop. Check the browser console for details.");
         });
     });
   });

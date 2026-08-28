@@ -26,6 +26,15 @@
 
   const MIN_ZOOM = parseFloat(zoomInput.min) || 1;
   const MAX_ZOOM = parseFloat(zoomInput.max) || 3;
+  // A fresh crop starts a little zoomed in, not sitting exactly at
+  // MIN_ZOOM. At MIN_ZOOM the image is scaled to *just barely* cover
+  // the square frame ("cover" fit) - for any photo whose aspect ratio
+  // is close to square (very common for face/ID photos), that leaves
+  // zero or near-zero room to drag until the zoom slider is touched
+  // first. Dragging then visibly does nothing, which reads as "the
+  // crop tool is broken" rather than "zoom in first" - starting with
+  // guaranteed slack in both directions avoids that trap entirely.
+  const DEFAULT_START_ZOOM = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, 1.15));
 
   let currentObjectUrl = null;
   let pendingOnSave = null;
@@ -198,11 +207,11 @@
       if (existingCrop) {
         restoreFromCrop(existingCrop);
       } else {
-        displayScale = baseScale;
+        displayScale = baseScale * DEFAULT_START_ZOOM;
         displayWidth = naturalWidth * displayScale;
         displayHeight = naturalHeight * displayScale;
         setPan((frameSize - displayWidth) / 2, (frameSize - displayHeight) / 2);
-        zoomInput.value = String(MIN_ZOOM);
+        zoomInput.value = String(DEFAULT_START_ZOOM);
       }
       render();
     };
