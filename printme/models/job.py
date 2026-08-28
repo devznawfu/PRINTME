@@ -38,6 +38,12 @@ MAX_TICKET_ALLOCATION_ATTEMPTS = 5
 SERVICE_TYPES = ("photo", "document")
 COLOR_MODES = ("color", "bw")
 PAPER_SIZES = ("Letter", "A4", "Legal")
+# Photo printing only. Both are priced (see models/pricing.py's
+# composite {size}-{finish}-{quality} rate keys) - defaulted to
+# "bond"/"standard" wherever unset (e.g. document jobs, or a job
+# created before these fields existed).
+PAPER_FINISHES = ("glossy", "bond")
+QUALITY_LEVELS = ("standard", "high")
 
 
 def generate_ticket_number():
@@ -121,6 +127,10 @@ class Job(db.Model):
     paper_size = db.Column(db.String(8))  # Letter|A4|Legal
     copies = db.Column(db.Integer, default=1)
     page_count = db.Column(db.Integer)
+
+    # Photo options (null for document jobs).
+    paper_finish = db.Column(db.String(8))  # glossy|bond
+    quality = db.Column(db.String(8))  # standard|high
 
     # Cost snapshot written by the pricing engine when it computes a total.
     total_cost = db.Column(db.Float)

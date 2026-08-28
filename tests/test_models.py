@@ -63,6 +63,26 @@ class TestJobDefaults:
             assert fetched.paper_size == "A4"
             assert fetched.copies == 3
 
+    def test_paper_finish_and_quality_round_trip(self, app):
+        with app.app_context():
+            job = make_job(paper_finish="glossy", quality="high")
+            db.session.add(job)
+            db.session.commit()
+
+            fetched = db.session.get(Job, job.id)
+            assert fetched.paper_finish == "glossy"
+            assert fetched.quality == "high"
+
+    def test_paper_finish_and_quality_default_to_none(self, app):
+        with app.app_context():
+            job = make_job()
+            db.session.add(job)
+            db.session.commit()
+
+            fetched = db.session.get(Job, job.id)
+            assert fetched.paper_finish is None
+            assert fetched.quality is None
+
 
 class TestStatusFlow:
     def test_happy_path_transitions(self, app):
