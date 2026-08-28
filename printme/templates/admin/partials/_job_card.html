@@ -5,10 +5,10 @@
     <button type="button"
             data-photo-preview
             data-job-id="{{ card.job.id }}"
-            data-preview-title="{{ card.job.ticket_number }} &middot; {{ card.job.original_filename }}"
+            data-preview-title="{{ card.job.display_ticket }} &middot; {{ card.job.original_filename }}"
             class="relative h-[108px] w-[108px] flex-none cursor-zoom-in overflow-hidden rounded-2xl border {{ 'border-warn-card-line bg-warn-thumb-a' if flagged else 'border-line bg-thumb-a' }}">
       <img src="{{ url_for('admin_review.thumb', job_id=card.job.id) }}"
-           alt="Photo for {{ card.job.ticket_number }}"
+           alt="Photo for {{ card.job.display_ticket }}"
            loading="lazy"
            onerror="this.remove()"
            class="h-full w-full object-cover">
@@ -20,13 +20,13 @@
     <div class="flex h-[108px] w-[108px] flex-none items-center justify-center overflow-hidden rounded-2xl {{ 'bg-warn-thumb-a' if flagged else 'bg-thumb-a' }}"></div>
     {% endif %}
     <div class="flex min-w-0 flex-1 flex-col gap-1.5">
-      <h3 class="truncate font-mono text-2xl font-bold leading-tight">{{ card.job.ticket_number }}</h3>
+      <h3 class="truncate font-mono text-2xl font-bold leading-tight">{{ card.job.display_ticket }}</h3>
       <span class="truncate {{ 'text-warn-muted' if flagged else 'text-muted' }}">{{ card.job.customer_name }}</span>
       <span class="mt-1 inline-flex w-fit items-center gap-2 rounded-full {{ 'bg-warn-thumb-a text-warn-note-text' if flagged else 'bg-chip text-chip-text' }} px-3 py-1.5 text-sm font-bold">
         <span class="h-2 w-2 rounded-sm {{ 'bg-warn-title' if flagged else 'bg-chip-dot' }}"></span>{{ card.service_label }}
       </span>
-      <span data-card-file-line class="{{ 'text-warn-muted' if flagged else 'text-muted' }} text-[15px]">{{ card.file_line }}</span>
-      <span data-card-price class="{{ 'text-warn-muted' if flagged else 'text-muted' }} text-[15px] font-bold">&#8369;{{ "%.2f"|format(card.job.total_cost) }}</span>
+      <span data-card-file-line class="{{ 'text-warn-muted' if flagged else 'text-text-soft' }} text-[17px]">{{ card.file_line }}</span>
+      <span data-card-price class="{{ 'text-warn-muted' if flagged else 'text-text-soft' }} text-[17px] font-bold">&#8369;{{ "%.2f"|format(card.job.total_cost) }}</span>
     </div>
   </div>
 
@@ -34,7 +34,7 @@
   <form id="recrop-form-{{ card.job.id }}" method="post" action="{{ url_for('admin_review.recrop', job_id=card.job.id) }}" class="hidden">
     <input type="hidden" name="crop" data-recrop-crop-field>
   </form>
-  <button type="button" data-admin-crop-trigger data-job-id="{{ card.job.id }}" data-original-image-url="{{ url_for('admin_review.original_image', job_id=card.job.id) }}" class="flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl border {{ 'border-warn-card-line text-warn-title' if flagged else 'border-line' }} text-[15px] font-bold">
+  <button type="button" data-admin-crop-trigger data-job-id="{{ card.job.id }}" data-original-image-url="{{ url_for('admin_review.original_image', job_id=card.job.id) }}" class="flex min-h-[56px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl border {{ 'border-warn-card-line text-warn-title' if flagged else 'border-line' }} text-[17px] font-bold">
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"></path><path d="M14 6l4 4"></path></svg>
     Crop photo
   </button>
@@ -43,33 +43,33 @@
   {% if flagged %}
   <div class="animate-pop-in flex gap-3 rounded-2xl border border-warn-card-line bg-warn-note p-4">
     <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-warn-accent text-sm font-bold text-warn-accent-text">!</span>
-    <span class="text-[15px] leading-snug text-warn-note-text">{{ card.job.attention_reason }}</span>
+    <span class="text-[17px] leading-snug text-warn-note-text">{{ card.job.attention_reason }}</span>
   </div>
   <a href="{{ url_for('admin_review.review', job_id=card.job.id) }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl bg-warn-accent text-lg font-bold text-warn-accent-text transition-colors hover:bg-warn-accent-hover hover:text-warn-accent-text">Review</a>
   {% else %}
   {% if card.job.service_type == "photo" %}
   {% for row in card.rows %}
   <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
-    <span class="text-[15px] font-bold">{{ row.size_name }}</span>
+    <span class="text-[17px] font-bold">{{ row.size_name }}</span>
     <div class="flex items-center gap-2" data-qty-stepper data-job-id="{{ card.job.id }}" data-row-id="{{ row.row_id }}">
-      <button type="button" data-qty-dec aria-label="Decrease {{ row.size_name }} quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">&minus;</button>
+      <button type="button" data-qty-dec aria-label="Decrease {{ row.size_name }} quantity" class="flex h-14 w-14 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">&minus;</button>
       <span data-qty-display class="min-w-[40px] text-center text-lg font-bold">{{ row.quantity }}</span>
-      <button type="button" data-qty-inc aria-label="Increase {{ row.size_name }} quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">+</button>
+      <button type="button" data-qty-inc aria-label="Increase {{ row.size_name }} quantity" class="flex h-14 w-14 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">+</button>
     </div>
   </div>
   {% endfor %}
   {% else %}
   <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
-    <span class="text-[15px] font-bold">Quantity</span>
+    <span class="text-[17px] font-bold">Quantity</span>
     <div class="flex items-center gap-2" data-qty-stepper data-job-id="{{ card.job.id }}">
-      <button type="button" data-qty-dec aria-label="Decrease quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">&minus;</button>
+      <button type="button" data-qty-dec aria-label="Decrease quantity" class="flex h-14 w-14 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">&minus;</button>
       <span data-qty-display class="min-w-[40px] text-center text-lg font-bold">{{ card.job.copies or 1 }}</span>
-      <button type="button" data-qty-inc aria-label="Increase quantity" class="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">+</button>
+      <button type="button" data-qty-inc aria-label="Increase quantity" class="flex h-14 w-14 items-center justify-center rounded-xl border border-line bg-thumb-b text-xl leading-none">+</button>
     </div>
   </div>
   {% endif %}
   {% if card.job.service_type == "document" %}
-  <form id="print-form-{{ card.job.id }}" method="post" action="{{ url_for('api.print_document', job_id=card.job.id) }}" class="flex flex-wrap items-center gap-3" data-print-form data-print-kind="document" data-job-id="{{ card.job.id }}" data-page-count="{{ card.job.page_count or 1 }}" data-copies="{{ card.job.copies or 1 }}" data-color-mode="{{ card.job.color_mode or 'bw' }}" data-ticket="{{ card.job.ticket_number }}" data-customer-name="{{ card.job.customer_name }}">
+  <form id="print-form-{{ card.job.id }}" method="post" action="{{ url_for('api.print_document', job_id=card.job.id) }}" class="flex flex-wrap items-center gap-3" data-print-form data-print-kind="document" data-job-id="{{ card.job.id }}" data-page-count="{{ card.job.page_count or 1 }}" data-copies="{{ card.job.copies or 1 }}" data-color-mode="{{ card.job.color_mode or 'bw' }}" data-ticket="{{ card.job.display_ticket }}" data-customer-name="{{ card.job.customer_name }}">
     <select name="printer" aria-label="Printer" class="h-[54px] flex-1 rounded-xl border border-line bg-inset px-4 text-[15px]">
       {% for p in printers %}
       <option value="{{ p }}">{{ p }}</option>
@@ -79,12 +79,12 @@
     <button type="button" data-print-trigger class="flex min-h-[64px] w-full items-center justify-center rounded-2xl bg-btn-bg text-lg font-bold text-btn-text transition-colors hover:bg-btn-hover">Print</button>
   </form>
   {% else %}
-  <a href="{{ url_for('admin_photo_sheets.photo_sheets') }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl border border-line text-center text-[15px] font-bold">Part of the next Photo Sheets batch</a>
+  <a href="{{ url_for('admin_photo_sheets.photo_sheets') }}" class="flex min-h-[64px] w-full items-center justify-center rounded-2xl border border-line text-center text-[17px] font-bold">Part of the next Photo Sheets batch</a>
   {% endif %}
   {% endif %}
 
   <form method="post" action="{{ url_for('api.cancel_job', job_id=card.job.id) }}" onsubmit="return confirm('Cancel this job? This removes it from the queue - it can be restored later from History.');">
-    <button type="submit" class="flex min-h-[44px] w-full items-center justify-center rounded-xl text-[14px] font-bold text-err-text">Cancel job</button>
+    <button type="submit" class="flex min-h-[44px] w-full items-center justify-center rounded-xl text-[17px] font-bold text-err-text">Cancel job</button>
   </form>
 </div>
 {% endmacro %}

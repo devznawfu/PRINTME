@@ -9,10 +9,10 @@
     <span class="text-muted">{{ sheet.items|length }} photo{{ "s" if sheet.items|length != 1 else "" }}</span>
   </div>
   {% if sheet.job %}
-  <span class="text-[15px] text-muted">{{ sheet.job.ticket_number }} &middot; {{ sheet.job.customer_name }}</span>
+  <span class="text-[17px] text-text-soft">{{ sheet.job.display_ticket }} &middot; {{ sheet.job.customer_name }}</span>
   {% endif %}
   <img src="{{ url_for('admin_photo_sheets.preview_image', sheet_id=sheet.id) }}" alt="Sheet {{ sheet.sheet_number + 1 }} preview" class="w-full rounded-xl border border-line">
-  <form id="sheet-print-form-{{ sheet.id }}" method="post" action="{{ url_for('admin_photo_sheets.print_sheet', sheet_id=sheet.id) }}" class="flex flex-wrap items-center gap-3" data-sheet-print-form data-print-form data-print-kind="sheet" data-sheet-number="{{ sheet.sheet_number + 1 }}" data-sheet-count="{{ sheets|length }}" data-ticket="{{ sheet.job.ticket_number if sheet.job else '' }}" data-customer-name="{{ sheet.job.customer_name if sheet.job else '' }}" data-paper-finish="{{ (sheet.job.paper_finish or 'bond') if sheet.job else 'bond' }}" data-paper-quality="{{ (sheet.job.quality or 'standard') if sheet.job else 'standard' }}">
+  <form id="sheet-print-form-{{ sheet.id }}" method="post" action="{{ url_for('admin_photo_sheets.print_sheet', sheet_id=sheet.id) }}" class="flex flex-wrap items-center gap-3" data-sheet-print-form data-print-form data-print-kind="sheet" data-sheet-number="{{ sheet.sheet_number + 1 }}" data-sheet-count="{{ sheets|length }}" data-ticket="{{ sheet.job.display_ticket if sheet.job else '' }}" data-customer-name="{{ sheet.job.customer_name if sheet.job else '' }}" data-paper-finish="{{ (sheet.job.paper_finish or 'bond') if sheet.job else 'bond' }}" data-paper-quality="{{ (sheet.job.quality or 'standard') if sheet.job else 'standard' }}">
     <select name="printer" aria-label="Printer" class="h-[54px] flex-1 rounded-xl border border-line bg-inset px-4 text-[15px]">
       {% for p in printers %}
       <option value="{{ p }}" data-borderless="{{ 'true' if borderless_map[p] else 'false' }}">{{ p }}</option>
@@ -50,10 +50,10 @@
 
   {% if sheets %}
   <div class="flex items-center justify-between gap-4">
-    <span class="text-[14.5px] text-muted">Flagged jobs are reviewed separately - see Needs Attention on the queue.</span>
+    <span class="text-[17px] text-text-soft">Flagged jobs are reviewed separately - see Needs Attention on the queue.</span>
     <div class="flex gap-2 rounded-2xl border border-line bg-inset p-1">
-      <a href="{{ url_for('admin_photo_sheets.photo_sheets') }}" class="rounded-xl px-4 py-2 text-[14.5px] font-bold {{ 'bg-panel' if view == 'paper' else 'text-muted' }}">By paper type</a>
-      <a href="{{ url_for('admin_photo_sheets.photo_sheets', view='arrival') }}" class="rounded-xl px-4 py-2 text-[14.5px] font-bold {{ 'bg-panel' if view == 'arrival' else 'text-muted' }}">By arrival</a>
+      <a href="{{ url_for('admin_photo_sheets.photo_sheets') }}" class="rounded-xl px-4 py-2 text-[17px] font-bold {{ 'bg-panel' if view == 'paper' else 'text-muted' }}">By paper type</a>
+      <a href="{{ url_for('admin_photo_sheets.photo_sheets', view='arrival') }}" class="rounded-xl px-4 py-2 text-[17px] font-bold {{ 'bg-panel' if view == 'arrival' else 'text-muted' }}">By arrival</a>
     </div>
   </div>
   {% endif %}
@@ -71,7 +71,7 @@
       <span class="text-[17px] font-bold text-warn-title">{{ group.label }} &middot; {{ group.sheets|length }} sheet{{ "s" if group.sheets|length != 1 else "" }}</span>
       {% else %}
       <span class="text-[17px] font-bold">{{ group.label }}</span>
-      <span class="text-[14.5px] text-muted">&middot; change paper before this batch &middot; {{ group.sheets|length }} sheet{{ "s" if group.sheets|length != 1 else "" }}</span>
+      <span class="text-[17px] text-text-soft">&middot; change paper before this batch &middot; {{ group.sheets|length }} sheet{{ "s" if group.sheets|length != 1 else "" }}</span>
       {% endif %}
     </div>
     {% for sheet in group.sheets %}

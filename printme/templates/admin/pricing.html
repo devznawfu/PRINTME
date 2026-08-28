@@ -53,7 +53,7 @@
     {% if cost_rates %}
     <div class="flex flex-col gap-4">
       <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-muted">Shop costs</h2>
-      <span class="text-[14px] text-faint">Not charged to customers - used only for the Failure Analysis page's peso estimates.</span>
+      <span class="text-[17px] text-faint">Not charged to customers - used only for the Failure Analysis page's peso estimates.</span>
       {% for rate in cost_rates %}
       <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
         <label for="rate-{{ rate.key }}" class="text-[15px] font-bold">{{ cost_rate_labels.get(rate.key, rate.key) }}</label>

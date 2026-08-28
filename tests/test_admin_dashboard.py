@@ -44,6 +44,40 @@ def make_ready_photo_job(**overrides):
     return Job(**defaults)
 
 
+class TestReprintDisplayOnJobCard:
+    """A reprint job (Job.reprint_of set) shows its display_ticket
+    -R" suffix on the live queue card, not the reprint's own
+    independently-generated ticket_number - same fix as History's
+    already-tested display_ticket usage, extended to the dashboard."""
+
+    def test_reprint_card_shows_dash_r_suffix(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            original = make_ready_photo_job(
+                ticket_number="P-001", status=JobStatus.DONE
+            )
+            db.session.add(original)
+            db.session.commit()
+
+            reprint = make_ready_photo_job(
+                ticket_number="P-020",
+                customer_name="Maria",
+                reprint_of=original.id,
+                reprint_reason="bad_print",
+            )
+            reprint.photo_items.append(PhotoItemRow(size_name="2x2", quantity=1))
+            db.session.add(reprint)
+            db.session.commit()
+
+        login(client)
+        resp = client.get("/admin/")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert "P-001-R" in body
+        assert "P-020" not in body
+
+
 class TestStatusPollingEndpoint:
     def test_requires_admin_login(self, client):
         resp = client.get("/admin/status")

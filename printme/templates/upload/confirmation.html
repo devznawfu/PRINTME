@@ -36,7 +36,7 @@
     {% include "upload/partials/_confirmation_price.html" %}
 
     {% if failed_tickets %}
-    <div class="flex w-full flex-col gap-1.5 rounded-[22px] border border-err-line bg-err-bg px-[22px] py-[16px] text-left text-[14.5px] leading-relaxed text-err-text">
+    <div class="flex w-full flex-col gap-1.5 rounded-[22px] border border-err-line bg-err-bg px-[22px] py-[16px] text-left text-[17px] leading-relaxed text-err-text">
       <span class="font-bold">{{ "This one didn't print" if failed_tickets|length == 1 else "These didn't print" }}: {{ failed_tickets|join(", ") }}</span>
       <span>You won't be charged for {{ "it" if failed_tickets|length == 1 else "them" }} - ask staff at the counter to try again.</span>
     </div>

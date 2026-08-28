@@ -166,7 +166,7 @@
     const meta = document.createElement("span");
     meta.className = "flex min-w-0 flex-1 flex-col gap-px";
     const name = document.createElement("span");
-    name.className = "truncate text-[15px]";
+    name.className = "truncate text-[17px]";
     name.textContent = entry.file.name;
     meta.appendChild(name);
     if (cropped) {
@@ -187,7 +187,7 @@
       const cropBtn = document.createElement("button");
       cropBtn.type = "button";
       cropBtn.className =
-        "flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-panel px-3.5 text-[14.5px] font-bold";
+        "flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-panel px-3.5 text-[17px] font-bold";
       cropBtn.innerHTML =
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"></path><path d="M14 6l4 4"></path></svg>' +
         (cropped ? "Edit" : "Crop");
@@ -212,7 +212,7 @@
 
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
-    removeBtn.className = "min-h-[44px] cursor-pointer px-2 text-[14.5px] text-muted";
+    removeBtn.className = "min-h-[44px] cursor-pointer px-2 text-[17px] text-text-soft";
     removeBtn.textContent = "Remove";
     removeBtn.addEventListener("click", () => {
       state.files.splice(i, 1);
@@ -500,17 +500,17 @@
       name.className = "truncate text-[16.5px] font-bold";
       name.textContent = entry.file.name;
       const spec = document.createElement("div");
-      spec.className = "text-[14.5px] text-muted";
+      spec.className = "text-[17px] text-text-soft";
       spec.textContent = reviewSpecLine();
       meta.append(name, spec);
 
       const cropNote = document.createElement("div");
       if (state.crops.has(entry.id)) {
-        cropNote.className = "flex items-center gap-1.5 text-[13.5px] font-bold text-ok-dot";
+        cropNote.className = "flex items-center gap-1.5 text-[17px] font-bold text-ok-dot";
         cropNote.innerHTML =
           '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>You cropped this yourself';
       } else if (state.service === "photo") {
-        cropNote.className = "text-[13.5px] text-muted";
+        cropNote.className = "text-[17px] text-text-soft";
         cropNote.textContent = "We centred the face for you";
       }
       meta.appendChild(cropNote);

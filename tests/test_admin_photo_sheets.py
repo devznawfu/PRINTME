@@ -31,6 +31,27 @@ def make_ready_photo_job(**overrides):
     return job
 
 
+class TestReprintDisplayOnSheetCard:
+    def test_sheet_shows_original_ticket_with_dash_r_suffix(self, app, client):
+        with app.app_context():
+            original = make_ready_photo_job(ticket_number="P-001", status=JobStatus.DONE)
+            db.session.add(original)
+            db.session.commit()
+
+            reprint = make_ready_photo_job(
+                ticket_number="P-020", reprint_of=original.id, reprint_reason="bad_print"
+            )
+            db.session.add(reprint)
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/photo-sheets/")
+        body = resp.data.decode()
+
+        assert "P-001-R" in body
+        assert "P-020" not in body
+
+
 class TestPaperBatching:
     """Turn 3a: sheets group by paper type ({finish}-{quality}) by
     default - the shop's real cost is paper changes, not job count."""
