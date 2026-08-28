@@ -1,3 +1,5 @@
+import random
+
 import pytest
 
 from printme.layout_engine import sizes
@@ -26,6 +28,26 @@ def _assert_no_overlaps_and_in_bounds(sheet):
                 and b.y < a.y + a.height
             )
             assert not overlap, f"{a.item_id} overlaps {b.item_id}"
+
+
+def _assert_forms_clean_full_width_shelves(sheet):
+    """The physical requirement this packer exists to satisfy: every
+    row of photos ("shelf") spans consistently without a later shelf
+    overlapping an earlier one, so a straight horizontal guillotine cut
+    below the last used shelf always leaves a clean, blank, full-width
+    strip that can be fed back into the printer - never a gap that
+    splits placed items apart mid-sheet."""
+    rows = {}
+    for item in sheet.items:
+        rows.setdefault(item.y, []).append(item)
+
+    ordered_ys = sorted(rows)
+    prev_bottom = 0
+    for y in ordered_ys:
+        assert y >= prev_bottom, f"shelf at y={y} overlaps the previous shelf (ends at {prev_bottom})"
+        row_items = rows[y]
+        assert all(it.y == y for it in row_items)
+        prev_bottom = y + max(it.height for it in row_items)
 
 
 def test_empty_input_returns_no_sheets():
@@ -98,6 +120,7 @@ def test_no_overlaps_and_in_bounds_for_a_realistic_mixed_batch():
     )
     for sheet in pack(items):
         _assert_no_overlaps_and_in_bounds(sheet)
+        _assert_forms_clean_full_width_shelves(sheet)
 
 
 def test_packing_is_deterministic():
@@ -110,25 +133,28 @@ def test_packing_is_deterministic():
     assert first == second
 
 
-def test_rotation_only_applies_to_non_square_sizes_and_swaps_dimensions(monkeypatch):
-    """This targets the rotation swap bookkeeping in pack()'s per-rect
-    loop, not whether the best-of-many-combinations search happens to
-    pick a rotated layout for this particular batch (it often doesn't -
-    a tighter unrotated grid frequently scores better, which is a good
-    thing). Pinned to the single combo that's known to rotate this
-    batch so the swap logic itself gets exercised deterministically."""
-    import printme.layout_engine.packer as packer_module
-    from rectpack import SORT_AREA, MaxRectsBssf
-
-    monkeypatch.setattr(packer_module, "_PACK_ALGOS", (MaxRectsBssf,))
-    monkeypatch.setattr(packer_module, "_SORT_ALGOS", (SORT_AREA,))
-
-    items = (
-        [PhotoItem(f"pp{i}", "Passport") for i in range(40)]
-        + [PhotoItem(f"one{i}", "1x1") for i in range(10)]
-        + [PhotoItem(f"two{i}", "2x2") for i in range(10)]
-        + [PhotoItem(f"visa{i}", "Visa") for i in range(10)]
-    )
+def test_rotation_only_applies_to_non_square_sizes_and_swaps_dimensions():
+    """A batch mixing every fixed size (found empirically to reliably
+    make the winning sort order rotate at least one Passport/4x6 - a
+    shorter shelf, opened by a smaller item, being reused for a taller
+    non-square item that only fits sideways). Targets the rotation
+    swap bookkeeping itself; not every batch needs rotation to pack
+    well (a tighter unrotated grid often scores better, which is fine)."""
+    counts = {
+        "2x2": 17,
+        "Visa": 15,
+        "4x4": 12,
+        "Wallet": 9,
+        "5x7": 6,
+        "4x6": 6,
+        "Passport": 5,
+        "1x1": 4,
+    }
+    items = [
+        PhotoItem(f"{size_name}-{i}", size_name)
+        for size_name, qty in counts.items()
+        for i in range(qty)
+    ]
     sheets = pack(items)
 
     saw_rotated_passport = False
@@ -174,12 +200,13 @@ def test_sheet_margin_is_zero_on_every_packed_sheet():
 
 def test_real_world_regression_ten_1x1_and_ten_2x2_pack_tightly():
     """Regression test for a real customer order (10x "1x1" + 10x
-    "2x2") that visibly left roughly a third of the sheet completely
-    empty on the admin's Photo Sheets preview, even though everything
-    easily fit with room to spare. The old fixed (MaxRectsBssf,
-    SORT_AREA) combo scored only 65% bounding-box density here - one
-    of the worst of all 28 combinations tried empirically - while the
-    best-of-many search this test guards hits ~97%."""
+    "2x2") that a general 2D packer (this module's previous approach)
+    laid out as a tall, narrow column occupying only the left ~5.2in
+    of the 8.27in-wide sheet, leaving a full-height blank strip on the
+    right unusable for anything - not the clean, full-width leftover
+    the shop needs to guillotine-cut and feed back into the printer.
+    The shelf packer keeps every row spanning left-to-right so that
+    invariant holds structurally, checked here directly."""
     items = [PhotoItem(f"one{i}", "1x1") for i in range(10)] + [
         PhotoItem(f"two{i}", "2x2") for i in range(10)
     ]
@@ -187,11 +214,63 @@ def test_real_world_regression_ten_1x1_and_ten_2x2_pack_tightly():
 
     assert len(sheets) == 1
     sheet = sheets[0]
+    _assert_forms_clean_full_width_shelves(sheet)
+
+    # Fully-packed rows (four 2x2s each, see the dedicated gutter test
+    # below) should use nearly the whole sheet width, not collapse
+    # into a narrow column.
     max_x = max(item.x + item.width for item in sheet.items)
-    max_y = max(item.y + item.height for item in sheet.items)
-    item_area = sum(item.width * item.height for item in sheet.items)
-    bbox_density = item_area / (max_x * max_y)
-    assert bbox_density > 0.9, f"expected a tight pack, got {bbox_density:.2f} density"
+    assert max_x > 0.85 * sizes.USABLE_WIDTH_PX, (
+        f"expected rows to span most of the sheet width, widest row only reached {max_x}px"
+        f" of {sizes.USABLE_WIDTH_PX}px usable"
+    )
+
+
+def test_gutter_is_only_a_separator_not_trailing_padding_per_item():
+    """Four "2x2" prints side by side need 4*600 + 3*24(gutters
+    BETWEEN them) = 2472px, which fits USABLE_WIDTH_PX's 2480px -
+    padding every item's own slot by a trailing gutter (this module's
+    first attempt at the shelf packer) made it look like 2496px was
+    needed, wrongly forcing a 4th column onto a new row instead of
+    packing tightly."""
+    items = [PhotoItem(f"two{i}", "2x2") for i in range(4)]
+    sheets = pack(items)
+
+    assert len(sheets) == 1
+    ys = {item.y for item in sheets[0].items}
+    assert ys == {0}, "expected all four 2x2 prints to land in a single row"
+
+
+def test_clean_full_width_shelves_hold_across_many_randomized_real_size_batches():
+    """This is the actual guarantee against future orders, not just the
+    one real batch the other tests above are anchored to: the shelf
+    invariant is a structural property of how pack() places items (a
+    new shelf only ever opens below the last one, never beside it) -
+    it can't depend on which specific sizes/quantities show up. Proven
+    here across many different randomized combinations of every real
+    fixed size, at randomized customer/row/quantity shapes, with a
+    fixed seed so a real failure here is always reproducible."""
+    rng = random.Random(20260828)
+    size_names = list(sizes.PHOTO_SIZES_PX)
+
+    for _ in range(50):
+        items = []
+        item_id = 0
+        for _customer in range(rng.randint(1, 8)):
+            for _row in range(rng.randint(1, 4)):
+                size_name = rng.choice(size_names)
+                for _ in range(rng.randint(1, 10)):
+                    items.append(PhotoItem(f"i{item_id}", size_name))
+                    item_id += 1
+
+        sheets = pack(items)
+
+        placed_ids = [it.item_id for sheet in sheets for it in sheet.items]
+        assert sorted(placed_ids) == sorted(it.item_id for it in items)
+
+        for sheet in sheets:
+            _assert_no_overlaps_and_in_bounds(sheet)
+            _assert_forms_clean_full_width_shelves(sheet)
 
 
 def test_unknown_size_name_raises():

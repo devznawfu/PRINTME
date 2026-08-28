@@ -17,9 +17,6 @@ rembg==2.0.76
 onnxruntime==1.26.0
 Pillow==12.2.0
 
-# Smart Layout Engine (2D rectangle bin-packing)
-rectpack==0.2.2
-
 # Document handling
 pypdf==6.13.2
 pymupdf==1.28.2

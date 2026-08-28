@@ -59,8 +59,11 @@ class TestRenderPhotoSheet:
     def test_renders_a_rotated_item_at_its_swapped_footprint(self, app, tmp_path):
         with app.app_context():
             seed_defaults(db.session)
-            # Enough Passports that at least one gets rotated by the
-            # packer (same batch size test_packer.py's rotation test uses).
+            # A size mix found empirically to reliably make the packer's
+            # winning shelf layout rotate at least one Passport/4x6 (same
+            # mix tests/layout_engine/test_packer.py's rotation test
+            # uses) - a uniform batch of one size never needs to rotate,
+            # since every item fits the shelf it opened identically.
             job = Job(
                 ticket_number="P-001",
                 customer_name="Maria",
@@ -68,7 +71,18 @@ class TestRenderPhotoSheet:
                 original_filename="photo.jpg",
                 upload_path=str(FIXTURES / "face_one.jpg"),
             )
-            job.photo_items.append(PhotoItemRow(size_name="Passport", quantity=40))
+            counts = {
+                "2x2": 17,
+                "Visa": 15,
+                "4x4": 12,
+                "Wallet": 9,
+                "5x7": 6,
+                "4x6": 6,
+                "Passport": 5,
+                "1x1": 4,
+            }
+            for size_name, quantity in counts.items():
+                job.photo_items.append(PhotoItemRow(size_name=size_name, quantity=quantity))
             db.session.add(job)
             db.session.commit()
             process_photo_job(db.session, job, FIXTURES / "face_one.jpg", tmp_path)
