@@ -4,15 +4,31 @@ Uses a shelf-based algorithm (First-Fit Decreasing Height, tried across
 several sort orders per pack() call, keeping whichever uses the fewest
 sheets) rather than a general 2D bin packer (this module previously
 used rectpack's MaxRects family). That's a deliberate physical
-constraint, not a simplification: the shop needs to guillotine-cut a
-partially-used sheet along one straight horizontal line and feed the
-still-blank remainder back into the printer for the next batch - that
-only works if every "row" of photos spans the full sheet width, so
-whatever's left below the last row is always a clean, full-width
-rectangle. A general 2D packer doesn't guarantee that at all: it can
-(and did, on a real order) leave a tall, narrow, unusable column of
-blank space running the full sheet height right next to a tightly
-packed block, instead of a clean cuttable strip across the bottom.
+constraint, not a simplification: the shop needs to feed the still-
+blank remainder of a partially-used sheet back into the printer for
+the next batch - that only works if the space BELOW the lowest placed
+item spans the full sheet width, so it's always a clean, blank,
+reusable rectangle. A general 2D packer doesn't guarantee that at all:
+it can (and did, on a real order) leave a tall, narrow, unusable
+column of blank space running the full sheet height right next to a
+tightly packed block, instead of a clean strip across the bottom.
+
+That requirement is about the UNUSED leftover only, not about every
+row being a simple flat, non-nested strip - render.py already draws a
+cutting-guide box around every individual item regardless, so nothing
+downstream assumes flat rows either. Each shelf ("row") still spans
+the full sheet width as items are placed left to right, but when a
+row's tallest item is followed by a shorter one, the space directly
+below that shorter item (still within the row's own footprint) is
+tracked as a reusable gap and offered to later, smaller items FIRST -
+before a new shelf opens - instead of going dead the moment the row's
+cursor moves past it. A gap that's only partially filled is itself
+re-split the same way, so this nests as deep as the size mix needs.
+Since every gap is carved out of space already validated as in-bounds
+and non-overlapping, and the sheet is filled top-down, the region
+below the lowest placed item is still always the full-width blank
+strip the printer needs - gap-filling only reclaims space that would
+otherwise sit unused above that line, it never touches what's below it.
 
 Confirmed empirically to cost roughly 15% more sheets on average than
 an unconstrained packer across varied realistic batches - an accepted,
@@ -57,25 +73,50 @@ _SORT_KEYS = {
 
 
 def _pack_all_sheets(items, sort_key):
-    """Shelf-pack `items` onto as many sheets as needed.
+    """Shelf-pack `items` onto as many sheets as needed, reusing
+    leftover space within a row (gap-filling) before opening a new one.
 
-    Items are processed tallest-first (by `sort_key`); each tries every
-    already-open shelf on the current sheet, in order, before a new
-    shelf opens below the last one. Because later items are never
-    taller than earlier ones, an already-open shelf is always tall
-    enough for a later item - only its remaining width needs checking.
-    Rotation is tried per item/per shelf as just another candidate
-    orientation, not a separate pass.
+    Items are processed tallest-first (by `sort_key`). For each item,
+    in order:
+      1. Try an existing GAP first - leftover space below an earlier,
+         shorter row-mate (or below/beside an item placed inside an
+         earlier gap). The smallest-area fitting gap wins, to leave
+         bigger gaps free for bigger items that come later in this
+         same pass. Because items only get shorter (or equal) as the
+         pass proceeds, any gap a later item could possibly use has
+         already been fully created by the time that item is reached -
+         no lookahead or backtracking needed.
+      2. Fall back to an existing shelf's open (cursor_x-onward) edge.
+         Because later items are never taller than earlier ones, an
+         already-open shelf is always tall enough for a later item -
+         only its remaining width needs checking.
+      3. Fall back to opening a new shelf below the last one.
 
-    GUTTER_PX is inserted only BETWEEN adjacent items and BETWEEN
-    shelves - never as trailing padding after the last item in a row
-    or after the last shelf on a sheet. Padding every item/shelf
-    unconditionally (this module's first attempt) wastes exactly one
-    gutter's worth of space per row/column for no reason: e.g. four
-    "2x2" prints side by side need 4*600 + 3*24(gutters between them)
-    = 2472px, which fits USABLE_WIDTH_PX's 2480px - but padding every
-    item's own slot by a trailing GUTTER_PX makes it look like 2496px
-    is needed, wrongly forcing a 4th column onto a new row instead.
+    Rotation is tried per item/per gap/per shelf as just another
+    candidate orientation, not a separate pass.
+
+    Whenever a placed item is SHORTER than the space it was placed
+    into (a shelf's established row height, or an existing gap), the
+    unused remainder becomes a new gap: the strip below the item
+    (item's own width, remaining height) plus - only when placing
+    into a gap, since a shelf's own remaining width is already tracked
+    by cursor_x - the strip beside it (gap's own height, remaining
+    width). This is a standard non-overlapping guillotine split: item
+    area + both strips' areas always exactly equals the original gap's
+    area, so nothing is double-counted or lost.
+
+    GUTTER_PX is inserted only BETWEEN adjacent shelf items and BETWEEN
+    shelves - never as trailing padding after the last item in a row,
+    after the last shelf on a sheet, or around a gap-filled item
+    (GUTTER_PX is 0 today; gap-filling doesn't need to reserve it, but
+    would need updating if a nonzero gutter ever came back). Padding
+    every item/shelf unconditionally (this module's first attempt)
+    wastes exactly one gutter's worth of space per row/column for no
+    reason: e.g. four "2x2" prints side by side need 4*600 +
+    3*24(gutters between them) = 2472px, which fits USABLE_WIDTH_PX's
+    2480px - but padding every item's own slot by a trailing GUTTER_PX
+    makes it look like 2496px is needed, wrongly forcing a 4th column
+    onto a new row instead.
 
     Returns a list of sheets, each a list of
     (item, x, y, width, height, rotated) tuples.
@@ -84,36 +125,65 @@ def _pack_all_sheets(items, sort_key):
     sheets = []
     while remaining:
         shelves = []  # dicts: y, height, cursor_x (next free x, gutter-inclusive)
+        gaps = []  # dicts: x, y, width, height
         placed = []
         still_remaining = []
         for item in remaining:
-            choice = None  # (shelf_index, x, w, h)
-            for shelf_index, shelf in enumerate(shelves):
+            choice = None  # (kind, ref, x, y, w, h)
+
+            best_gap = None
+            best_gap_area = None
+            best_gap_wh = None
+            for gap in gaps:
                 for w, h in _orientations(item.size_name):
-                    next_x = shelf["cursor_x"] + (GUTTER_PX if shelf["cursor_x"] > 0 else 0)
-                    if next_x + w <= USABLE_WIDTH_PX and h <= shelf["height"]:
-                        choice = (shelf_index, next_x, w, h)
+                    if w <= gap["width"] and h <= gap["height"]:
+                        area = gap["width"] * gap["height"]
+                        if best_gap_area is None or area < best_gap_area:
+                            best_gap, best_gap_area, best_gap_wh = gap, area, (w, h)
+                        break  # first fitting orientation for this gap
+            if best_gap is not None:
+                w, h = best_gap_wh
+                choice = ("gap", best_gap, best_gap["x"], best_gap["y"], w, h)
+
+            if choice is None:
+                for shelf in shelves:
+                    for w, h in _orientations(item.size_name):
+                        next_x = shelf["cursor_x"] + (GUTTER_PX if shelf["cursor_x"] > 0 else 0)
+                        if next_x + w <= USABLE_WIDTH_PX and h <= shelf["height"]:
+                            choice = ("shelf", shelf, next_x, shelf["y"], w, h)
+                            break
+                    if choice is not None:
                         break
-                if choice is not None:
-                    break
 
             if choice is None:
                 for w, h in _orientations(item.size_name):
                     new_y = shelves[-1]["y"] + shelves[-1]["height"] + GUTTER_PX if shelves else 0
                     if new_y + h <= USABLE_HEIGHT_PX and w <= USABLE_WIDTH_PX:
-                        shelves.append({"y": new_y, "height": h, "cursor_x": 0})
-                        choice = (len(shelves) - 1, 0, w, h)
+                        shelf = {"y": new_y, "height": h, "cursor_x": 0}
+                        shelves.append(shelf)
+                        choice = ("shelf", shelf, 0, new_y, w, h)
                         break
 
             if choice is None:
                 still_remaining.append(item)
                 continue
 
-            shelf_index, x, w, h = choice
-            shelf = shelves[shelf_index]
+            kind, ref, x, y, w, h = choice
             rotated = (w, h) != PHOTO_SIZES_PX[item.size_name]
-            placed.append((item, x, shelf["y"], w, h, rotated))
-            shelf["cursor_x"] = x + w
+            placed.append((item, x, y, w, h, rotated))
+
+            if kind == "gap":
+                gaps.remove(ref)
+                gx, gy, gw, gh = ref["x"], ref["y"], ref["width"], ref["height"]
+                if gw - w > 0:
+                    gaps.append({"x": gx + w, "y": gy, "width": gw - w, "height": gh})
+                if gh - h > 0:
+                    gaps.append({"x": gx, "y": gy + h, "width": w, "height": gh - h})
+            else:
+                shelf = ref
+                shelf["cursor_x"] = x + w
+                if h < shelf["height"]:
+                    gaps.append({"x": x, "y": shelf["y"] + h, "width": w, "height": shelf["height"] - h})
 
         if not placed:
             # Every remaining item is individually too big for a fresh

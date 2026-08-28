@@ -30,24 +30,53 @@ def _assert_no_overlaps_and_in_bounds(sheet):
             assert not overlap, f"{a.item_id} overlaps {b.item_id}"
 
 
-def _assert_forms_clean_full_width_shelves(sheet):
-    """The physical requirement this packer exists to satisfy: every
-    row of photos ("shelf") spans consistently without a later shelf
-    overlapping an earlier one, so a straight horizontal guillotine cut
-    below the last used shelf always leaves a clean, blank, full-width
-    strip that can be fed back into the printer - never a gap that
-    splits placed items apart mid-sheet."""
-    rows = {}
-    for item in sheet.items:
-        rows.setdefault(item.y, []).append(item)
+def _assert_no_blank_band_traps_a_second_reusable_strip(sheet):
+    """The actual physical requirement packer.py exists to satisfy: the
+    ONLY reusable blank strip on a sheet must be the single one at the
+    very bottom (below the lowest placed item), spanning the full sheet
+    width, so the shop can cut it off and feed it back into the printer.
+    A horizontal band that's entirely blank across the FULL usable width
+    while sitting ABOVE that lowest item would be a second, physically
+    unreachable "reusable" strip - the shop can only cut and feed back
+    the sheet's actual remaining bottom edge, not a pocket trapped
+    between two already-used rows.
 
-    ordered_ys = sorted(rows)
-    prev_bottom = 0
-    for y in ordered_ys:
-        assert y >= prev_bottom, f"shelf at y={y} overlaps the previous shelf (ends at {prev_bottom})"
-        row_items = rows[y]
-        assert all(it.y == y for it in row_items)
-        prev_bottom = y + max(it.height for it in row_items)
+    This deliberately does NOT require every row to be a flat,
+    non-nested strip - packer.py's gap-filling legitimately places a
+    later, smaller item inside the leftover space below an earlier,
+    taller row-mate, which is exactly what this test allows: it only
+    rejects a band that's COMPLETELY empty across the whole usable
+    width, not one that's partially covered by a gap-filled item or by
+    the tail of an incomplete last row."""
+    if not sheet.items:
+        return
+    usable_width = sheet.width - 2 * sheet.margin
+    max_bottom = max(it.y + it.height for it in sheet.items)
+
+    breakpoints = sorted(
+        {0, max_bottom}
+        | {it.y for it in sheet.items}
+        | {it.y + it.height for it in sheet.items}
+    )
+    for y_lo, y_hi in zip(breakpoints, breakpoints[1:]):
+        if y_hi > max_bottom:
+            break
+        mid = (y_lo + y_hi) / 2
+        covering = [it for it in sheet.items if it.y <= mid < it.y + it.height]
+        intervals = sorted((it.x, it.x + it.width) for it in covering)
+        merged = []
+        for a, b in intervals:
+            if merged and a <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+            else:
+                merged.append((a, b))
+        covered_width = sum(b - a for a, b in merged)
+        assert covered_width > 0, (
+            f"blank full-width band between y={y_lo} and y={y_hi} (usable width "
+            f"{usable_width}), trapped above the sheet's actual bottom "
+            f"(max_bottom={max_bottom}) - this would be a second, unreachable "
+            "reusable strip"
+        )
 
 
 def test_empty_input_returns_no_sheets():
@@ -124,7 +153,7 @@ def test_no_overlaps_and_in_bounds_for_a_realistic_mixed_batch():
     )
     for sheet in pack(items):
         _assert_no_overlaps_and_in_bounds(sheet)
-        _assert_forms_clean_full_width_shelves(sheet)
+        _assert_no_blank_band_traps_a_second_reusable_strip(sheet)
 
 
 def test_packing_is_deterministic():
@@ -218,7 +247,7 @@ def test_real_world_regression_ten_1x1_and_ten_2x2_pack_tightly():
 
     assert len(sheets) == 1
     sheet = sheets[0]
-    _assert_forms_clean_full_width_shelves(sheet)
+    _assert_no_blank_band_traps_a_second_reusable_strip(sheet)
 
     # Fully-packed rows (four 2x2s each, see the dedicated gutter test
     # below) should use nearly the whole sheet width, not collapse
@@ -228,6 +257,46 @@ def test_real_world_regression_ten_1x1_and_ten_2x2_pack_tightly():
         f"expected rows to span most of the sheet width, widest row only reached {max_x}px"
         f" of {sizes.USABLE_WIDTH_PX}px usable"
     )
+
+
+def test_shorter_items_fill_the_gap_left_by_a_taller_row_mate_before_a_new_row_opens():
+    """Regression test for a real reported bug on the exact ten-1x1 +
+    ten-2x2 order above: two 2x2 (600px tall) plus four 1x1 (300px
+    tall) share a row, but the four 1x1 only use the row's top half -
+    the 1200x300px rectangle directly beneath them, still within that
+    row's own footprint, was going dead the moment the shelf's cursor
+    moved past it, forcing a fresh row for the rest of the 1x1s even
+    though 4 of them fit exactly in that leftover space. The shop
+    owner spotted this directly from a rendered sheet and asked why
+    those items weren't "transferred" into the gap next to the row
+    above - this pins the fix (packer.py's gap-filling) against the
+    identical real-world batch, not just a synthetic one."""
+    items = [PhotoItem(f"two{i}", "2x2") for i in range(10)] + [
+        PhotoItem(f"one{i}", "1x1") for i in range(10)
+    ]
+    sheets = pack(items)
+    assert len(sheets) == 1
+    sheet = sheets[0]
+    _assert_no_overlaps_and_in_bounds(sheet)
+    _assert_no_blank_band_traps_a_second_reusable_strip(sheet)
+
+    ones = [it for it in sheet.items if it.size_name == "1x1"]
+    by_y = {}
+    for it in ones:
+        by_y.setdefault(it.y, 0)
+        by_y[it.y] += 1
+
+    # The row holding the last two 2x2s (y=1200, 600px tall) has room
+    # for exactly four 1x1s (1200px = 4*300) below the four already
+    # sharing that row's top - they must land there, not spill an
+    # extra 1x1 into a brand new row that didn't need to exist yet.
+    assert by_y.get(1500) == 4, (
+        f"expected 4 of the 1x1s to fill the gap at y=1500 (below the row's "
+        f"2x2s), got this y -> count breakdown instead: {by_y}"
+    )
+    # Only the genuinely leftover two 1x1s should need a fresh row.
+    final_row_y = max(by_y)
+    assert by_y[final_row_y] == 2
 
 
 def test_gutter_is_only_a_separator_not_trailing_padding_per_item():
@@ -278,7 +347,7 @@ def test_clean_full_width_shelves_hold_across_many_randomized_real_size_batches(
 
         for sheet in sheets:
             _assert_no_overlaps_and_in_bounds(sheet)
-            _assert_forms_clean_full_width_shelves(sheet)
+            _assert_no_blank_band_traps_a_second_reusable_strip(sheet)
 
 
 def test_unknown_size_name_raises():
