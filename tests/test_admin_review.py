@@ -26,6 +26,77 @@ def make_photo_job(**overrides):
     return Job(**defaults)
 
 
+class TestThumbRoute:
+    def test_requires_admin_login(self, app, client):
+        with app.app_context():
+            job = make_photo_job()
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+
+        resp = client.get(f"/admin/jobs/{job_id}/thumb.png")
+        assert resp.status_code == 302
+
+    def test_prefers_the_processed_photo_over_the_original(self, app, client):
+        with app.app_context():
+            job = make_photo_job(processed_path=str(FIXTURES / "face_two.jpg"))
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        resp = client.get(f"/admin/jobs/{job_id}/thumb.png")
+        assert resp.status_code == 200
+        assert resp.data == (FIXTURES / "face_two.jpg").read_bytes()
+
+    def test_falls_back_to_the_original_upload_when_not_processed_yet(self, app, client):
+        with app.app_context():
+            job = make_photo_job(processed_path=None)
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        resp = client.get(f"/admin/jobs/{job_id}/thumb.png")
+        assert resp.status_code == 200
+        assert resp.mimetype == "image/jpeg"
+        assert resp.data == (FIXTURES / "face_one.jpg").read_bytes()
+
+    def test_not_cached(self, app, client):
+        """The crop tool rewrites the processed file in place - a cached
+        thumbnail would silently show a stale crop."""
+        with app.app_context():
+            job = make_photo_job()
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        resp = client.get(f"/admin/jobs/{job_id}/thumb.png")
+        assert resp.status_code == 200
+        assert "no-cache" in resp.headers.get("Cache-Control", "") or resp.headers.get(
+            "Cache-Control"
+        ) in ("public, max-age=0", "max-age=0")
+
+    def test_missing_job_404s(self, client):
+        login(client)
+        resp = client.get("/admin/jobs/999999/thumb.png")
+        assert resp.status_code == 404
+
+    def test_job_with_no_files_at_all_404s(self, app, client):
+        with app.app_context():
+            job = make_photo_job(
+                processed_path=None, upload_path=str(Path("/tmp/does-not-exist.jpg"))
+            )
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        resp = client.get(f"/admin/jobs/{job_id}/thumb.png")
+        assert resp.status_code == 404
+
+
 class TestRecropRequiresAdminLogin:
     def test_requires_admin_login(self, app, client):
         with app.app_context():

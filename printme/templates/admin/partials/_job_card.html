@@ -1,7 +1,24 @@
 {% macro job_card(card, flagged=False, printers=[]) %}
 <div class="flex flex-col gap-5 rounded-3xl border {{ 'border-warn-card-line bg-warn-card' if flagged else 'border-border bg-panel' }} p-6" data-job-card>
   <div class="flex gap-4">
+    {% if card.job.service_type == "photo" %}
+    <button type="button"
+            data-photo-preview
+            data-job-id="{{ card.job.id }}"
+            data-preview-title="{{ card.job.ticket_number }} &middot; {{ card.job.original_filename }}"
+            class="relative h-[108px] w-[108px] flex-none cursor-zoom-in overflow-hidden rounded-2xl border {{ 'border-warn-card-line bg-warn-thumb-a' if flagged else 'border-line bg-thumb-a' }}">
+      <img src="{{ url_for('admin_review.thumb', job_id=card.job.id) }}"
+           alt="Photo for {{ card.job.ticket_number }}"
+           loading="lazy"
+           onerror="this.remove()"
+           class="h-full w-full object-cover">
+      <span class="absolute right-1.5 bottom-1.5 flex h-[26px] w-[26px] items-center justify-center rounded-lg bg-bg/80 {{ 'text-warn-title' if flagged else 'text-text' }}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M11 8v6M8 11h6M16.5 16.5L21 21"></path></svg>
+      </span>
+    </button>
+    {% else %}
     <div class="flex h-[108px] w-[108px] flex-none items-center justify-center overflow-hidden rounded-2xl {{ 'bg-warn-thumb-a' if flagged else 'bg-thumb-a' }}"></div>
+    {% endif %}
     <div class="flex min-w-0 flex-1 flex-col gap-1.5">
       <h3 class="truncate font-mono text-2xl font-bold leading-tight">{{ card.job.ticket_number }}</h3>
       <span class="truncate {{ 'text-warn-muted' if flagged else 'text-muted' }}">{{ card.job.customer_name }}</span>
@@ -17,7 +34,10 @@
   <form id="recrop-form-{{ card.job.id }}" method="post" action="{{ url_for('admin_review.recrop', job_id=card.job.id) }}" class="hidden">
     <input type="hidden" name="crop" data-recrop-crop-field>
   </form>
-  <button type="button" data-admin-crop-trigger data-job-id="{{ card.job.id }}" data-original-image-url="{{ url_for('admin_review.original_image', job_id=card.job.id) }}" class="flex min-h-[52px] w-full items-center justify-center rounded-2xl border {{ 'border-warn-card-line text-warn-title' if flagged else 'border-line' }} text-[15px] font-bold">Crop photo</button>
+  <button type="button" data-admin-crop-trigger data-job-id="{{ card.job.id }}" data-original-image-url="{{ url_for('admin_review.original_image', job_id=card.job.id) }}" class="flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl border {{ 'border-warn-card-line text-warn-title' if flagged else 'border-line' }} text-[15px] font-bold">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"></path><path d="M14 6l4 4"></path></svg>
+    Crop photo
+  </button>
   {% endif %}
 
   {% if flagged %}

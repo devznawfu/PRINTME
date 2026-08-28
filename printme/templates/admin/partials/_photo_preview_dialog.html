@@ -1,0 +1,15 @@
+<dialog id="photo-preview-dialog" class="rounded-3xl border border-line bg-panel p-0 backdrop:bg-black/60">
+  <div class="flex w-[520px] max-w-[90vw] flex-col gap-4 p-6">
+    <div class="flex items-baseline justify-between gap-3">
+      <h3 data-preview-title class="text-[19px] font-bold tracking-tight"></h3>
+      <span data-preview-meta class="text-sm text-muted"></span>
+    </div>
+    <div class="overflow-hidden rounded-2xl border border-border bg-inset">
+      <img data-preview-image alt="" class="max-h-[62vh] w-full object-contain">
+    </div>
+    <div class="flex gap-2.5">
+      <button type="button" data-preview-crop-btn class="min-h-[54px] flex-1 cursor-pointer rounded-2xl bg-btn-bg text-[15px] font-bold text-btn-text transition-colors hover:bg-btn-hover">Open crop tool</button>
+      <button type="button" data-preview-close-btn class="min-h-[54px] flex-1 cursor-pointer rounded-2xl border border-line text-[15px] font-bold">Close</button>
+    </div>
+  </div>
+</dialog>

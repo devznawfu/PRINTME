@@ -56,6 +56,25 @@ def processed_image(job_id):
     return _send_job_image(job_id, "processed_path")
 
 
+@bp.route("/<int:job_id>/thumb.png", methods=["GET"])
+@admin_required
+def thumb(job_id):
+    """Job-card thumbnail: prefer the processed photo, fall back to the
+    original upload so a still-processing job isn't a blank box. Served
+    with max_age=0 - the crop tool rewrites the processed file in place,
+    and a cached thumbnail would silently show a stale crop.
+
+    No explicit mimetype - the processed photo is always PNG, but the
+    upload_path fallback keeps whatever format the customer sent
+    (jpg/jfif/png); send_file() infers the right one from the actual
+    file extension instead of assuming PNG for both cases."""
+    job = db.session.get(Job, job_id)
+    path = (job.processed_path or job.upload_path) if job else None
+    if not path or not Path(path).exists():
+        abort(404)
+    return send_file(path, max_age=0)
+
+
 @bp.route("/<int:job_id>/approve", methods=["POST"])
 @admin_required
 def approve(job_id):
