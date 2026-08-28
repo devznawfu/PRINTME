@@ -44,6 +44,10 @@ PAPER_SIZES = ("Letter", "A4", "Legal")
 # created before these fields existed).
 PAPER_FINISHES = ("glossy", "bond")
 QUALITY_LEVELS = ("standard", "high")
+# Photo printing only. NULL for a job created before this field
+# existed, or a document job - not "auto" by default, since we
+# genuinely don't know for those.
+PROCESSED_SOURCE = ("auto", "manual")
 
 
 def generate_ticket_number():
@@ -131,6 +135,7 @@ class Job(db.Model):
     # Photo options (null for document jobs).
     paper_finish = db.Column(db.String(8))  # glossy|bond
     quality = db.Column(db.String(8))  # standard|high
+    processed_source = db.Column(db.String(8))  # auto|manual
 
     # Cost snapshot written by the pricing engine when it computes a total.
     total_cost = db.Column(db.Float)
