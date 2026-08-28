@@ -50,6 +50,22 @@
       {% endfor %}
     </div>
 
+    {% if cost_rates %}
+    <div class="flex flex-col gap-4">
+      <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-muted">Shop costs</h2>
+      <span class="text-[14px] text-faint">Not charged to customers - used only for the Failure Analysis page's peso estimates.</span>
+      {% for rate in cost_rates %}
+      <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
+        <label for="rate-{{ rate.key }}" class="text-[15px] font-bold">{{ cost_rate_labels.get(rate.key, rate.key) }}</label>
+        <div class="flex items-center gap-2">
+          <span class="text-lg text-muted">&#8369;</span>
+          <input id="rate-{{ rate.key }}" name="{{ rate.key }}" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rate.price) }}" class="h-[46px] w-[110px] rounded-xl border border-line bg-panel px-3 text-right text-[15px]">
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <button type="submit" class="min-h-[64px] w-full rounded-2xl bg-btn-bg text-lg font-bold text-btn-text transition-colors hover:bg-btn-hover">Save rates</button>
   </form>
 </div>

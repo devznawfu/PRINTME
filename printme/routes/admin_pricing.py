@@ -7,7 +7,7 @@ from flask import Blueprint, redirect, render_template, request, url_for
 from printme.extensions import db
 from printme.layout_engine.sizes import PHOTO_SIZES_PX
 from printme.models.job import PAPER_FINISHES, QUALITY_LEVELS
-from printme.models.pricing import PricingRate
+from printme.models.pricing import INTERNAL_COST_KEYS, PricingRate
 from printme.routes.admin_auth import admin_required
 from printme.services.pricing import reprice_active_jobs
 
@@ -44,6 +44,10 @@ def pricing():
         if cells:
             photo_groups.append({"size": size, "cells": cells})
 
+    cost_rates = [
+        rates_by_key[key] for key in INTERNAL_COST_KEYS if key in rates_by_key
+    ]
+
     return render_template(
         "admin/pricing.html",
         document_rates=document_rates,
@@ -51,6 +55,8 @@ def pricing():
         photo_groups=photo_groups,
         finishes=PAPER_FINISHES,
         qualities=QUALITY_LEVELS,
+        cost_rates=cost_rates,
+        cost_rate_labels={"cost_per_sheet": "Estimated cost per A4 sheet (paper + ink)"},
     )
 
 

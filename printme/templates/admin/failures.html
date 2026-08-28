@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}PRINTME! &mdash; Failure Analysis{% endblock %}
+{% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
+{% block body %}
+<div class="mx-auto flex max-w-[1040px] flex-col gap-8 px-8 py-10">
+  <div class="flex items-center justify-between gap-6">
+    <div class="flex flex-col gap-1.5">
+      <h1 class="text-[30px] font-bold tracking-tight">Failure Analysis</h1>
+      <span class="text-lg text-muted">{{ total_reprints }} reprint{{ "s" if total_reprints != 1 else "" }} in the last {{ window_days }} days.</span>
+    </div>
+    <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to queue</a>
+  </div>
+
+  {% if not ranked %}
+  <div class="rounded-3xl border border-dashed border-dash p-14 text-center text-lg text-faint">No reprints in the last {{ window_days }} days.</div>
+  {% else %}
+  <div class="flex flex-col gap-4">
+    {% for r in ranked %}
+    <div class="flex items-center justify-between gap-4 rounded-3xl border border-border bg-panel p-6">
+      <div class="flex flex-col gap-1">
+        <h3 class="text-lg font-bold leading-tight">{{ r.label }}</h3>
+        <span class="text-[15px] text-muted">{{ r.count }} reprint{{ "s" if r.count != 1 else "" }}</span>
+      </div>
+      <span class="text-[22px] font-bold tabular-nums">&#8369;{{ "%.2f"|format(r.cost) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="flex items-center justify-between gap-4 rounded-3xl border border-border bg-inset p-6">
+    <span class="text-[15px] font-bold text-muted">Total estimated cost</span>
+    <span class="text-[22px] font-bold tabular-nums">&#8369;{{ "%.2f"|format(total_cost) }}</span>
+  </div>
+  <span class="text-[14px] text-faint">Charged reprints use their actual total; uncharged (shop-fault) reprints are estimated at &#8369;{{ "%.2f"|format(cost_per_sheet) }} per reprint, editable on the Pricing page.</span>
+  {% endif %}
+</div>
+{% endblock %}

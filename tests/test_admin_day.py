@@ -5,6 +5,7 @@ from pathlib import Path
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
 from printme.models.photo_sheet import PhotoSheet
+from printme.models.pricing import PricingRate, seed_defaults
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -147,3 +148,95 @@ class TestDaySummaryRoute:
         body = resp.get_data(as_text=True)
         assert "2 job" in body  # both count toward "done today"
         assert "&#8369;20.00" in body  # average of just the priced one
+
+
+class TestFailuresRoute:
+    def test_requires_admin_login(self, client):
+        resp = client.get("/admin/failures")
+        assert resp.status_code == 302
+        assert "/admin/login" in resp.headers["Location"]
+
+    def test_empty_state_with_no_reprints(self, client):
+        login(client)
+        resp = client.get("/admin/failures")
+
+        assert resp.status_code == 200
+        assert b"No reprints in the last 30 days." in resp.data
+
+    def test_ranks_reasons_by_count_and_sums_charged_reprints(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            original = make_job(ticket_number="P-001", status=JobStatus.DONE)
+            db.session.add(original)
+            db.session.commit()
+
+            # Two "bad_print" (one charged, one shop-fault $0) outrank one
+            # "paper_jam" (charged) - the ranking is by count, not cost.
+            charged = make_job(
+                ticket_number="P-002",
+                reprint_of=original.id,
+                reprint_reason="bad_print",
+                total_cost=15.0,
+            )
+            uncharged = make_job(
+                ticket_number="P-003",
+                reprint_of=original.id,
+                reprint_reason="bad_print",
+                total_cost=0.0,
+            )
+            jam = make_job(
+                ticket_number="P-004",
+                reprint_of=original.id,
+                reprint_reason="paper_jam",
+                total_cost=15.0,
+            )
+            db.session.add_all([charged, uncharged, jam])
+            db.session.commit()
+
+            cost_per_sheet = PricingRate.query.filter_by(key="cost_per_sheet").one().price
+
+        login(client)
+        resp = client.get("/admin/failures")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert "Bad print" in body
+        assert "Paper jam" in body
+        assert "2 reprints" in body  # bad_print count
+        assert "1 reprint" in body  # paper_jam count
+
+        bad_print_pos = body.find("Bad print")
+        paper_jam_pos = body.find("Paper jam")
+        assert bad_print_pos < paper_jam_pos  # bad_print (2) ranked above paper_jam (1)
+
+        # bad_print total: 15.00 (charged) + cost_per_sheet (uncharged estimate)
+        expected_bad_print_total = 15.0 + cost_per_sheet
+        assert f"&#8369;{expected_bad_print_total:.2f}" in body
+
+    def test_reprints_outside_the_30_day_window_are_excluded(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            original = make_job(ticket_number="P-001", status=JobStatus.DONE)
+            old_reprint = make_job(
+                ticket_number="P-002",
+                reprint_of=None,  # set after commit, avoids the validator
+            )
+            db.session.add_all([original, old_reprint])
+            db.session.commit()
+
+            old_reprint.reprint_of = original.id
+            old_reprint.reprint_reason = "bad_print"
+            db.session.commit()
+
+            db.session.execute(
+                Job.__table__.update()
+                .where(Job.id == old_reprint.id)
+                .values(created_at=_naive_utc_now() - timedelta(days=31))
+            )
+            db.session.commit()
+
+        login(client)
+        resp = client.get("/admin/failures")
+
+        assert resp.status_code == 200
+        assert b"No reprints in the last 30 days." in resp.data

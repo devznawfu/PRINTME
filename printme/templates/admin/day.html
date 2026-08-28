@@ -8,7 +8,10 @@
       <h1 class="text-[30px] font-bold tracking-tight">Close of Day</h1>
       <span class="text-lg text-muted">{{ jobs_today_count }} job{{ "s" if jobs_today_count != 1 else "" }} submitted today.</span>
     </div>
-    <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to queue</a>
+    <div class="flex items-center gap-3">
+      <a href="{{ url_for('admin_day.failures') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Failure Analysis</a>
+      <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to queue</a>
+    </div>
   </div>
 
   <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">

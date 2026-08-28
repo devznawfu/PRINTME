@@ -25,6 +25,17 @@ for _size, _base_price in _PHOTO_BASE_RATES.items():
             DEFAULT_RATES[f"{_size}-{_finish}-{_quality}"] = _base_price
 del _size, _base_price, _finish, _quality
 
+# Not a customer-facing price - the shop's own estimated cost (paper +
+# ink) per printed A4 sheet, used only by the failure-analysis page
+# (turn 5b) to put a peso figure on reprints. Stored in the same table
+# since PricingRate is already a generic editable key->value store and
+# this needs zero new schema - kept out of DEFAULT_RATES's own naming
+# though, since admin/pricing.html's customer-facing display is a
+# curated allowlist (DOCUMENT_RATE_LABELS + PHOTO_SIZES_PX), not a
+# blind iteration, so this key never accidentally shows up there as if
+# it were a price charged to a customer.
+INTERNAL_COST_KEYS = {"cost_per_sheet": 3.0}
+
 
 class PricingRate(db.Model):
     __tablename__ = "pricing_rates"
@@ -39,7 +50,7 @@ def seed_defaults(session):
     existing = {
         k for (k,) in session.query(PricingRate.key).all()
     }
-    for key, price in DEFAULT_RATES.items():
+    for key, price in {**DEFAULT_RATES, **INTERNAL_COST_KEYS}.items():
         if key not in existing:
             session.add(PricingRate(key=key, price=price))
     session.commit()

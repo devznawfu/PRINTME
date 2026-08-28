@@ -1,6 +1,6 @@
 from printme.extensions import db
 from printme.models import Job, JobStatus, PhotoItemRow, PricingRate, seed_defaults
-from printme.models.pricing import rate_map
+from printme.models.pricing import INTERNAL_COST_KEYS, rate_map
 
 
 def login(client):
@@ -35,7 +35,8 @@ class TestPricingPage:
         resp = client.get("/admin/pricing/")
         body = resp.get_data(as_text=True)
 
-        photo_keys = [k for k in all_keys if k not in ("bw_page", "color_page")]
+        non_photo_keys = {"bw_page", "color_page"} | set(INTERNAL_COST_KEYS)
+        photo_keys = [k for k in all_keys if k not in non_photo_keys]
         assert len(photo_keys) == 32  # 8 sizes x 2 finishes x 2 qualities
         for key in photo_keys:
             assert f'id="rate-{key}"' in body

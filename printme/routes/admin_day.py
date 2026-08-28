@@ -3,18 +3,27 @@ staff to check before locking up - jobs done today, paper used, and a
 busiest-hour view of when customers came in. Deliberately no profit
 figure and no week-over-week comparison, both explicitly out of scope
 per the design doc this was built from.
+
+Also holds Failure Analysis (turn 5b): reprint reasons ranked over the
+last 30 days, since a reprint IS the concrete evidence of something
+that went wrong on the original job - reusing turn 3c's reprint_of/
+reprint_reason columns rather than inventing a separate failure log.
 """
 
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, render_template
 
-from printme.models.job import Job, JobStatus
+from printme.extensions import db
+from printme.models.job import REPRINT_REASON_LABELS, Job, JobStatus
 from printme.models.photo_sheet import PhotoSheet
+from printme.models.pricing import rate_map
 from printme.routes.admin_auth import admin_required
 
 bp = Blueprint("admin_day", __name__, url_prefix="/admin")
+
+FAILURE_WINDOW_DAYS = 30
 
 
 def _today_start():
@@ -75,4 +84,53 @@ def day_summary():
         sheets_today=sheets_today,
         busiest_hours=busiest_hours,
         jobs_today_count=len(jobs_today),
+    )
+
+
+@bp.route("/failures", methods=["GET"])
+@admin_required
+def failures():
+    cutoff = _today_start() - timedelta(days=FAILURE_WINDOW_DAYS - 1)
+    reprints = Job.query.filter(
+        Job.reprint_of.isnot(None), Job.created_at >= cutoff
+    ).all()
+
+    cost_per_sheet = rate_map(db.session).get("cost_per_sheet", 0.0)
+
+    # A charged ("charge normally") reprint has a real customer-price
+    # total_cost - use that. An uncharged ($0, shop-fault) reprint still
+    # cost the shop real paper/ink, so it's estimated at cost_per_sheet
+    # instead. This is a flat per-reprint estimate, not a real sheet
+    # count (that would require re-running the packer for jobs that may
+    # not even be packed yet) - deliberately simple, per the "scoped
+    # small" plan for this feature.
+    by_reason = {}
+    for job in reprints:
+        if not job.reprint_reason:
+            continue
+        entry = by_reason.setdefault(job.reprint_reason, {"count": 0, "cost": 0.0})
+        entry["count"] += 1
+        entry["cost"] += job.total_cost if job.total_cost else cost_per_sheet
+
+    ranked = sorted(
+        (
+            {
+                "reason": reason,
+                "label": REPRINT_REASON_LABELS.get(reason, reason),
+                "count": stats["count"],
+                "cost": stats["cost"],
+            }
+            for reason, stats in by_reason.items()
+        ),
+        key=lambda r: r["count"],
+        reverse=True,
+    )
+
+    return render_template(
+        "admin/failures.html",
+        ranked=ranked,
+        total_reprints=len(reprints),
+        total_cost=sum(r["cost"] for r in ranked),
+        window_days=FAILURE_WINDOW_DAYS,
+        cost_per_sheet=cost_per_sheet,
     )
