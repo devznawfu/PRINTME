@@ -3,13 +3,16 @@ quantity adjustment, and single-document printing. Kept separate from
 admin_dashboard.py (which only renders) and admin_review.py (which
 owns the flagged-job review actions)."""
 
-from flask import Blueprint, jsonify, redirect, request, url_for
+from pathlib import Path
+
+from flask import Blueprint, current_app, jsonify, redirect, request, send_file, url_for
 
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
 from printme.routes.admin_auth import admin_required
 from printme.routes.admin_dashboard import file_line_for
 from printme.services import job_state
+from printme.services.document_preview import render_page_thumbnail
 from printme.services.pricing import price_job
 from printme.services.printing import get_printer_backend
 from printme.services.printing.printer_registry import available_printers, is_valid_printer
@@ -100,6 +103,29 @@ def cancel_job(job_id):
         pass  # already past the point where cancelling makes sense
 
     return redirect(url_for("admin_dashboard.dashboard"))
+
+
+@bp.route("/jobs/<int:job_id>/preview/<int:page_number>.png", methods=["GET"])
+@admin_required
+def document_page_preview(job_id, page_number):
+    """A small thumbnail of one page of a document job, for the print-
+    confirmation popup's "preview of what will be printed." Renders
+    once and caches to disk - same render-once-cache-forever pattern
+    as admin_photo_sheets.py's sheet preview."""
+    job = db.session.get(Job, job_id)
+    if job is None or job.service_type != "document" or not job.processed_path:
+        return "", 404
+
+    max_pages = job.page_count or 1
+    if page_number < 1 or page_number > max_pages:
+        return "", 404
+
+    preview_dir = Path(current_app.config["PROCESSED_DIR"]) / "previews"
+    out_path = preview_dir / f"job{job_id}-p{page_number}.png"
+    if not out_path.exists():
+        render_page_thumbnail(job.processed_path, page_number, out_path)
+
+    return send_file(out_path, mimetype="image/png")
 
 
 @bp.route("/jobs/<int:job_id>/print", methods=["POST"])
