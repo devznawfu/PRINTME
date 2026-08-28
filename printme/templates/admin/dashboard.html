@@ -115,9 +115,12 @@
     </div>
   </div>
 </dialog>
+{% include "upload/partials/_crop_dialog.html" %}
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin-dashboard.js') }}"></script>
 <script src="{{ url_for('static', filename='js/print-confirm.js') }}"></script>
+<script src="{{ url_for('static', filename='js/photo-crop.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin-photo-crop.js') }}"></script>
 {% endblock %}

@@ -13,6 +13,13 @@
     </div>
   </div>
 
+  {% if card.job.service_type == "photo" %}
+  <form id="recrop-form-{{ card.job.id }}" method="post" action="{{ url_for('admin_review.recrop', job_id=card.job.id) }}" class="hidden">
+    <input type="hidden" name="crop" data-recrop-crop-field>
+  </form>
+  <button type="button" data-admin-crop-trigger data-job-id="{{ card.job.id }}" data-original-image-url="{{ url_for('admin_review.original_image', job_id=card.job.id) }}" class="flex min-h-[52px] w-full items-center justify-center rounded-2xl border {{ 'border-warn-card-line text-warn-title' if flagged else 'border-line' }} text-[15px] font-bold">Crop photo</button>
+  {% endif %}
+
   {% if flagged %}
   <div class="animate-pop-in flex gap-3 rounded-2xl border border-warn-card-line bg-warn-note p-4">
     <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-warn-accent text-sm font-bold text-warn-accent-text">!</span>

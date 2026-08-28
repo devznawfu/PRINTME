@@ -6,11 +6,23 @@ server-rendered; not a behavior change).
 
 from pathlib import Path
 
-from flask import Blueprint, abort, redirect, render_template, send_file, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 
 from printme.extensions import db
-from printme.models.job import Job
+from printme.models.job import Job, JobStatus
 from printme.routes.admin_auth import admin_required
+from printme.services.manual_crop import parse_crop_fractions
+from printme.services.photo_pipeline import process_photo_job
 
 bp = Blueprint("admin_review", __name__, url_prefix="/admin/jobs")
 
@@ -66,6 +78,49 @@ def use_original(job_id):
         job.processed_path = job.upload_path
         job.clear_attention()
         db.session.commit()
+    return redirect(url_for("admin_dashboard.dashboard"))
+
+
+@bp.route("/<int:job_id>/recrop", methods=["POST"])
+@admin_required
+def recrop(job_id):
+    """Staff manual crop, mirroring the customer-facing crop tool but
+    triggered from the admin side - reachable from any ready-for-review
+    photo job card (not just flagged ones), since staff may want to fix
+    a bad automatic crop, or a customer's own crop, before printing.
+
+    Re-runs the full pipeline against the ORIGINAL upload with the new
+    manual crop; a blank `crop` field (the "Use automatic crop" action)
+    reverts to the automatic one - parse_crop_fractions already treats
+    blank/missing exactly like "no manual crop", so no special-casing
+    is needed here to fall back correctly.
+
+    Restricted to READY_FOR_REVIEW: a job already printing/done/failed
+    is past the point where a different crop makes sense, and jobs are
+    always still in this status while awaiting review or the next
+    Photo Sheets batch (needs_attention is a separate flag, not a
+    status - see JobStatus).
+    """
+    job = db.session.get(Job, job_id)
+    if job is None or job.service_type != "photo" or job.status != JobStatus.READY_FOR_REVIEW:
+        abort(404)
+
+    if not job.upload_path or not Path(job.upload_path).exists():
+        # The 2-day upload-source retention window (CLAUDE.md) can
+        # outlive a job sitting in the review queue - recrop needs the
+        # original file, so this is a real, reachable case, not a bug.
+        flash("Can't re-crop - the original uploaded photo has been cleaned up.")
+        return redirect(url_for("admin_dashboard.dashboard"))
+
+    crop_fractions = parse_crop_fractions(request.form.get("crop"))
+    process_photo_job(
+        db.session,
+        job,
+        job.upload_path,
+        current_app.config["PROCESSED_DIR"],
+        manual_crop_fractions=crop_fractions,
+    )
+    flash("Photo re-cropped." if crop_fractions else "Reverted to the automatic crop.")
     return redirect(url_for("admin_dashboard.dashboard"))
 
 
