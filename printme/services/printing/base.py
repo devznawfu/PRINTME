@@ -21,7 +21,12 @@ class PrinterBackend(ABC):
         """Printer names currently available through this backend."""
 
     @abstractmethod
-    def print_file(self, file_path, printer_name, copies=1, grayscale=False):
+    def print_file(self, file_path, printer_name, copies=1, grayscale=False, borderless=False):
         """Send file_path to printer_name. Raises PrintError on
         failure. Returns an opaque, backend-specific job identifier.
-        grayscale=True means print in black and white only."""
+        grayscale=True means print in black and white only.
+        borderless=True requests full-bleed edge-to-edge printing -
+        only meaningful for photo sheets on a printer whose driver
+        actually supports it (see printer_registry.borderless_capable);
+        backends should fall back to normal printing rather than fail
+        the job if it isn't achievable."""
