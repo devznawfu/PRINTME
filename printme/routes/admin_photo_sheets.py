@@ -5,7 +5,16 @@ no individual per-job print button; only Document jobs do)."""
 
 from pathlib import Path
 
-from flask import Blueprint, current_app, flash, redirect, render_template, send_file, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
@@ -25,6 +34,25 @@ from printme.services.printing.printer_registry import (
 bp = Blueprint("admin_photo_sheets", __name__, url_prefix="/admin/photo-sheets")
 
 _printer_backend = get_printer_backend()
+
+FINISH_LABELS = {"glossy": "Glossy", "bond": "Bond paper"}
+QUALITY_LABELS = {"standard": "Standard", "high": "High"}
+
+
+def _paper_key(sheet):
+    """(finish, quality) - what physical paper this sheet needs. Every
+    sheet belongs to exactly one job (see the no-cross-job-mixing note
+    below), so the owning job's own settings decide it unambiguously."""
+    finish = (sheet.job.paper_finish or "bond") if sheet.job else "bond"
+    quality = (sheet.job.quality or "standard") if sheet.job else "standard"
+    return finish, quality
+
+
+def _paper_label(key):
+    finish, quality = key
+    finish_label = FINISH_LABELS.get(finish, finish.title())
+    quality_label = QUALITY_LABELS.get(quality, quality.title())
+    return f"{finish_label}, {quality_label} quality"
 
 
 @bp.route("/", methods=["GET"])
@@ -54,10 +82,39 @@ def photo_sheets():
         sheet.job = db.session.get(Job, sheet.items[0].job_id) if sheet.items else None
     db.session.commit()
 
+    # Grouped by paper type is the default - the shop's real cost is
+    # paper changes, not job count. "By arrival" (today's plain
+    # sheet_number order) is a toggle for when a customer is physically
+    # standing at the counter and staff need to see arrival order, not
+    # batching efficiency. Flagged jobs never reach pack_pending_photo_
+    # jobs at all (excluded via needs_attention.is_(False)) - they're
+    # already handled entirely separately in the Needs Attention queue,
+    # not merely dimmed here.
+    view = "arrival" if request.args.get("view") == "arrival" else "paper"
+    groups = []
+    if view == "paper":
+        grouped = {}
+        order = []
+        for sheet in sheets:
+            key = _paper_key(sheet)
+            if key not in grouped:
+                grouped[key] = []
+                order.append(key)
+            grouped[key].append(sheet)
+        # "Load now": the batch with the most sheets - fewest paper
+        # changes for the most output, printed first.
+        order.sort(key=lambda k: -len(grouped[k]))
+        groups = [
+            {"label": _paper_label(key), "sheets": grouped[key], "load_now": i == 0}
+            for i, key in enumerate(order)
+        ]
+
     printers = available_printers()
     return render_template(
         "admin/photo_sheets.html",
         sheets=sheets,
+        groups=groups,
+        view=view,
         printers=printers,
         borderless_map={p: borderless_capable(p) is True for p in printers},
     )
@@ -75,8 +132,6 @@ def preview_image(sheet_id):
 @bp.route("/<int:sheet_id>/print", methods=["POST"])
 @admin_required
 def print_sheet(sheet_id):
-    from flask import request
-
     sheet = db.session.get(PhotoSheet, sheet_id)
     if sheet is None or not sheet.rendered_path:
         return redirect(url_for("admin_photo_sheets.photo_sheets"))

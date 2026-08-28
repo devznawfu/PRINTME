@@ -1,6 +1,33 @@
 {% extends "base.html" %}
 {% block title %}PRINTME! &mdash; Photo Sheets{% endblock %}
 {% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
+
+{% macro sheet_card(sheet) %}
+<div class="flex flex-col gap-4 rounded-3xl border border-border bg-panel p-6">
+  <div class="flex items-center justify-between">
+    <h2 class="text-xl font-bold">Sheet {{ sheet.sheet_number + 1 }} of {{ sheets|length }}</h2>
+    <span class="text-muted">{{ sheet.items|length }} photo{{ "s" if sheet.items|length != 1 else "" }}</span>
+  </div>
+  {% if sheet.job %}
+  <span class="text-[15px] text-muted">{{ sheet.job.ticket_number }} &middot; {{ sheet.job.customer_name }}</span>
+  {% endif %}
+  <img src="{{ url_for('admin_photo_sheets.preview_image', sheet_id=sheet.id) }}" alt="Sheet {{ sheet.sheet_number + 1 }} preview" class="w-full rounded-xl border border-line">
+  <form id="sheet-print-form-{{ sheet.id }}" method="post" action="{{ url_for('admin_photo_sheets.print_sheet', sheet_id=sheet.id) }}" class="flex flex-wrap items-center gap-3" data-sheet-print-form data-print-form data-print-kind="sheet" data-sheet-number="{{ sheet.sheet_number + 1 }}" data-sheet-count="{{ sheets|length }}" data-ticket="{{ sheet.job.ticket_number if sheet.job else '' }}" data-customer-name="{{ sheet.job.customer_name if sheet.job else '' }}" data-paper-finish="{{ (sheet.job.paper_finish or 'bond') if sheet.job else 'bond' }}" data-paper-quality="{{ (sheet.job.quality or 'standard') if sheet.job else 'standard' }}">
+    <select name="printer" aria-label="Printer" class="h-[54px] flex-1 rounded-xl border border-line bg-inset px-4 text-[15px]">
+      {% for p in printers %}
+      <option value="{{ p }}" data-borderless="{{ 'true' if borderless_map[p] else 'false' }}">{{ p }}</option>
+      {% endfor %}
+    </select>
+    <label class="flex items-center gap-2 text-[15px]">
+      <input type="checkbox" name="borderless" checked data-borderless-checkbox>
+      Borderless
+    </label>
+    <span class="text-[13px] text-muted" data-borderless-note hidden>Not supported by this printer</span>
+    <button type="button" data-print-trigger class="min-h-[54px] rounded-xl bg-btn-bg px-8 text-[17px] font-bold text-btn-text transition-colors hover:bg-btn-hover">Print This Sheet</button>
+  </form>
+</div>
+{% endmacro %}
+
 {% block body %}
 <div class="mx-auto flex max-w-[1040px] flex-col gap-8 px-8 py-10">
   <div class="flex items-center justify-between gap-6">
@@ -21,35 +48,42 @@
   {% endif %}
   {% endwith %}
 
+  {% if sheets %}
+  <div class="flex items-center justify-between gap-4">
+    <span class="text-[14.5px] text-muted">Flagged jobs are reviewed separately - see Needs Attention on the queue.</span>
+    <div class="flex gap-2 rounded-2xl border border-line bg-inset p-1">
+      <a href="{{ url_for('admin_photo_sheets.photo_sheets') }}" class="rounded-xl px-4 py-2 text-[14.5px] font-bold {{ 'bg-panel' if view == 'paper' else 'text-muted' }}">By paper type</a>
+      <a href="{{ url_for('admin_photo_sheets.photo_sheets', view='arrival') }}" class="rounded-xl px-4 py-2 text-[14.5px] font-bold {{ 'bg-panel' if view == 'arrival' else 'text-muted' }}">By arrival</a>
+    </div>
+  </div>
+  {% endif %}
+
   {% if not sheets %}
   <div class="rounded-3xl border border-dashed border-dash p-14 text-center text-lg text-faint">No pending photo jobs to pack right now.</div>
   {% endif %}
 
-  {% for sheet in sheets %}
-  <div class="flex flex-col gap-4 rounded-3xl border border-border bg-panel p-6">
-    <div class="flex items-center justify-between">
-      <h2 class="text-xl font-bold">Sheet {{ sheet.sheet_number + 1 }} of {{ sheets|length }}</h2>
-      <span class="text-muted">{{ sheet.items|length }} photo{{ "s" if sheet.items|length != 1 else "" }}</span>
+  {% if view == "paper" %}
+  {% for group in groups %}
+  <div class="flex flex-col gap-4 {{ '' if group.load_now else 'opacity-60' }}">
+    <div class="flex items-center gap-3 {{ 'rounded-2xl bg-warn-note px-5 py-3.5' if group.load_now else '' }}">
+      {% if group.load_now %}
+      <span class="rounded-full bg-warn-accent px-3 py-1 text-[13px] font-bold text-warn-accent-text">Load now</span>
+      <span class="text-[17px] font-bold text-warn-title">{{ group.label }} &middot; {{ group.sheets|length }} sheet{{ "s" if group.sheets|length != 1 else "" }}</span>
+      {% else %}
+      <span class="text-[17px] font-bold">{{ group.label }}</span>
+      <span class="text-[14.5px] text-muted">&middot; change paper before this batch &middot; {{ group.sheets|length }} sheet{{ "s" if group.sheets|length != 1 else "" }}</span>
+      {% endif %}
     </div>
-    {% if sheet.job %}
-    <span class="text-[15px] text-muted">{{ sheet.job.ticket_number }} &middot; {{ sheet.job.customer_name }}</span>
-    {% endif %}
-    <img src="{{ url_for('admin_photo_sheets.preview_image', sheet_id=sheet.id) }}" alt="Sheet {{ sheet.sheet_number + 1 }} preview" class="w-full rounded-xl border border-line">
-    <form id="sheet-print-form-{{ sheet.id }}" method="post" action="{{ url_for('admin_photo_sheets.print_sheet', sheet_id=sheet.id) }}" class="flex flex-wrap items-center gap-3" data-sheet-print-form data-print-form data-print-kind="sheet" data-sheet-number="{{ sheet.sheet_number + 1 }}" data-sheet-count="{{ sheets|length }}" data-ticket="{{ sheet.job.ticket_number if sheet.job else '' }}" data-customer-name="{{ sheet.job.customer_name if sheet.job else '' }}" data-paper-finish="{{ (sheet.job.paper_finish or 'bond') if sheet.job else 'bond' }}" data-paper-quality="{{ (sheet.job.quality or 'standard') if sheet.job else 'standard' }}">
-      <select name="printer" aria-label="Printer" class="h-[54px] flex-1 rounded-xl border border-line bg-inset px-4 text-[15px]">
-        {% for p in printers %}
-        <option value="{{ p }}" data-borderless="{{ 'true' if borderless_map[p] else 'false' }}">{{ p }}</option>
-        {% endfor %}
-      </select>
-      <label class="flex items-center gap-2 text-[15px]">
-        <input type="checkbox" name="borderless" checked data-borderless-checkbox>
-        Borderless
-      </label>
-      <span class="text-[13px] text-muted" data-borderless-note hidden>Not supported by this printer</span>
-      <button type="button" data-print-trigger class="min-h-[54px] rounded-xl bg-btn-bg px-8 text-[17px] font-bold text-btn-text transition-colors hover:bg-btn-hover">Print This Sheet</button>
-    </form>
+    {% for sheet in group.sheets %}
+    {{ sheet_card(sheet) }}
+    {% endfor %}
   </div>
   {% endfor %}
+  {% else %}
+  {% for sheet in sheets %}
+  {{ sheet_card(sheet) }}
+  {% endfor %}
+  {% endif %}
 </div>
 {% include "admin/partials/_print_confirm_dialog.html" %}
 {% endblock %}

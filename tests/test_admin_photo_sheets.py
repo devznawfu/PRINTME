@@ -31,6 +31,93 @@ def make_ready_photo_job(**overrides):
     return job
 
 
+class TestPaperBatching:
+    """Turn 3a: sheets group by paper type ({finish}-{quality}) by
+    default - the shop's real cost is paper changes, not job count."""
+
+    def test_default_view_groups_by_paper_type(self, app, client):
+        with app.app_context():
+            db.session.add(
+                make_ready_photo_job(
+                    ticket_number="P-001", paper_finish="glossy", quality="high"
+                )
+            )
+            db.session.add(
+                make_ready_photo_job(
+                    ticket_number="P-002", paper_finish="bond", quality="standard"
+                )
+            )
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/photo-sheets/")
+        body = resp.data.decode()
+        assert "Glossy, High quality" in body
+        assert "Bond paper, Standard quality" in body
+        assert "Load now" in body
+        assert "change paper before this batch" in body
+
+    def test_arrival_view_shows_flat_list_without_grouping(self, app, client):
+        with app.app_context():
+            db.session.add(
+                make_ready_photo_job(
+                    ticket_number="P-001", paper_finish="glossy", quality="high"
+                )
+            )
+            db.session.add(
+                make_ready_photo_job(
+                    ticket_number="P-002", paper_finish="bond", quality="standard"
+                )
+            )
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/photo-sheets/?view=arrival")
+        body = resp.data.decode()
+        assert "Load now" not in body
+        assert "change paper before this batch" not in body
+        # both sheets still show up, just not grouped
+        assert "P-001" in body
+        assert "P-002" in body
+
+    def test_the_biggest_paper_group_is_load_now(self, app, client):
+        """Fewest paper changes for the most output: the batch with the
+        most sheets is the one recommended first, regardless of arrival
+        order."""
+        with app.app_context():
+            db.session.add(
+                make_ready_photo_job(
+                    ticket_number="P-001",
+                    paper_finish="glossy",
+                    quality="high",
+                    total_cost=15.0,
+                )
+            )
+            # Each job packs onto its own sheet(s) - never mixed with
+            # another job's prints (see the no-cross-job-mixing fix) -
+            # so 20 more jobs guarantees the bond group has more sheets
+            # than the single glossy one, regardless of quantity.
+            for i in range(2, 22):
+                db.session.add(
+                    make_ready_photo_job(
+                        ticket_number=f"P-{i:03d}",
+                        paper_finish="bond",
+                        quality="standard",
+                        total_cost=15.0,
+                    )
+                )
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/photo-sheets/")
+        body = resp.data.decode()
+        load_now_idx = body.index("Load now")
+        bond_idx = body.index("Bond paper, Standard quality")
+        glossy_idx = body.index("Glossy, High quality")
+        # "Load now" appears right next to whichever group has more sheets
+        assert abs(load_now_idx - bond_idx) < abs(load_now_idx - glossy_idx)
+
+
 class TestPrintConfirmDialogWiring:
     """Turn 3b: printing a sheet now routes through the shared confirm
     dialog (previously the button submitted directly) - the form needs
