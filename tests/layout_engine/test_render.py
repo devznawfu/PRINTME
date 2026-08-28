@@ -25,6 +25,19 @@ def test_render_margins_and_usable_area_match_sizes_constants():
     assert render.usable_height == sizes.USABLE_HEIGHT_PX
 
 
+def test_render_usable_area_equals_full_sheet_when_margin_is_zero():
+    """The shop owner's requirement, at the render level: the preview's
+    usable-area box should span the whole sheet, not a margin-inset
+    box."""
+    sheets = pack([PhotoItem("only", "1x1")])
+    render = render_sheet(sheets[0])
+
+    assert render.usable_x == 0
+    assert render.usable_y == 0
+    assert render.usable_width == render.sheet_width
+    assert render.usable_height == render.sheet_height
+
+
 def test_render_emits_four_grid_lines_per_placed_item_matching_its_bounds():
     items = [PhotoItem(f"i{i}", "2x2") for i in range(3)]
     sheet = pack(items)[0]

@@ -134,6 +134,32 @@ def test_rotation_only_applies_to_non_square_sizes_and_swaps_dimensions():
     assert saw_rotated_passport, "expected at least one rotated Passport in this batch"
 
 
+def test_zero_margin_lets_a_full_grid_start_flush_at_the_sheet_origin():
+    """The shop owner's requirement: no reserved sheet margin - a
+    packed item can legally sit flush at the physical sheet edge."""
+    padded = sizes.PHOTO_SIZES_PX["1x1"][0] + sizes.GUTTER_PX
+    cols = sizes.USABLE_WIDTH_PX // padded
+    rows = sizes.USABLE_HEIGHT_PX // padded
+    capacity = cols * rows
+
+    items = [PhotoItem(f"i{i}", "1x1") for i in range(capacity)]
+    sheets = pack(items)
+
+    assert len(sheets) == 1
+    sheet = sheets[0]
+    assert min(item.x for item in sheet.items) == 0
+    assert min(item.y for item in sheet.items) == 0
+
+
+def test_sheet_margin_is_zero_on_every_packed_sheet():
+    items = [PhotoItem(f"one{i}", "1x1") for i in range(140)]
+    sheets = pack(items)
+
+    assert len(sheets) >= 2
+    for sheet in sheets:
+        assert sheet.margin == 0
+
+
 def test_unknown_size_name_raises():
     with pytest.raises(ValueError):
         pack([PhotoItem("x", "9x9")])
