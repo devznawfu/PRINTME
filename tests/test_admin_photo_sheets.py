@@ -105,3 +105,62 @@ class TestPrintSheetFailure:
         with app.app_context():
             job = db.session.get(Job, job_id)
             assert job.status == JobStatus.DONE
+
+
+class TestPrintSheetBorderless:
+    def _sheet_id(self, app, client):
+        client.get("/admin/photo-sheets/")
+        with app.app_context():
+            from printme.models import PhotoSheet
+
+            return PhotoSheet.query.first().id
+
+    def test_checked_and_capable_printer_prints_borderless(self, app, client):
+        with app.app_context():
+            db.session.add(make_ready_photo_job())
+            db.session.commit()
+        login(client)
+        sheet_id = self._sheet_id(app, client)
+
+        client.post(
+            f"/admin/photo-sheets/{sheet_id}/print",
+            data={"printer": "Brother DCP-T420W", "borderless": "on"},
+        )
+
+        from printme.routes.admin_photo_sheets import _printer_backend
+
+        assert _printer_backend.print_log[-1]["borderless"] is True
+
+    def test_checked_but_non_capable_printer_is_overridden_server_side(self, app, client):
+        """The server re-validates against real capability data - a
+        checked box for a non-capable printer must never reach the
+        backend as borderless=True, even though the client sent it."""
+        with app.app_context():
+            db.session.add(make_ready_photo_job())
+            db.session.commit()
+        login(client)
+        sheet_id = self._sheet_id(app, client)
+
+        client.post(
+            f"/admin/photo-sheets/{sheet_id}/print",
+            data={"printer": "Brother DCP-L2540DW series", "borderless": "on"},
+        )
+
+        from printme.routes.admin_photo_sheets import _printer_backend
+
+        assert _printer_backend.print_log[-1]["borderless"] is False
+
+    def test_unchecked_box_omitted_from_form_defaults_to_false(self, app, client):
+        """Unchecked HTML checkboxes aren't submitted at all - the
+        field is simply absent from the form data."""
+        with app.app_context():
+            db.session.add(make_ready_photo_job())
+            db.session.commit()
+        login(client)
+        sheet_id = self._sheet_id(app, client)
+
+        client.post(f"/admin/photo-sheets/{sheet_id}/print", data={"printer": "Brother DCP-T420W"})
+
+        from printme.routes.admin_photo_sheets import _printer_backend
+
+        assert _printer_backend.print_log[-1]["borderless"] is False

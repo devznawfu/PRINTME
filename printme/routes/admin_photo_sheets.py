@@ -16,7 +16,11 @@ from printme.services.photo_sheet import pack_pending_photo_jobs
 from printme.services.photo_sheet_renderer import render_photo_sheet
 from printme.services.printing import get_printer_backend
 from printme.services.printing.base import PrintError
-from printme.services.printing.printer_registry import available_printers, is_valid_printer
+from printme.services.printing.printer_registry import (
+    available_printers,
+    borderless_capable,
+    is_valid_printer,
+)
 
 bp = Blueprint("admin_photo_sheets", __name__, url_prefix="/admin/photo-sheets")
 
@@ -42,10 +46,12 @@ def photo_sheets():
         sheet.rendered_path = str(out_path)
     db.session.commit()
 
+    printers = available_printers()
     return render_template(
         "admin/photo_sheets.html",
         sheets=sheets,
-        printers=available_printers(),
+        printers=printers,
+        borderless_map={p: borderless_capable(p) is True for p in printers},
     )
 
 
@@ -71,8 +77,16 @@ def print_sheet(sheet_id):
     if not is_valid_printer(printer_name):
         return redirect(url_for("admin_photo_sheets.photo_sheets"))
 
+    # Never trust the client's checkbox alone - a stale page (printer
+    # capability changed) or a spoofed submission shouldn't be able to
+    # force borderless mode on a printer that doesn't support it.
+    wants_borderless = request.form.get("borderless") == "on"
+    use_borderless = wants_borderless and borderless_capable(printer_name) is True
+
     try:
-        _printer_backend.print_file(sheet.rendered_path, printer_name, copies=1)
+        _printer_backend.print_file(
+            sheet.rendered_path, printer_name, copies=1, borderless=use_borderless
+        )
     except PrintError as exc:
         current_app.logger.warning("print_sheet %s failed: %s", sheet_id, exc)
         flash(f"Print failed: {printer_name} didn't respond. Check the printer and try again.")

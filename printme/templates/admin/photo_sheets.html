@@ -32,15 +32,23 @@
       <span class="text-muted">{{ sheet.items|length }} photo{{ "s" if sheet.items|length != 1 else "" }}</span>
     </div>
     <img src="{{ url_for('admin_photo_sheets.preview_image', sheet_id=sheet.id) }}" alt="Sheet {{ sheet.sheet_number + 1 }} preview" class="w-full rounded-xl border border-line">
-    <form method="post" action="{{ url_for('admin_photo_sheets.print_sheet', sheet_id=sheet.id) }}" class="flex flex-wrap items-center gap-3">
+    <form method="post" action="{{ url_for('admin_photo_sheets.print_sheet', sheet_id=sheet.id) }}" class="flex flex-wrap items-center gap-3" data-sheet-print-form>
       <select name="printer" aria-label="Printer" class="h-[54px] flex-1 rounded-xl border border-line bg-inset px-4 text-[15px]">
         {% for p in printers %}
-        <option value="{{ p }}">{{ p }}</option>
+        <option value="{{ p }}" data-borderless="{{ 'true' if borderless_map[p] else 'false' }}">{{ p }}</option>
         {% endfor %}
       </select>
+      <label class="flex items-center gap-2 text-[15px]">
+        <input type="checkbox" name="borderless" checked data-borderless-checkbox>
+        Borderless
+      </label>
+      <span class="text-[13px] text-muted" data-borderless-note hidden>Not supported by this printer</span>
       <button type="submit" class="min-h-[54px] rounded-xl bg-btn-bg px-8 text-[17px] font-bold text-btn-text transition-colors hover:bg-btn-hover">Print This Sheet</button>
     </form>
   </div>
   {% endfor %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin-photo-sheets.js') }}"></script>
 {% endblock %}
