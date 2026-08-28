@@ -1,0 +1,18 @@
+{# Replaces the old single-line summary block in upload/confirmation.html.
+   Needs total_cost in session["pending_confirmation"] (routes/upload.py
+   sums the created jobs' own priced total_cost after _process()). #}
+<div class="flex w-full items-center justify-between gap-4 rounded-[22px] border border-line bg-panel px-[22px] py-[18px] text-left">
+  <div class="flex flex-col gap-0.5">
+    <span class="text-[13px] font-bold uppercase tracking-[0.11em] text-muted">Pay at the counter</span>
+    <span class="text-[14.5px] text-muted">
+      {{ "Photo printing" if service == "photo" else "Document printing" }}
+      {%- if service == "photo" %}{% for pi in photo_items %} &middot; {{ pi.size_name }} &times; {{ pi.quantity }}{% endfor %}
+      {%- else %} &middot; {{ qty }} {{ "copy" if qty == 1 else "copies" }}{% endif %}
+    </span>
+  </div>
+  {% if total_cost is not none %}
+  <span class="text-[30px] font-bold tabular-nums tracking-tight">&#8369;{{ "%.2f"|format(total_cost) }}</span>
+  {% else %}
+  <span class="max-w-[150px] text-right text-[14.5px] font-bold leading-snug text-muted">Staff will total this at the counter</span>
+  {% endif %}
+</div>

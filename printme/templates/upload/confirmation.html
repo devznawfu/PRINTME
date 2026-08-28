@@ -25,12 +25,8 @@
     </div>
 
     <div class="max-w-[300px] text-lg leading-relaxed text-text-soft">We'll call your name when it's ready. You can put your phone away.</div>
-    <div class="text-[14.5px] text-muted">
-      {{ "Photo printing" if service == "photo" else "Document printing" }}
-      {%- if service == "photo" %}{% for pi in photo_items %} &middot; {{ pi.size_name }} &times; {{ pi.quantity }}{% endfor %}{% endif %}
-      &middot; {{ tickets|length }} {{ "file" if tickets|length == 1 else "files" }}
-      {%- if service != "photo" %} &middot; {{ qty }} {{ "copy" if qty == 1 else "copies" }}{% endif %}
-    </div>
+
+    {% include "upload/partials/_confirmation_price.html" %}
 
     <a href="{{ url_for('upload.form') }}" class="mt-1.5 min-h-[58px] rounded-2xl border border-line px-[30px] py-4 text-[16.5px] font-bold transition-colors hover:border-text hover:text-text">Send something else</a>
   </div>

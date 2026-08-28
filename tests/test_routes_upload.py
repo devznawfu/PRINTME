@@ -534,6 +534,44 @@ class TestUploadSubmitRealPipeline:
             assert sess["pending_confirmation"]["total_cost"] == expected
 
 
+class TestConfirmationPriceDisplay:
+    def test_priced_job_shows_the_total(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            rates = rate_map(db.session)
+            expected = rates["2x2-bond-standard"] * 4
+        with open(FIXTURES / "face_one.jpg", "rb") as fh:
+            client.post(
+                "/upload",
+                data={
+                    "name": "Maria",
+                    "code": todays_code(app),
+                    "service": "photo",
+                    "qty_2x2": "4",
+                    "files": (fh, "face_one.jpg"),
+                },
+                content_type="multipart/form-data",
+            )
+
+        resp = client.get("/confirmation")
+        assert resp.status_code == 200
+        assert f"{expected:.2f}".encode() in resp.data
+        assert b"Staff will total this at the counter" not in resp.data
+
+    def test_unpriced_job_shows_the_staff_will_total_fallback(self, app, client):
+        def fake_process_photo_job(session, job, *args, **kwargs):
+            job.status = "ready_for_review"  # no price_job() call
+
+        with patch(
+            "printme.routes.upload.process_photo_job", side_effect=fake_process_photo_job
+        ):
+            submit_form(client, todays_code(app))
+
+        resp = client.get("/confirmation")
+        assert resp.status_code == 200
+        assert b"Staff will total this at the counter" in resp.data
+
+
 class TestPendingConfirmationTotalCostFallback:
     """If any created job never got priced (its own processing failed),
     the aggregate must be None - not a total that silently excludes
