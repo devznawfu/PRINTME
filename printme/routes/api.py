@@ -5,7 +5,7 @@ owns the flagged-job review actions)."""
 
 from pathlib import Path
 
-from flask import Blueprint, current_app, jsonify, redirect, request, send_file, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, request, send_file, url_for
 
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
@@ -13,6 +13,7 @@ from printme.routes.admin_auth import admin_required
 from printme.routes.admin_dashboard import file_line_for
 from printme.services import job_state
 from printme.services.document_preview import render_page_thumbnail
+from printme.services.page_range import PageRangeError, parse_page_range
 from printme.services.pricing import price_job
 from printme.services.printing import get_printer_backend
 from printme.services.printing.printer_registry import available_printers, is_valid_printer
@@ -144,6 +145,13 @@ def print_document(job_id):
     if not is_valid_printer(printer_name):
         return redirect(url_for("admin_dashboard.dashboard"))
 
+    raw_range = (request.form.get("page_range") or "").strip()
+    try:
+        pages = parse_page_range(raw_range, job.page_count or 1)
+    except PageRangeError as exc:
+        flash(f"Couldn't print: {exc}")
+        return redirect(url_for("admin_dashboard.dashboard"))
+
     try:
         job_state.mark_printing(db.session, job)
         _printer_backend.print_file(
@@ -151,6 +159,7 @@ def print_document(job_id):
             printer_name,
             copies=job.copies or 1,
             grayscale=job.color_mode == "bw",
+            page_range=pages if raw_range else None,
         )
         job_state.mark_done(db.session, job)
     except Exception as exc:

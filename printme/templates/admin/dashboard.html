@@ -27,6 +27,16 @@
 
 <div class="animate-fade-in mx-auto flex max-w-[1280px] flex-col gap-12 px-10 pb-20 pt-9">
 
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}
+  <div class="flex flex-col gap-2 rounded-2xl border border-err-line bg-err-bg p-4 text-sm text-err-text">
+    {% for message in messages %}
+    <div>{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
   <div class="flex flex-wrap items-center justify-between gap-6 rounded-[26px] border-2 border-warn-accent bg-warn-note px-8 py-[26px]">
     <div class="flex flex-col gap-1.5">
       <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-warn-title">Today's code</h2>

@@ -184,3 +184,74 @@ class TestPrintDocumentHonorsSelectedPrinter:
         client.post(f"/admin/jobs/{job_id}/print", data={"printer": "Brother DCP-T430W"})
 
         assert _printer_backend.print_log[before:][0]["grayscale"] is False
+
+    def test_no_page_range_given_prints_every_page(self, app, client):
+        with app.app_context():
+            job = make_ready_document_job(page_count=5)
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        client.post(f"/admin/jobs/{job_id}/print", data={"printer": "Brother DCP-T430W"})
+
+        assert _printer_backend.print_log[before:][0]["page_range"] is None
+
+    def test_valid_page_range_reaches_the_printer_backend(self, app, client):
+        with app.app_context():
+            job = make_ready_document_job(page_count=5)
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        client.post(
+            f"/admin/jobs/{job_id}/print",
+            data={"printer": "Brother DCP-T430W", "page_range": "1-2,4"},
+        )
+
+        assert _printer_backend.print_log[before:][0]["page_range"] == [1, 2, 4]
+
+    def test_out_of_bounds_page_range_is_rejected_server_side(self, app, client):
+        """Never trust the popup's own client-side arithmetic - the
+        server re-validates against the job's real page_count and
+        must refuse to print anything on a bad range."""
+        with app.app_context():
+            job = make_ready_document_job(page_count=3)
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        resp = client.post(
+            f"/admin/jobs/{job_id}/print",
+            data={"printer": "Brother DCP-T430W", "page_range": "1-9"},
+        )
+
+        assert resp.status_code == 302
+        assert _printer_backend.print_log[before:] == []
+        with app.app_context():
+            fetched = db.session.get(Job, job_id)
+            assert fetched.status == JobStatus.READY_FOR_REVIEW
+
+        follow = client.get(resp.headers["Location"])
+        assert b"Couldn&#39;t print" in follow.data or b"Couldn't print" in follow.data
+
+    def test_malformed_page_range_is_rejected_server_side(self, app, client):
+        with app.app_context():
+            job = make_ready_document_job(page_count=3)
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        client.post(
+            f"/admin/jobs/{job_id}/print",
+            data={"printer": "Brother DCP-T430W", "page_range": "abc"},
+        )
+
+        assert _printer_backend.print_log[before:] == []
