@@ -21,14 +21,17 @@ def in_to_px(inches: float) -> int:
 A4_WIDTH_PX = mm_to_px(210)
 A4_HEIGHT_PX = mm_to_px(297)
 
-# Sheet margin (all four sides). Zero by design, per the shop owner: a
-# packed sheet must use the entire glossy sheet edge-to-edge - the only
-# whitespace allowed is GUTTER_PX between adjacent photos, for a clean
-# scissor cut. Kept as a named constant (rather than deleted) so
-# packer.py/render.py don't need any logic changes - they already read
-# this value symbolically rather than hardcoding a margin.
+# Sheet margin (all four sides) and the gutter between adjacent
+# photos. Both zero by design, per the shop owner: a packed sheet must
+# use the entire glossy sheet edge-to-edge with NO whitespace at all,
+# not even a cutting gutter between photos - an explicit, deliberate
+# trade-off the shop owner accepted knowing it means each cut has to
+# land exactly on the seam between two touching photos, with no margin
+# for a slightly imprecise cut. Kept as named constants (rather than
+# deleted) so packer.py/render.py don't need any logic changes - they
+# already read these values symbolically rather than hardcoding them.
 SHEET_MARGIN_PX = 0
-GUTTER_PX = mm_to_px(2)
+GUTTER_PX = 0
 
 USABLE_WIDTH_PX = A4_WIDTH_PX - 2 * SHEET_MARGIN_PX
 USABLE_HEIGHT_PX = A4_HEIGHT_PX - 2 * SHEET_MARGIN_PX

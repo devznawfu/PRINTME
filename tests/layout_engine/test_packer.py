@@ -88,8 +88,12 @@ def test_uniform_grid_fills_to_exact_computed_capacity():
 
 
 def test_mixed_sizes_use_no_more_sheets_than_the_naive_separate_baseline():
-    ones = [PhotoItem(f"a{i}", "1x1") for i in range(75)]
-    visas = [PhotoItem(f"b{i}", "Visa") for i in range(5)]
+    """75/5 no longer shows a STRICT improvement now that packing is
+    tighter (zero gutter) - both approaches tie at 2 sheets, which is
+    itself a sign packing improved, not a regression. 90/2 still shows
+    real synergy from mixing (3 sheets separately, 2 mixed)."""
+    ones = [PhotoItem(f"a{i}", "1x1") for i in range(90)]
+    visas = [PhotoItem(f"b{i}", "Visa") for i in range(2)]
 
     ones_alone = pack(ones)
     visas_alone = pack(visas)
@@ -227,12 +231,16 @@ def test_real_world_regression_ten_1x1_and_ten_2x2_pack_tightly():
 
 
 def test_gutter_is_only_a_separator_not_trailing_padding_per_item():
-    """Four "2x2" prints side by side need 4*600 + 3*24(gutters
-    BETWEEN them) = 2472px, which fits USABLE_WIDTH_PX's 2480px -
-    padding every item's own slot by a trailing gutter (this module's
-    first attempt at the shelf packer) made it look like 2496px was
-    needed, wrongly forcing a 4th column onto a new row instead of
-    packing tightly."""
+    """GUTTER_PX is 0 today (the shop owner later asked for zero
+    whitespace at all, not even a cutting gutter - see sizes.py), but
+    this test still guards the underlying placement logic: gutter is
+    only ever inserted BETWEEN items, never as trailing padding after
+    the last one in a row. With a real nonzero gutter this made the
+    difference between four "2x2" prints fitting in one row
+    (4*600 + 3*gutter) or wrongly spilling a 4th onto a new row
+    (4*(600+gutter)) - this module's first attempt at the shelf packer
+    got that wrong. Still worth guarding even at gutter=0, in case a
+    future paper type ever needs a nonzero one again."""
     items = [PhotoItem(f"two{i}", "2x2") for i in range(4)]
     sheets = pack(items)
 
