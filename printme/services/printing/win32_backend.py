@@ -22,6 +22,7 @@ behaving at all. PDFs are rasterized page-by-page with PyMuPDF first
 same drawing code.
 """
 
+import logging
 import time
 from pathlib import Path
 
@@ -31,9 +32,83 @@ from PIL import Image, ImageWin
 from printme.services.printing.base import PrintError, PrinterBackend
 from printme.services.printing.printer_registry import available_printers, is_valid_printer
 
+logger = logging.getLogger(__name__)
+
 # PDF page geometry is in points (1/72in); render at the same 300 DPI
 # the rest of the pipeline uses (printme/layout_engine/sizes.py).
 _PDF_ZOOM = 300 / 72
+
+# pywin32 doesn't expose these as named attributes on win32print (confirmed
+# via scripts/printer_capabilities.py on the real admin PC - win32print.DC_PAPERS
+# raises AttributeError there) - raw Win32 DeviceCapabilities fMode values.
+_DC_PAPERS = 2
+_DC_PAPERNAMES = 16
+
+
+def _match_borderless_paper_id(paper_ids, paper_names, target_size_name="a4"):
+    """The driver paper id for a borderless entry matching
+    `target_size_name` (e.g. "A4 (Borderless) (210 x 297 mm)"), or None
+    if nothing matches. A pure function over plain lists so it's
+    testable without any win32 module - the actual DeviceCapabilities
+    call lives in _borderless_dc(). Not hardcoded to a specific id
+    (confirmed 274 for A4 on the real T420W/T430W drivers) since driver
+    updates could renumber it."""
+    target_size_name = target_size_name.lower()
+    for pid, name in zip(paper_ids, paper_names):
+        clean = (name or "").strip("\x00").strip().lower()
+        if target_size_name in clean and "borderless" in clean:
+            return pid
+    return None
+
+
+def _borderless_dc(printer_name):
+    """A device context set to the driver's borderless A4 paper mode,
+    or None if unavailable/unsupported for any reason. Callers must
+    fall back to the normal CreatePrinterDC path on None - a live shop
+    print job failing outright is worse than printing with a normal
+    margin, so nothing here is allowed to raise."""
+    import win32con
+    import win32gui
+    import win32print
+    import win32ui
+
+    try:
+        hprinter = win32print.OpenPrinter(printer_name)
+        try:
+            port = win32print.GetPrinter(hprinter, 2)["pPortName"]
+        finally:
+            win32print.ClosePrinter(hprinter)
+
+        paper_ids = win32print.DeviceCapabilities(printer_name, port, _DC_PAPERS)
+        paper_names = win32print.DeviceCapabilities(printer_name, port, _DC_PAPERNAMES)
+        paper_id = _match_borderless_paper_id(paper_ids, paper_names)
+        if paper_id is None:
+            logger.warning("no borderless A4 paper entry found for %r", printer_name)
+            return None
+
+        hprinter = win32print.OpenPrinter(printer_name)
+        try:
+            devmode = win32print.DocumentProperties(
+                0, hprinter, printer_name, None, None, win32con.DM_OUT_BUFFER
+            )
+            devmode.PaperSize = paper_id
+            devmode.Fields |= win32con.DM_PAPERSIZE
+            win32print.DocumentProperties(
+                0,
+                hprinter,
+                printer_name,
+                devmode,
+                devmode,
+                win32con.DM_IN_BUFFER | win32con.DM_OUT_BUFFER,
+            )
+        finally:
+            win32print.ClosePrinter(hprinter)
+
+        raw_hdc = win32gui.CreateDC("WINSPOOL", printer_name, None, devmode)
+        return win32ui.CreateDCFromHandle(raw_hdc)
+    except Exception as exc:
+        logger.warning("borderless setup failed for %r, falling back: %s", printer_name, exc)
+        return None
 
 
 def _images_for(path, grayscale=False):
@@ -56,24 +131,43 @@ def _images_for(path, grayscale=False):
         return [img.convert(mode)]
 
 
-def _draw_images(images, printer_name):
+def _draw_images(images, printer_name, borderless=False):
     """Print every image in `images` as its own page of one document,
-    scaled to fit the printer's printable area (preserving aspect
-    ratio, centered) - GDI's stretch-blit handles resampling, so this
-    is correct regardless of the printer's native DPI vs. the source
-    images' 300 DPI."""
+    scaled to fit the printer's printable area and centered - GDI's
+    stretch-blit handles resampling, so this is correct regardless of
+    the printer's native DPI vs. the source images' 300 DPI.
+
+    When borderless setup actually succeeds, the printable area is a
+    few mm larger than the true sheet (driver-side bleed allowance -
+    confirmed 219.0 x 306.0mm for A4 on the real T420W/T430W drivers),
+    so this scales by the LARGER ratio (cover, not contain) to fill
+    both edges completely, letting the small overflow get clipped by
+    GDI/the printer - the standard print-industry bleed technique,
+    avoiding the aspect-ratio mismatch (A4 is 210:297, the borderless
+    canvas is 219.0:306.0 - not identical) from ever stretching the
+    image. The scale mode keys off whether borderless setup ACTUALLY
+    succeeded, not just whether it was requested - applying cover-crop
+    math against the normal (smaller) printable area after a failed
+    borderless setup would wrongly crop real content."""
     import win32con
     import win32ui
 
-    hdc = win32ui.CreateDC()
-    hdc.CreatePrinterDC(printer_name)
+    hdc = _borderless_dc(printer_name) if borderless else None
+    used_borderless = hdc is not None
+    if hdc is None:
+        hdc = win32ui.CreateDC()
+        hdc.CreatePrinterDC(printer_name)
+
     hdc.StartDoc("PRINTME print job")
     try:
         for img in images:
             hdc.StartPage()
             page_w = hdc.GetDeviceCaps(win32con.HORZRES)
             page_h = hdc.GetDeviceCaps(win32con.VERTRES)
-            scale = min(page_w / img.width, page_h / img.height)
+            if used_borderless:
+                scale = max(page_w / img.width, page_h / img.height)
+            else:
+                scale = min(page_w / img.width, page_h / img.height)
             w, h = round(img.width * scale), round(img.height * scale)
             x, y = (page_w - w) // 2, (page_h - h) // 2
             ImageWin.Dib(img).draw(hdc.GetHandleOutput(), (x, y, x + w, y + h))
@@ -87,7 +181,7 @@ class Win32PrinterBackend(PrinterBackend):
     def list_printers(self):
         return available_printers()
 
-    def print_file(self, file_path, printer_name, copies=1, grayscale=False):
+    def print_file(self, file_path, printer_name, copies=1, grayscale=False, borderless=False):
         if not is_valid_printer(printer_name):
             raise PrintError(f"unknown printer: {printer_name!r}")
         if copies < 1:
@@ -98,7 +192,7 @@ class Win32PrinterBackend(PrinterBackend):
             # No driver-level copy count is used (StartDoc/EndDoc is
             # per-copy below), so this loop is what "copies" means here.
             for _ in range(copies):
-                _draw_images(images, printer_name)
+                _draw_images(images, printer_name, borderless=borderless)
         except Exception as exc:
             raise PrintError(f"could not print {file_path} to {printer_name}: {exc}") from exc
 

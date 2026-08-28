@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 import pytest
 from pypdf import PdfWriter
 
-from printme.services.printing.win32_backend import _images_for
+from printme.services.printing.win32_backend import _images_for, _match_borderless_paper_id
 from printme.services.printing.base import PrintError
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -106,6 +106,38 @@ class TestImagesFor:
         Image.new("RGB", (40, 30), "white").save(path)
 
         assert _images_for(path)[0].mode == "RGB"
+
+
+class TestMatchBorderlessPaperId:
+    """Pure function over plain lists - no win32 module needed at all,
+    unlike everything else in this file."""
+
+    def test_matches_a_borderless_entry_case_insensitively(self):
+        ids = [1, 9, 274]
+        names = ["Letter", "A4 (210 x 297 mm)", "A4 (Borderless) (210 x 297 mm)"]
+        assert _match_borderless_paper_id(ids, names) == 274
+
+    def test_plain_a4_without_borderless_does_not_match(self):
+        ids = [9]
+        names = ["A4 (210 x 297 mm)"]
+        assert _match_borderless_paper_id(ids, names) is None
+
+    def test_edge_substring_false_positive_does_not_match(self):
+        """Regression coverage for the exact false positive the real
+        diagnostic script hit: "Ledger" and "A5 Long Edge" both contain
+        "edge" as a substring, but neither is a real borderless entry -
+        this function only ever matched on "borderless" itself."""
+        ids = [3, 61]
+        names = ["Ledger (279.4 x 431.8 mm)", "A5 Long Edge"]
+        assert _match_borderless_paper_id(ids, names) is None
+
+    def test_empty_lists_return_none(self):
+        assert _match_borderless_paper_id([], []) is None
+
+    def test_borderless_entry_for_a_different_size_is_ignored(self):
+        ids = [280]
+        names = ["10 x 15 cm (Borderless) (4 x 6 in)"]
+        assert _match_borderless_paper_id(ids, names, target_size_name="a4") is None
 
 
 @pytest.fixture
@@ -221,6 +253,82 @@ class TestPrintFile:
         backend = _backend(fake_pywin32)
         with pytest.raises(PrintError):
             backend.print_file(tmp_path / "does-not-exist.png", "Brother DCP-T420W")
+
+    def test_borderless_uses_cover_scale_when_setup_succeeds(self, fake_pywin32, tmp_path, monkeypatch):
+        """_borderless_dc's real DEVMODE/CreateDC dance can't be tested
+        here (win32 isn't installed on Linux) - this monkeypatches it
+        directly to prove _draw_images reacts correctly when it DOES
+        succeed: skip the default DC entirely, and scale by the LARGER
+        ratio (cover, not contain) so both edges get fully covered."""
+        import win32con
+
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (100, 50), "white").save(path)
+
+        fake_borderless_hdc = MagicMock()
+        fake_borderless_hdc.GetDeviceCaps.side_effect = (
+            lambda cap: 200 if cap is win32con.HORZRES else 60
+        )
+        monkeypatch.setattr(mod, "_borderless_dc", lambda printer_name: fake_borderless_hdc)
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W", borderless=True)
+
+        fake_win32ui, _ = fake_pywin32
+        fake_win32ui.CreateDC.assert_not_called()
+        fake_borderless_hdc.StartDoc.assert_called_once()
+        draw_rect = mod.ImageWin.Dib.return_value.draw.call_args[0][1]
+        # cover scale = max(200/100, 60/50) = 2.0 -> 200x100 (overflows
+        # the 60px page height, which GDI/the printer clips for real)
+        assert draw_rect[2] - draw_rect[0] == 200
+        assert draw_rect[3] - draw_rect[1] == 100
+
+    def test_borderless_falls_back_to_normal_dc_and_contain_scale_on_setup_failure(
+        self, fake_pywin32, tmp_path, monkeypatch
+    ):
+        """A failed borderless setup must fall back to today's exact
+        CreateDC()+CreatePrinterDC() path and today's contain scaling -
+        never cover-crop math against the normal (smaller) printable
+        area, which would wrongly crop real content."""
+        import win32con
+
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (100, 50), "white").save(path)
+
+        fake_win32ui, fake_hdc = fake_pywin32
+        fake_hdc.GetDeviceCaps.side_effect = lambda cap: 200 if cap is win32con.HORZRES else 60
+        monkeypatch.setattr(mod, "_borderless_dc", lambda printer_name: None)
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W", borderless=True)
+
+        fake_win32ui.CreateDC.assert_called_once()
+        fake_hdc.CreatePrinterDC.assert_called_once_with("Brother DCP-T420W")
+        draw_rect = mod.ImageWin.Dib.return_value.draw.call_args[0][1]
+        # contain scale = min(200/100, 60/50) = 1.2 -> 120x60
+        assert draw_rect[2] - draw_rect[0] == 120
+        assert draw_rect[3] - draw_rect[1] == 60
+
+    def test_borderless_not_requested_never_calls_borderless_dc(self, fake_pywin32, tmp_path, monkeypatch):
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (10, 10), "white").save(path)
+
+        called = []
+        monkeypatch.setattr(mod, "_borderless_dc", lambda printer_name: called.append(printer_name))
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W")
+
+        assert called == []
 
 
 class TestListPrinters:
