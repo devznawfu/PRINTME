@@ -349,6 +349,9 @@
   .h-11 {
     height: calc(var(--spacing) * 11);
   }
+  .h-\[38px\] {
+    height: 38px;
+  }
   .h-\[46px\] {
     height: 46px;
   }
@@ -426,6 +429,9 @@
   }
   .w-\[70px\] {
     width: 70px;
+  }
+  .w-\[80px\] {
+    width: 80px;
   }
   .w-\[108px\] {
     width: 108px;
@@ -793,6 +799,9 @@
   }
   .py-1\.5 {
     padding-block: calc(var(--spacing) * 1.5);
+  }
+  .py-2\.5 {
+    padding-block: calc(var(--spacing) * 2.5);
   }
   .py-3 {
     padding-block: calc(var(--spacing) * 3);

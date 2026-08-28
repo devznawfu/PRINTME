@@ -26,6 +26,22 @@ class TestPricingPage:
         resp = client.get("/admin/pricing/")
         assert resp.status_code == 302
 
+    def test_every_composite_rate_is_rendered_grouped_by_size(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            all_keys = {r.key for r in PricingRate.query.all()}
+        login(client)
+
+        resp = client.get("/admin/pricing/")
+        body = resp.get_data(as_text=True)
+
+        photo_keys = [k for k in all_keys if k not in ("bw_page", "color_page")]
+        assert len(photo_keys) == 32  # 8 sizes x 2 finishes x 2 qualities
+        for key in photo_keys:
+            assert f'id="rate-{key}"' in body
+        assert "Glossy, standard" in body
+        assert "Bond, high" in body
+
 
 class TestUpdatePricing:
     def test_post_updates_rate_and_reprices_active_jobs(self, app, client):
