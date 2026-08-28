@@ -36,6 +36,8 @@
   <form id="upload-form" method="post" action="{{ url_for('upload.submit') }}" enctype="multipart/form-data" class="flex flex-col gap-[34px] px-[22px] pt-[26px] pb-10">
     <input type="hidden" name="service" value="{{ service or 'photo' }}">
     <input type="hidden" name="color_mode" value="{{ color_mode or 'bw' }}">
+    <input type="hidden" name="paper_finish" value="{{ paper_finish or 'bond' }}">
+    <input type="hidden" name="quality" value="{{ quality or 'standard' }}">
 
     <div class="flex flex-col gap-3.5">
       <h2 class="text-[19px] font-bold tracking-tight">What are we printing?</h2>
@@ -84,6 +86,22 @@
             </div>
           </div>
           {% endfor %}
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3.5">
+        <h2 class="text-[19px] font-bold tracking-tight">Paper finish?</h2>
+        <div class="flex flex-wrap gap-2.5">
+          <button type="button" data-finish-pick="glossy" class="min-h-[58px] rounded-full border border-line bg-panel px-[22px] text-[17px] font-bold">Glossy</button>
+          <button type="button" data-finish-pick="bond" class="min-h-[58px] rounded-full border border-line bg-panel px-[22px] text-[17px] font-bold">Bond paper</button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3.5">
+        <h2 class="text-[19px] font-bold tracking-tight">Print quality?</h2>
+        <div class="flex flex-wrap gap-2.5">
+          <button type="button" data-quality-pick="standard" class="min-h-[58px] rounded-full border border-line bg-panel px-[22px] text-[17px] font-bold">Standard</button>
+          <button type="button" data-quality-pick="high" class="min-h-[58px] rounded-full border border-line bg-panel px-[22px] text-[17px] font-bold">High</button>
         </div>
       </div>
     </div>

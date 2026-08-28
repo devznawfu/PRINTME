@@ -10,6 +10,8 @@
   const serviceInput = form.querySelector('input[name="service"]');
   const sizePicker = document.getElementById("size-picker");
   const colorModeInput = form.querySelector('input[name="color_mode"]');
+  const paperFinishInput = form.querySelector('input[name="paper_finish"]');
+  const qualityInput = form.querySelector('input[name="quality"]');
   const documentOptions = document.getElementById("document-options");
   const filesInput = document.getElementById("files-input");
   const fileListEl = document.getElementById("file-list");
@@ -21,6 +23,8 @@
   const state = {
     service: serviceInput.value || "photo",
     colorMode: colorModeInput.value || "bw",
+    paperFinish: paperFinishInput.value || "bond",
+    quality: qualityInput.value || "standard",
     files: [],
   };
 
@@ -97,11 +101,11 @@
     return total;
   }
 
-  function setColorMode(colorMode) {
-    state.colorMode = colorMode;
-    colorModeInput.value = colorMode;
-    document.querySelectorAll("[data-color-pick]").forEach((btn) => {
-      const active = btn.dataset.colorPick === colorMode;
+  // Shared pill-toggle styling for any single-choice picker (color,
+  // paper finish, quality) - one active pill, the rest plain.
+  function setPickButtonStyles(dataAttr, value) {
+    document.querySelectorAll(`[${dataAttr}]`).forEach((btn) => {
+      const active = btn.dataset[toCamelCase(dataAttr)] === value;
       btn.classList.toggle("bg-btn-bg", active);
       btn.classList.toggle("bg-panel", !active);
       btn.classList.toggle("text-btn-text", active);
@@ -110,6 +114,28 @@
       btn.classList.toggle("border-text", active);
       btn.classList.toggle("border-line", !active);
     });
+  }
+
+  function toCamelCase(dataAttr) {
+    return dataAttr.replace(/^data-/, "").replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  }
+
+  function setColorMode(colorMode) {
+    state.colorMode = colorMode;
+    colorModeInput.value = colorMode;
+    setPickButtonStyles("data-color-pick", colorMode);
+  }
+
+  function setPaperFinish(paperFinish) {
+    state.paperFinish = paperFinish;
+    paperFinishInput.value = paperFinish;
+    setPickButtonStyles("data-finish-pick", paperFinish);
+  }
+
+  function setQuality(quality) {
+    state.quality = quality;
+    qualityInput.value = quality;
+    setPickButtonStyles("data-quality-pick", quality);
   }
 
   function isReady() {
@@ -178,6 +204,12 @@
   document.querySelectorAll("[data-color-pick]").forEach((btn) => {
     btn.addEventListener("click", () => setColorMode(btn.dataset.colorPick));
   });
+  document.querySelectorAll("[data-finish-pick]").forEach((btn) => {
+    btn.addEventListener("click", () => setPaperFinish(btn.dataset.finishPick));
+  });
+  document.querySelectorAll("[data-quality-pick]").forEach((btn) => {
+    btn.addEventListener("click", () => setQuality(btn.dataset.qualityPick));
+  });
 
   codeInput.addEventListener("input", () => {
     codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 4);
@@ -194,6 +226,8 @@
 
   setService(state.service);
   setColorMode(state.colorMode);
+  setPaperFinish(state.paperFinish);
+  setQuality(state.quality);
   renderFileList();
   updateUI();
 

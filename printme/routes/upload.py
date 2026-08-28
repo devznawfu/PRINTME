@@ -19,7 +19,13 @@ from config import (
     PRIMARY_PHOTO_SIZES,
 )
 from printme.extensions import db
-from printme.models.job import COLOR_MODES, PhotoItemRow, create_job_with_ticket
+from printme.models.job import (
+    COLOR_MODES,
+    PAPER_FINISHES,
+    QUALITY_LEVELS,
+    PhotoItemRow,
+    create_job_with_ticket,
+)
 from printme.services import job_state
 from printme.services.document_pipeline import process_document_job
 from printme.services.photo_pipeline import process_photo_job
@@ -73,6 +79,12 @@ def submit():
     }
     qty = _clamp_qty(request.form.get("qty"))
     color_mode = request.form.get("color_mode") if request.form.get("color_mode") in COLOR_MODES else "bw"
+    paper_finish = (
+        request.form.get("paper_finish") if request.form.get("paper_finish") in PAPER_FINISHES else "bond"
+    )
+    quality = (
+        request.form.get("quality") if request.form.get("quality") in QUALITY_LEVELS else "standard"
+    )
     files = [f for f in request.files.getlist("files") if f and f.filename]
     allowed_extensions = PHOTO_ALLOWED_EXTENSIONS if service == "photo" else ALLOWED_UPLOAD_EXTENSIONS
 
@@ -114,6 +126,8 @@ def submit():
             qty_by_size=qty_by_size,
             qty=qty,
             color_mode=color_mode,
+            paper_finish=paper_finish,
+            quality=quality,
         ), status
 
     if errors:
@@ -138,6 +152,8 @@ def submit():
             # Sides/paper size are no longer customer choices - every
             # document prints single-sided on A4 (CLAUDE.md).
             job_fields.update(color_mode=color_mode, duplex=False, paper_size="A4", copies=qty)
+        else:
+            job_fields.update(paper_finish=paper_finish, quality=quality)
 
         job = create_job_with_ticket(db.session, **job_fields)
 

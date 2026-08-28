@@ -187,6 +187,54 @@ class TestUploadSubmitHappyPathMocked:
             rows = {(row.size_name, row.quantity) for row in job.photo_items}
             assert rows == {("1x1", 4), ("Passport", 2)}
 
+    def test_photo_job_defaults_paper_finish_and_quality_when_unspecified(self, app, client):
+        with patch("printme.routes.upload.process_photo_job"):
+            submit_form(client, todays_code(app))
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Maria Alvarez").one()
+            assert job.paper_finish == "bond"
+            assert job.quality == "standard"
+
+    def test_photo_job_honors_customer_chosen_finish_and_quality(self, app, client):
+        with patch("printme.routes.upload.process_photo_job"):
+            submit_form(client, todays_code(app), paper_finish="glossy", quality="high")
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Maria Alvarez").one()
+            assert job.paper_finish == "glossy"
+            assert job.quality == "high"
+
+    def test_photo_job_rejects_invalid_finish_and_quality_with_defaults(self, app, client):
+        with patch("printme.routes.upload.process_photo_job"):
+            submit_form(client, todays_code(app), paper_finish="satin", quality="ultra")
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Maria Alvarez").one()
+            assert job.paper_finish == "bond"
+            assert job.quality == "standard"
+
+    def test_document_job_has_no_paper_finish_or_quality(self, app, client):
+        with patch("printme.routes.upload.process_document_job"):
+            client.post(
+                "/upload",
+                data={
+                    "name": "Ben",
+                    "code": todays_code(app),
+                    "service": "document",
+                    "qty": "1",
+                    "paper_finish": "glossy",
+                    "quality": "high",
+                    "files": (io.BytesIO(REAL_PDF_BYTES), "form.pdf"),
+                },
+                content_type="multipart/form-data",
+            )
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Ben").one()
+            assert job.paper_finish is None
+            assert job.quality is None
+
     def test_multiple_files_create_multiple_jobs_with_distinct_tickets(self, app, client):
         with patch("printme.routes.upload.process_document_job"):
             resp = client.post(
