@@ -9,7 +9,7 @@ internally, so the customer still gets their ticket and staff see the
 problem in the Needs Attention queue.
 """
 
-from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, jsonify, redirect, render_template, request, session, url_for
 
 from config import (
     ALLOWED_UPLOAD_EXTENSIONS,
@@ -23,6 +23,7 @@ from printme.models.job import (
     COLOR_MODES,
     PAPER_FINISHES,
     QUALITY_LEVELS,
+    JobStatus,
     PhotoItemRow,
     create_job_with_ticket,
 )
@@ -130,6 +131,16 @@ def submit():
             errors.append(str(exc))
 
     def _rerender(status=400):
+        # The review step's final submit goes through fetch() (turn 2a),
+        # not a native form POST, specifically so a validation failure
+        # never navigates the page away - state.files/state.crops are
+        # pure in-memory JS state that a real navigation would silently
+        # wipe (a browser can't repopulate a file input's files from a
+        # server response either way). A fetch request identifies itself
+        # with this header; give it JSON to redisplay in place instead
+        # of a full page it's never going to render as a document.
+        if request.headers.get("X-Requested-With") == "fetch":
+            return jsonify(errors=errors), status
         return render_template(
             "upload/index.html",
             photo_sizes=PHOTO_SIZES,
@@ -186,21 +197,28 @@ def submit():
 
         _process(job, manual_crop_fractions=crop_fractions)
         created_jobs.append(job)
-        tickets.append({"ticket": job.ticket_number, "filename": original_filename})
+        # failed: this specific file's own processing/pricing didn't
+        # succeed (a bad image, a corrupt PDF, etc.) - the OTHER files in
+        # the same submission are unaffected, so this is tracked per
+        # ticket, not as one all-or-nothing flag for the whole batch.
+        failed = job.status == JobStatus.FAILED or job.total_cost is None
+        tickets.append(
+            {"ticket": job.ticket_number, "filename": original_filename, "failed": failed}
+        )
 
     if not tickets:
         if not errors:
             errors.append("Something went wrong - please try again.")
         return _rerender()
 
-    # None (not a partial sum) if any created job never got priced - e.g.
-    # its own processing failed - rather than showing a total that quietly
-    # excludes money the customer actually owes.
-    total_cost = (
-        sum(job.total_cost for job in created_jobs)
-        if all(job.total_cost is not None for job in created_jobs)
-        else None
-    )
+    # Sum of only the tickets that actually succeeded - "you won't be
+    # charged for anything that didn't print" needs to be true even when
+    # SOME (not all) files in a multi-file submission failed, not just
+    # blank the whole total the moment any one of them does. Only goes
+    # to None if literally nothing in the batch was priced.
+    succeeded_costs = [job.total_cost for job in created_jobs if job.total_cost is not None]
+    total_cost = sum(succeeded_costs) if succeeded_costs else None
+    failed_tickets = [t["ticket"] for t in tickets if t["failed"]]
 
     session["pending_confirmation"] = {
         "name": name,
@@ -212,6 +230,7 @@ def submit():
             else []
         ),
         "tickets": tickets,
+        "failed_tickets": failed_tickets,
         "total_cost": total_cost,
     }
     return redirect(url_for("upload.confirmation"))

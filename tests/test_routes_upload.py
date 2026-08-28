@@ -29,7 +29,7 @@ def todays_code(app):
         return reset_now(db.session).code
 
 
-def submit_form(client, code, **overrides):
+def submit_form(client, code, headers=None, **overrides):
     data = {
         "name": "Maria Alvarez",
         "code": code,
@@ -38,7 +38,9 @@ def submit_form(client, code, **overrides):
         "files": (io.BytesIO(REAL_JPEG_BYTES), "photo.jpg"),
     }
     data.update(overrides)
-    return client.post("/upload", data=data, content_type="multipart/form-data")
+    return client.post(
+        "/upload", data=data, content_type="multipart/form-data", headers=headers
+    )
 
 
 def _step_classes(html, div_id):
@@ -77,6 +79,48 @@ class TestUploadForm:
         step_form = _step_classes(body, "step-form")
         assert "hidden" in step0
         assert "hidden" not in step_form and "flex" in step_form
+
+
+class TestFetchBasedSubmitErrorContract:
+    """Turn 2a: the review step's final submit goes through fetch(), not
+    a native form POST, so a validation failure (most realistically a
+    wrong/expired code) never navigates the page away and wipes
+    state.files/state.crops - a browser can't repopulate a file input's
+    files from a server response either way, so keeping the page in
+    place is the only real fix. A fetch request identifies itself with
+    X-Requested-With: fetch and gets JSON back instead of a full page."""
+
+    def test_ajax_validation_failure_returns_json_not_html(self, app, client):
+        resp = submit_form(
+            client, "0000", headers={"X-Requested-With": "fetch"}
+        )
+        assert resp.status_code == 400
+        assert resp.mimetype == "application/json"
+        data = resp.get_json()
+        assert isinstance(data["errors"], list)
+        assert any("doesn" in e for e in data["errors"])  # "doesn't look right"
+
+    def test_non_ajax_validation_failure_still_returns_the_full_page(self, app, client):
+        """Plain browser form submission (no JS, or JS failed to load)
+        must still work exactly as before - the JSON branch is opt-in
+        via the header, never the default."""
+        resp = submit_form(client, "0000")
+        assert resp.status_code == 400
+        assert resp.mimetype == "text/html"
+        assert b"doesn" in resp.data
+
+    def test_ajax_success_still_redirects_normally(self, app, client):
+        """The success path is unaffected either way - fetch() on the
+        client uses redirect: "manual" specifically so it never follows
+        this redirect itself (see upload-form.js) - the server's own
+        behavior here doesn't need to know or care that the request came
+        from fetch."""
+        with patch("printme.routes.upload.process_photo_job"):
+            resp = submit_form(
+                client, todays_code(app), headers={"X-Requested-With": "fetch"}
+            )
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/confirmation")
 
 
 class TestUploadSubmitValidation:
@@ -604,9 +648,12 @@ class TestConfirmationPriceDisplay:
 
 
 class TestPendingConfirmationTotalCostFallback:
-    """If any created job never got priced (its own processing failed),
-    the aggregate must be None - not a total that silently excludes
-    money the customer actually owes."""
+    """Turn 2a: total_cost is the sum of only the tickets that actually
+    got priced - "you won't be charged for anything that didn't print"
+    has to hold even when only SOME files in a multi-file submission
+    fail, not blank the whole total the moment any single one does. It
+    only falls back to None when literally nothing in the batch priced
+    (the single-file case collapses to that automatically)."""
 
     def test_none_when_a_job_never_gets_priced(self, app, client):
         def fake_process_photo_job(session, job, *args, **kwargs):
@@ -621,3 +668,62 @@ class TestPendingConfirmationTotalCostFallback:
 
         with client.session_transaction() as sess:
             assert sess["pending_confirmation"]["total_cost"] is None
+            assert sess["pending_confirmation"]["failed_tickets"] == [
+                sess["pending_confirmation"]["tickets"][0]["ticket"]
+            ]
+
+    def test_partial_failure_sums_only_the_succeeded_tickets(self, app, client):
+        """Two files, one fails processing/pricing, one succeeds - the
+        total must reflect only the one that actually printed, and the
+        failed one must be named specifically."""
+        calls = {"n": 0}
+
+        def fake_process_photo_job(session, job, *args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                job.status = "ready_for_review"  # first file: fails, never priced
+            else:
+                job.status = "ready_for_review"
+                job.total_cost = 15.0  # second file: succeeds
+
+        with patch(
+            "printme.routes.upload.process_photo_job", side_effect=fake_process_photo_job
+        ):
+            resp = client.post(
+                "/upload",
+                data={
+                    "name": "Maria Alvarez",
+                    "code": todays_code(app),
+                    "service": "photo",
+                    "qty_2x2": "1",
+                    "files": [
+                        (io.BytesIO(REAL_JPEG_BYTES), "a.jpg"),
+                        (io.BytesIO(REAL_JPEG_BYTES), "b.jpg"),
+                    ],
+                },
+                content_type="multipart/form-data",
+            )
+        assert resp.status_code == 302
+
+        with client.session_transaction() as sess:
+            data = sess["pending_confirmation"]
+            assert data["total_cost"] == 15.0
+            assert len(data["failed_tickets"]) == 1
+            failed_ticket = data["failed_tickets"][0]
+            succeeded = [t for t in data["tickets"] if t["ticket"] != failed_ticket]
+            assert len(succeeded) == 1
+            assert not succeeded[0]["failed"]
+
+    def test_confirmation_page_names_the_failed_ticket(self, app, client):
+        def fake_process_photo_job(session, job, *args, **kwargs):
+            job.status = "ready_for_review"
+
+        with patch(
+            "printme.routes.upload.process_photo_job", side_effect=fake_process_photo_job
+        ):
+            submit_form(client, todays_code(app))
+
+        resp = client.get("/confirmation")
+        assert resp.status_code == 200
+        assert b"didn&#39;t print: P-001" in resp.data
+        assert b"won't be charged" in resp.data

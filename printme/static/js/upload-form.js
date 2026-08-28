@@ -25,6 +25,24 @@
   const stepReviewEl = document.getElementById("step-review");
   const RATES = JSON.parse(document.getElementById("pm-rates").textContent);
   const peso = (n) => "₱" + n.toFixed(2);
+  const fileAddAlertsEl = document.getElementById("file-add-alerts");
+
+  // Mirrors config.py's PHOTO_ALLOWED_EXTENSIONS / ALLOWED_UPLOAD_EXTENSIONS
+  // and services/uploads.py's MAX_UPLOAD_SIZE_BYTES - UX-only pre-check,
+  // same "instant feedback, server re-validates" pattern print-confirm.js
+  // already uses for the page-range grammar. Rejecting here means a bad
+  // file never enters state.files at all - the OTHER files the customer
+  // picked in the same batch aren't touched.
+  const ALLOWED_EXTENSIONS = {
+    photo: ["jpg", "jfif", "png"],
+    document: ["pdf", "jpg", "jfif", "png", "docx"],
+  };
+  const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+  function extensionOf(filename) {
+    const parts = filename.split(".");
+    return parts.length > 1 ? parts.pop().toLowerCase() : "";
+  }
 
   const state = {
     service: serviceInput.value || "photo",
@@ -216,8 +234,48 @@
     fileListEl.classList.toggle("hidden", state.files.length === 0);
   }
 
+  // Amber (existing --color-warn-* family) for "too big" - recoverable,
+  // and nobody's fault. Red (existing --color-err-* family, already
+  // used for the form's own validation-error banner) for "wrong type" -
+  // a real rejection, not just a heads-up. Reusing these two existing
+  // families rather than adding a third "alert" one: they already
+  // encode exactly the "check this" vs "this broke" distinction turn 2a
+  // asks for, just under different names.
+  function addFileAlert(message, tone) {
+    const row = document.createElement("div");
+    const isWarn = tone === "warn";
+    row.className = `rounded-2xl border px-4 py-3 text-sm ${
+      isWarn
+        ? "border-warn-card-line bg-warn-note text-warn-note-text"
+        : "border-err-line bg-err-bg text-err-text"
+    }`;
+    row.textContent = message;
+    fileAddAlertsEl.appendChild(row);
+    fileAddAlertsEl.classList.remove("hidden");
+    fileAddAlertsEl.classList.add("flex");
+  }
+
   function addFiles(fileList) {
+    fileAddAlertsEl.innerHTML = "";
+    fileAddAlertsEl.classList.add("hidden");
+    fileAddAlertsEl.classList.remove("flex");
+
+    const allowed = ALLOWED_EXTENSIONS[state.service] || ALLOWED_EXTENSIONS.document;
     Array.from(fileList || []).forEach((file) => {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        addFileAlert(
+          `"${file.name}" is larger than the 15 MB limit - it wasn't added. Your other files are still here.`,
+          "warn"
+        );
+        return;
+      }
+      if (!allowed.includes(extensionOf(file.name))) {
+        addFileAlert(
+          `"${file.name}" isn't a supported file type. This form accepts: ${allowed.join(", ")}.`,
+          "alert"
+        );
+        return;
+      }
       state.files.push({ id: state.nextFileId++, file });
     });
     syncFilesInput();
@@ -562,14 +620,78 @@
     .querySelectorAll("#review-back, #review-back-bottom")
     .forEach((btn) => btn.addEventListener("click", () => showStep("form")));
 
-  // Guard: a stale review panel must never submit. If anything in step 1
-  // changed while step 2 was open (or step 2 was never actually reached),
-  // the submit is refused and step 1 is shown again instead.
+  // The form's real submit is ALWAYS intercepted now, whether it came
+  // from #review-submit's click or an implicit Enter-key submission
+  // with focus in a text field (the form has no other submit button to
+  // catch that) - a stale review panel must never submit natively, and
+  // the review panel's own submission goes through fetch() (below), not
+  // a native POST + navigation.
+  const reviewSubmitBtn = document.getElementById("review-submit");
+  const submitErrorsEl = document.getElementById("submit-errors");
+
+  function showSubmitErrors(errors) {
+    submitErrorsEl.innerHTML = "";
+    errors.forEach((message) => {
+      const row = document.createElement("div");
+      row.className =
+        "rounded-2xl border border-err-line bg-err-bg px-4 py-3 text-sm text-err-text";
+      row.textContent = message;
+      submitErrorsEl.appendChild(row);
+    });
+    submitErrorsEl.classList.remove("hidden");
+    submitErrorsEl.classList.add("flex");
+  }
+
+  function submitFinal() {
+    reviewSubmitBtn.disabled = true;
+    // redirect: "manual" is essential here, not cosmetic - the success
+    // path is a 302 to /confirmation, which pops a one-shot session key
+    // on GET. Letting fetch auto-follow that redirect would consume it
+    // right here, and the real navigation right after would find nothing
+    // left and bounce back to the form. "manual" leaves the redirect
+    // unfollowed (an opaque response) so the browser's own, one-and-
+    // only navigation is the one that actually reads the session.
+    fetch(form.action, {
+      method: "POST",
+      body: new FormData(form),
+      headers: { "X-Requested-With": "fetch" },
+      credentials: "same-origin",
+      redirect: "manual",
+    })
+      .then((resp) => {
+        if (resp.type === "opaqueredirect") {
+          window.location.href = "/confirmation";
+          return null;
+        }
+        return resp.json();
+      })
+      .then((data) => {
+        if (!data) return; // already navigating away, above
+        reviewSubmitBtn.disabled = false;
+        showSubmitErrors(data.errors || ["Something went wrong - please try again."]);
+        // Files/crops are untouched (the page never navigated) - only
+        // the code is realistically ever wrong at this point, since
+        // name/qty/files are already locally validated before review
+        // is reachable at all. Send the customer back to step-form,
+        // where the actual #code input lives, with it focused.
+        showStep("form");
+        codeInput.focus();
+        codeInput.select();
+      })
+      .catch(() => {
+        reviewSubmitBtn.disabled = false;
+        showSubmitErrors(["Couldn't reach the server - check your connection and try again."]);
+        showStep("form");
+      });
+  }
+
   form.addEventListener("submit", (e) => {
+    e.preventDefault();
     if (!isReady().ready || stepReviewEl.classList.contains("hidden")) {
-      e.preventDefault();
       showStep("form");
+      return;
     }
+    submitFinal();
   });
   form.addEventListener("change", (e) => {
     if (e.target.matches("[data-stepper-input]")) updateUI();
