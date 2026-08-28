@@ -26,6 +26,7 @@ from printme.models.job import (
     PhotoItemRow,
     create_job_with_ticket,
 )
+from printme.models.pricing import rate_map
 from printme.services import job_state
 from printme.services.document_pipeline import process_document_job
 from printme.services.manual_crop import parse_crop_fractions
@@ -72,6 +73,7 @@ def form():
         photo_sizes=PHOTO_SIZES,
         primary_photo_sizes=PRIMARY_PHOTO_SIZES,
         more_photo_sizes=MORE_PHOTO_SIZES,
+        rates=rate_map(db.session),
     )
 
 
@@ -141,6 +143,7 @@ def submit():
             color_mode=color_mode,
             paper_finish=paper_finish,
             quality=quality,
+            rates=rate_map(db.session),
         ), status
 
     if errors:
@@ -148,6 +151,7 @@ def submit():
 
     upload_dir = current_app.config["UPLOAD_DIR"]
     tickets = []
+    created_jobs = []
     for original_index, f in indexed_files:
         try:
             original_filename, saved_path = save_upload(f, upload_dir, allowed_extensions)
@@ -181,12 +185,22 @@ def submit():
             db.session.commit()
 
         _process(job, manual_crop_fractions=crop_fractions)
+        created_jobs.append(job)
         tickets.append({"ticket": job.ticket_number, "filename": original_filename})
 
     if not tickets:
         if not errors:
             errors.append("Something went wrong - please try again.")
         return _rerender()
+
+    # None (not a partial sum) if any created job never got priced - e.g.
+    # its own processing failed - rather than showing a total that quietly
+    # excludes money the customer actually owes.
+    total_cost = (
+        sum(job.total_cost for job in created_jobs)
+        if all(job.total_cost is not None for job in created_jobs)
+        else None
+    )
 
     session["pending_confirmation"] = {
         "name": name,
@@ -198,6 +212,7 @@ def submit():
             else []
         ),
         "tickets": tickets,
+        "total_cost": total_cost,
     }
     return redirect(url_for("upload.confirmation"))
 

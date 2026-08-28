@@ -6,6 +6,7 @@ from pypdf import PdfWriter
 
 from printme.extensions import db
 from printme.models import Job, seed_defaults
+from printme.models.pricing import rate_map
 from printme.services.secret_code import reset_now
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -485,3 +486,69 @@ class TestUploadSubmitRealPipeline:
             assert job.needs_attention is False
             assert job.processed_path
             assert Path(job.processed_path).exists()
+
+    def test_pending_confirmation_carries_the_real_priced_total(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            rates = rate_map(db.session)
+            expected = rates["2x2-bond-standard"] * 2
+        with open(FIXTURES / "face_one.jpg", "rb") as fh:
+            resp = client.post(
+                "/upload",
+                data={
+                    "name": "Maria",
+                    "code": todays_code(app),
+                    "service": "photo",
+                    "qty_2x2": "2",
+                    "files": (fh, "face_one.jpg"),
+                },
+                content_type="multipart/form-data",
+            )
+        assert resp.status_code == 302
+
+        with client.session_transaction() as sess:
+            assert sess["pending_confirmation"]["total_cost"] == expected
+
+    def test_pending_confirmation_sums_total_across_multiple_files(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            rates = rate_map(db.session)
+            expected = rates["2x2-bond-standard"] * 2  # one "2x2" per file
+        with open(FIXTURES / "face_one.jpg", "rb") as fh1, open(
+            FIXTURES / "face_one.jpg", "rb"
+        ) as fh2:
+            resp = client.post(
+                "/upload",
+                data={
+                    "name": "Maria",
+                    "code": todays_code(app),
+                    "service": "photo",
+                    "qty_2x2": "1",
+                    "files": [(fh1, "a.jpg"), (fh2, "b.jpg")],
+                },
+                content_type="multipart/form-data",
+            )
+        assert resp.status_code == 302
+
+        with client.session_transaction() as sess:
+            assert sess["pending_confirmation"]["total_cost"] == expected
+
+
+class TestPendingConfirmationTotalCostFallback:
+    """If any created job never got priced (its own processing failed),
+    the aggregate must be None - not a total that silently excludes
+    money the customer actually owes."""
+
+    def test_none_when_a_job_never_gets_priced(self, app, client):
+        def fake_process_photo_job(session, job, *args, **kwargs):
+            # No price_job() call - simulates a job that failed before pricing.
+            job.status = "ready_for_review"
+
+        with patch(
+            "printme.routes.upload.process_photo_job", side_effect=fake_process_photo_job
+        ):
+            resp = submit_form(client, todays_code(app))
+        assert resp.status_code == 302
+
+        with client.session_transaction() as sess:
+            assert sess["pending_confirmation"]["total_cost"] is None
