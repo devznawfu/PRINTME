@@ -39,6 +39,12 @@
 @theme {
   --font-sans: "DM Sans", system-ui, sans-serif;
 
+  /* shadow-[...] arbitrary values don't survive the standalone Tailwind
+     CLI (it chokes on the nested commas/parens in rgba(...)) - named
+     theme shadows compile reliably instead. */
+  --shadow-page: 0 0 60px rgb(0 0 0 / 0.07);
+  --shadow-cta: 0 8px 20px rgb(0 0 0 / 0.18);
+
   --color-bg: var(--pm-bg);
   --color-text: var(--pm-text);
   --color-muted: var(--pm-muted);

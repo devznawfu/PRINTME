@@ -1,0 +1,60 @@
+{# Step 2 of 2 — pre-submit review. Lives inside #upload-form so the real
+   submit fires the same request routes/upload.py already handles; nothing
+   here is populated server-side, upload-form.js fills it from state. #}
+<div id="step-review" class="hidden animate-fade-in flex-col gap-[22px] px-[22px] pt-[26px] pb-10">
+
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center justify-between gap-3">
+      <button type="button" id="review-back" class="flex min-h-[44px] items-center gap-2 text-[15.5px] font-bold">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"></path></svg>
+        Change something
+      </button>
+      <span class="text-[13px] font-bold uppercase tracking-[0.09em] text-muted">Step 2 of 2</span>
+    </div>
+    <h2 class="text-[27px] font-bold leading-tight tracking-tight">Is this right<span data-review-name></span>?</h2>
+    <p class="text-base leading-relaxed text-text-soft">Nothing is sent yet. Check it, then press the black button at the bottom.</p>
+  </div>
+
+  <div class="flex flex-col gap-2.5">
+    <h3 class="text-[13px] font-bold uppercase tracking-[0.11em] text-muted" data-review-files-heading>Your photos</h3>
+    <div data-review-files class="flex flex-col gap-2.5"></div>
+  </div>
+
+  <div class="flex flex-col gap-2.5">
+    <h3 class="text-[13px] font-bold uppercase tracking-[0.11em] text-muted">What it costs</h3>
+    <div class="overflow-hidden rounded-[20px] border border-line bg-panel">
+      <div data-review-price-lines class="divide-y divide-header-line"></div>
+      <div class="flex items-center justify-between gap-3.5 border-t border-line bg-inset p-[18px]">
+        <div class="flex flex-col gap-0.5">
+          <span class="text-[19px] font-bold tracking-tight">Total</span>
+          <span class="text-sm text-muted">Pay cash at the counter</span>
+        </div>
+        <span data-review-total class="text-[32px] font-bold tabular-nums tracking-tight">&#8369;0.00</span>
+      </div>
+    </div>
+    <p data-review-price-note class="text-sm leading-relaxed text-muted">Prices are today&rsquo;s shop rates. Staff will confirm the total when you pay.</p>
+  </div>
+
+  <div class="flex flex-col gap-2.5">
+    <h3 class="text-[13px] font-bold uppercase tracking-[0.11em] text-muted">Your details</h3>
+    <div class="rounded-[20px] border border-line bg-panel px-[18px] py-1">
+      <div class="flex items-center justify-between gap-3.5 py-3.5">
+        <span class="text-[16.5px] text-muted">Name</span>
+        <span data-review-detail-name class="text-[16.5px] font-bold"></span>
+      </div>
+      <div class="h-px bg-header-line"></div>
+      <div class="flex items-center justify-between gap-3.5 py-3.5">
+        <span class="text-[16.5px] text-muted">Today&rsquo;s code</span>
+        <span data-review-detail-code class="text-[16.5px] font-bold tracking-[0.1em]"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-3 pt-1">
+    <button type="submit" id="review-submit" class="min-h-[74px] w-full cursor-pointer rounded-[20px] bg-btn-bg text-[20.5px] font-bold text-btn-text shadow-cta transition-colors hover:bg-btn-hover">
+      Yes &mdash; send <span data-review-submit-total>&#8369;0.00</span> to the counter
+    </button>
+    <button type="button" id="review-back-bottom" class="flex min-h-[58px] w-full cursor-pointer items-center justify-center rounded-[18px] border border-line bg-panel text-[16.5px] font-bold">Go back and change something</button>
+    <p class="text-center text-sm text-muted">Once you send this, staff start printing.</p>
+  </div>
+</div>

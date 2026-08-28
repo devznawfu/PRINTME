@@ -33,7 +33,8 @@
   </div>
   {% endif %}
 
-  <form id="upload-form" method="post" action="{{ url_for('upload.submit') }}" enctype="multipart/form-data" class="flex flex-col gap-[34px] px-[22px] pt-[26px] pb-10">
+  <form id="upload-form" method="post" action="{{ url_for('upload.submit') }}" enctype="multipart/form-data">
+  <div id="step-form" class="flex flex-col gap-[34px] px-[22px] pt-[26px] pb-10">
     <input type="hidden" name="service" value="{{ service or 'photo' }}">
     <input type="hidden" name="color_mode" value="{{ color_mode or 'bw' }}">
     <input type="hidden" name="paper_finish" value="{{ paper_finish or 'bond' }}">
@@ -181,14 +182,17 @@
     </div>
 
     <div class="flex flex-col gap-3">
-      <button type="submit" id="submit-btn" class="min-h-[72px] w-full rounded-2xl bg-btn-disabled-bg text-xl font-bold text-btn-disabled-text">Submit to the counter</button>
+      <button type="button" id="submit-btn" class="min-h-[72px] w-full rounded-2xl bg-btn-disabled-bg text-xl font-bold text-btn-disabled-text">Review before sending</button>
       <div id="helper-text" class="text-center text-[13.5px] text-muted">Enter today's 4-digit code to continue.</div>
     </div>
+  </div>
+  {% include "upload/partials/_review_step.html" %}
   </form>
 </div>
 {% include "upload/partials/_crop_dialog.html" %}
 {% endblock %}
 {% block scripts %}
+<script type="application/json" id="pm-rates">{{ rates | tojson }}</script>
 <script src="{{ url_for('static', filename='js/stepper.js') }}"></script>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/photo-crop.js') }}"></script>
