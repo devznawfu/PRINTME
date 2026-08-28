@@ -89,10 +89,23 @@ class TestRestoreRoute:
 
     def test_restore_photo_job_creates_new_job_with_new_ticket(self, app, client):
         with app.app_context():
+            seed_defaults(db.session)
             old = make_terminal_photo_job(app, JobStatus.DONE, ticket="P-001")
             db.session.add(old)
             db.session.commit()
             old_id = old.id
+
+            # P-001 is free again the instant `old` leaves the active
+            # set - occupy it with an unrelated active job so this test
+            # actually proves restore goes through normal fresh-ticket
+            # allocation rather than reusing old.ticket_number verbatim
+            # (which would otherwise collide, or - if it just happened
+            # to pass silently - prove nothing).
+            blocker = make_terminal_photo_job(
+                app, JobStatus.READY_FOR_REVIEW, ticket="P-001"
+            )
+            db.session.add(blocker)
+            db.session.commit()
         login(client)
 
         with (
@@ -126,6 +139,7 @@ class TestRestoreRoute:
 
     def test_restore_document_job_copies_print_options(self, app, client):
         with app.app_context():
+            seed_defaults(db.session)
             old = make_terminal_document_job(app, JobStatus.CANCELLED, ticket="P-002")
             db.session.add(old)
             db.session.commit()
