@@ -41,11 +41,42 @@ def submit_form(client, code, **overrides):
     return client.post("/upload", data=data, content_type="multipart/form-data")
 
 
+def _step_classes(html, div_id):
+    import re
+
+    m = re.search(rf'<div id="{div_id}" class="([^"]+)"', html)
+    return set(m.group(1).split()) if m else set()
+
+
 class TestUploadForm:
     def test_get_renders_the_form(self, client):
         resp = client.get("/")
         assert resp.status_code == 200
         assert b"What are we printing?" in resp.data
+
+    def test_fresh_load_shows_service_step_and_hides_the_rest(self, client):
+        """Turn 4a: service choice is its own step 0, shown before the
+        rest of the form - a fresh page load must never show both (or
+        neither) of step-0/step-form at once."""
+        resp = client.get("/")
+        body = resp.data.decode()
+        step0 = _step_classes(body, "step-0")
+        step_form = _step_classes(body, "step-form")
+        assert "hidden" not in step0 and "flex" in step0
+        assert "hidden" in step_form and "flex" not in step_form
+        assert "Step 1 of 3" in body
+
+    def test_validation_failure_skips_straight_to_step_form(self, app, client):
+        """A customer who already answered "what are we printing?" and
+        then fails validation (e.g. wrong code) shouldn't be asked that
+        question again - step 0 must be skipped on any error re-render."""
+        resp = submit_form(client, "0000")
+        assert resp.status_code == 400
+        body = resp.data.decode()
+        step0 = _step_classes(body, "step-0")
+        step_form = _step_classes(body, "step-form")
+        assert "hidden" in step0
+        assert "hidden" not in step_form and "flex" in step_form
 
 
 class TestUploadSubmitValidation:

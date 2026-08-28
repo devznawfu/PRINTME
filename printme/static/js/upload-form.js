@@ -20,6 +20,7 @@
   const helperText = document.getElementById("helper-text");
   const nameInput = form.querySelector('input[name="name"]');
   const codeInput = form.querySelector('input[name="code"]');
+  const stepZeroEl = document.getElementById("step-0");
   const stepFormEl = document.getElementById("step-form");
   const stepReviewEl = document.getElementById("step-review");
   const RATES = JSON.parse(document.getElementById("pm-rates").textContent);
@@ -482,16 +483,22 @@
       note || "Prices are today's shop rates. Staff will confirm the total when you pay.";
   }
 
-  // #submit-btn stops being a submit button: it validates, then reveals
-  // step 2. The only type="submit" in the form now lives on the review
-  // panel, so the point of no return is a single button the customer has
-  // to deliberately reach.
+  // Three steps, one at a time: 0 (service choice) -> form (sizes/files/
+  // name/code) -> review (price + final submit). #submit-btn is a plain
+  // button, not a submit - it validates, then reveals review. The only
+  // type="submit" in the form lives on the review panel itself, so the
+  // point of no return is a single button the customer has to
+  // deliberately reach, not the same button that also validates.
+  const STEP_ELS = { service: stepZeroEl, form: stepFormEl, review: stepReviewEl };
+
   function showStep(step) {
-    const review = step === "review";
-    stepFormEl.classList.toggle("hidden", review);
-    stepReviewEl.classList.toggle("hidden", !review);
-    stepReviewEl.classList.toggle("flex", review);
-    if (review) renderReview();
+    Object.entries(STEP_ELS).forEach(([key, el]) => {
+      if (!el) return;
+      const active = key === step;
+      el.classList.toggle("hidden", !active);
+      el.classList.toggle("flex", active);
+    });
+    if (step === "review") renderReview();
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
@@ -525,7 +532,10 @@
   });
 
   document.querySelectorAll("[data-service-pick]").forEach((btn) => {
-    btn.addEventListener("click", () => setService(btn.dataset.servicePick));
+    btn.addEventListener("click", () => {
+      setService(btn.dataset.servicePick);
+      showStep("form");
+    });
   });
   document.querySelectorAll("[data-color-pick]").forEach((btn) => {
     btn.addEventListener("click", () => setColorMode(btn.dataset.colorPick));

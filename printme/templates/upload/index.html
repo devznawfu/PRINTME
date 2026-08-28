@@ -34,27 +34,33 @@
   {% endif %}
 
   <form id="upload-form" method="post" action="{{ url_for('upload.submit') }}" enctype="multipart/form-data">
-  <div id="step-form" class="flex flex-col gap-[34px] px-[22px] pt-[26px] pb-10">
+  <div id="step-0" class="{{ 'hidden' if errors else 'flex' }} flex-col gap-[34px] px-[22px] pt-[26px] pb-10">
     <input type="hidden" name="service" value="{{ service or 'photo' }}">
+
+    <div class="flex flex-col gap-3">
+      <span class="text-[13px] font-bold uppercase tracking-[0.09em] text-muted">Step 1 of 3</span>
+      <h2 class="text-[27px] font-bold leading-tight tracking-tight">What are we printing?</h2>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <button type="button" data-service-pick="photo" class="flex flex-col items-start gap-3 rounded-[20px] border border-line bg-panel-soft px-4 py-5 pb-[18px] text-left leading-tight">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="M3 16.5l4.5-4 4 3.5 3.5-3 6 5"></path></svg>
+        <span class="text-[17px] font-bold">Photo<br>Printing</span>
+        <span class="text-[13px] text-muted">ID photos: 1&times;1, 2&times;2, Passport, Visa</span>
+      </button>
+      <button type="button" data-service-pick="document" class="flex flex-col items-start gap-3 rounded-[20px] border border-line bg-panel-soft px-4 py-5 pb-[18px] text-left leading-tight">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg>
+        <span class="text-[17px] font-bold">Document<br>Printing</span>
+        <span class="text-[13px] text-muted">PDFs, forms, copies</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="step-form" class="{{ 'flex' if errors else 'hidden' }} flex-col gap-[34px] px-[22px] pt-[26px] pb-10">
     <input type="hidden" name="color_mode" value="{{ color_mode or 'bw' }}">
     <input type="hidden" name="paper_finish" value="{{ paper_finish or 'bond' }}">
     <input type="hidden" name="quality" value="{{ quality or 'standard' }}">
 
-    <div class="flex flex-col gap-3.5">
-      <h2 class="text-[19px] font-bold tracking-tight">What are we printing?</h2>
-      <div class="grid grid-cols-2 gap-3">
-        <button type="button" data-service-pick="photo" class="flex flex-col items-start gap-3 rounded-[20px] border border-line bg-panel-soft px-4 py-5 pb-[18px] text-left leading-tight">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="M3 16.5l4.5-4 4 3.5 3.5-3 6 5"></path></svg>
-          <span class="text-[17px] font-bold">Photo<br>Printing</span>
-          <span class="text-[13px] text-muted">ID photos: 1&times;1, 2&times;2, Passport, Visa</span>
-        </button>
-        <button type="button" data-service-pick="document" class="flex flex-col items-start gap-3 rounded-[20px] border border-line bg-panel-soft px-4 py-5 pb-[18px] text-left leading-tight">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg>
-          <span class="text-[17px] font-bold">Document<br>Printing</span>
-          <span class="text-[13px] text-muted">PDFs, forms, copies</span>
-        </button>
-      </div>
-    </div>
+    <span class="text-[13px] font-bold uppercase tracking-[0.09em] text-muted">Step 2 of 3</span>
 
     <div id="size-picker" class="flex flex-col gap-3.5">
       <h2 class="text-[19px] font-bold tracking-tight">What size?</h2>
