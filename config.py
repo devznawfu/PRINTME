@@ -29,6 +29,17 @@ PHOTO_SIZES = PRIMARY_PHOTO_SIZES + MORE_PHOTO_SIZES
 # used here.
 PRINTER_NAMES = ("Brother DCP-L2540DW series", "Brother DCP-T420W", "Brother DCP-T430W")
 
+# Populated from scripts/printer_capabilities.py output run on the real admin
+# PC. None = not yet diagnosed. DCP-L2540DW defaults False: it's a mono LASER
+# printer, and laser engines' fuser/paper-path mechanics make true edge-to-edge
+# printing essentially never available regardless of driver settings - a
+# hardware constraint, not something a future DEVMODE change can work around.
+PRINTER_BORDERLESS_CAPABLE = {
+    "Brother DCP-L2540DW series": False,
+    "Brother DCP-T420W": None,
+    "Brother DCP-T430W": None,
+}
+
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
