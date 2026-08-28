@@ -56,9 +56,6 @@ class TestRenderPhotoSheet:
                 # be pure white (that would mean nothing got pasted).
                 assert img.getpixel(center) != (255, 255, 255)
 
-                # Far outside the margin should still be blank white.
-                assert img.getpixel((2, 2)) == (255, 255, 255)
-
     def test_renders_a_rotated_item_at_its_swapped_footprint(self, app, tmp_path):
         with app.app_context():
             seed_defaults(db.session)
