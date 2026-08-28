@@ -379,6 +379,84 @@ class TestUploadSubmitHappyPathMocked:
             assert Job.query.count() == before
 
 
+class TestUploadWithManualCrop:
+    def test_valid_crop_sets_processed_source_manual(self, app, client):
+        """No mocking - proves the crop_0 field actually reaches the
+        real photo pipeline end to end, not just that the route parses
+        it. face_one.jpg is 512x512; (0.1,0.1,0.5,0.5) implies a
+        256px-side box, comfortably above MIN_MANUAL_CROP_SIDE_PX."""
+        with app.app_context():
+            seed_defaults(db.session)
+        resp = submit_form(
+            client,
+            todays_code(app),
+            crop_0='{"x": 0.1, "y": 0.1, "w": 0.5, "h": 0.5}',
+        )
+        assert resp.status_code == 302
+
+        with app.app_context():
+            job = Job.query.filter_by(customer_name="Maria Alvarez").one()
+            assert job.processed_source == "manual"
+
+    def test_two_file_batch_correlates_crop_by_position(self, app, client):
+        """The single highest-risk part of the whole feature: crop_<i>
+        fields are correlated to files POSITIONALLY, by the original
+        <input multiple> selection order. Two files, only the first
+        (a.jpg) carries a crop - it must land on the job made from
+        a.jpg, and b.jpg's job must see no manual crop at all, not a
+        crop misattributed from the wrong file."""
+        with patch("printme.routes.upload.process_photo_job") as mock_process:
+            resp = client.post(
+                "/upload",
+                data={
+                    "name": "Maria",
+                    "code": todays_code(app),
+                    "service": "photo",
+                    "qty_2x2": "1",
+                    "files": [
+                        (io.BytesIO(REAL_JPEG_BYTES), "a.jpg"),
+                        (io.BytesIO(REAL_JPEG_BYTES), "b.jpg"),
+                    ],
+                    "crop_0": '{"x": 0.1, "y": 0.1, "w": 0.5, "h": 0.5}',
+                },
+                content_type="multipart/form-data",
+            )
+        assert resp.status_code == 302
+        assert mock_process.call_count == 2
+
+        crops_by_filename = {
+            call.args[1].original_filename: call.kwargs["manual_crop_fractions"]
+            for call in mock_process.call_args_list
+        }
+        assert crops_by_filename["a.jpg"] == (0.1, 0.1, 0.5, 0.5)
+        assert crops_by_filename["b.jpg"] is None
+
+    def test_malformed_crop_does_not_error_and_falls_back_to_auto(self, app, client):
+        with patch("printme.routes.upload.process_photo_job") as mock_process:
+            resp = submit_form(client, todays_code(app), crop_0="{not valid json")
+        assert resp.status_code == 302
+        assert mock_process.call_args.kwargs["manual_crop_fractions"] is None
+
+    def test_document_service_ignores_crop_fields(self, app, client):
+        with patch("printme.routes.upload.process_document_job"), patch(
+            "printme.routes.upload.process_photo_job"
+        ) as mock_photo:
+            resp = client.post(
+                "/upload",
+                data={
+                    "name": "Ben",
+                    "code": todays_code(app),
+                    "service": "document",
+                    "qty": "1",
+                    "crop_0": '{"x": 0, "y": 0, "w": 1, "h": 1}',
+                    "files": (io.BytesIO(REAL_PDF_BYTES), "form.pdf"),
+                },
+                content_type="multipart/form-data",
+            )
+        assert resp.status_code == 302
+        mock_photo.assert_not_called()
+
+
 class TestUploadSubmitRealPipeline:
     """No mocking - proves the route is actually wired to the real
     photo pipeline (face detection + background removal), not just to

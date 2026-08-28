@@ -28,6 +28,7 @@ from printme.models.job import (
 )
 from printme.services import job_state
 from printme.services.document_pipeline import process_document_job
+from printme.services.manual_crop import parse_crop_fractions
 from printme.services.photo_pipeline import process_photo_job
 from printme.services.secret_code import clear_code_attempts, is_locked_out, record_failed_attempt
 from printme.services.secret_code import validate as validate_code
@@ -44,14 +45,20 @@ def _clamp_qty(raw, default=1, minimum=1, maximum=99):
     return max(minimum, min(maximum, n))
 
 
-def _process(job):
+def _process(job, manual_crop_fractions=None):
     """Dispatch a freshly-created job to its pipeline. Errors are
     swallowed here - the pipelines already mark the job failed+flagged
     and commit that themselves before re-raising."""
     try:
         job_state.start_processing(db.session, job)
         if job.service_type == "photo":
-            process_photo_job(db.session, job, job.upload_path, current_app.config["PROCESSED_DIR"])
+            process_photo_job(
+                db.session,
+                job,
+                job.upload_path,
+                current_app.config["PROCESSED_DIR"],
+                manual_crop_fractions=manual_crop_fractions,
+            )
         else:
             process_document_job(db.session, job, current_app.config["PROCESSED_DIR"])
     except Exception:
@@ -85,7 +92,13 @@ def submit():
     quality = (
         request.form.get("quality") if request.form.get("quality") in QUALITY_LEVELS else "standard"
     )
-    files = [f for f in request.files.getlist("files") if f and f.filename]
+    # Indexed BEFORE the filename-truthiness filter, so a crop_<i> field
+    # from the browser (positionally correlated to the original <input
+    # multiple> selection) can't silently drift if a stray empty file
+    # entry gets dropped here.
+    raw_files = request.files.getlist("files")
+    indexed_files = [(i, f) for i, f in enumerate(raw_files) if f and f.filename]
+    files = [f for _, f in indexed_files]
     allowed_extensions = PHOTO_ALLOWED_EXTENSIONS if service == "photo" else ALLOWED_UPLOAD_EXTENSIONS
 
     errors = []
@@ -135,7 +148,7 @@ def submit():
 
     upload_dir = current_app.config["UPLOAD_DIR"]
     tickets = []
-    for f in files:
+    for original_index, f in indexed_files:
         try:
             original_filename, saved_path = save_upload(f, upload_dir, allowed_extensions)
         except UploadRejected as exc:
@@ -148,12 +161,15 @@ def submit():
             original_filename=original_filename,
             upload_path=str(saved_path),
         )
+        # Document jobs never carry a manual crop - photo-only feature.
+        crop_fractions = None
         if service == "document":
             # Sides/paper size are no longer customer choices - every
             # document prints single-sided on A4 (CLAUDE.md).
             job_fields.update(color_mode=color_mode, duplex=False, paper_size="A4", copies=qty)
         else:
             job_fields.update(paper_finish=paper_finish, quality=quality)
+            crop_fractions = parse_crop_fractions(request.form.get(f"crop_{original_index}"))
 
         job = create_job_with_ticket(db.session, **job_fields)
 
@@ -164,7 +180,7 @@ def submit():
                     job.photo_items.append(PhotoItemRow(size_name=s, quantity=n))
             db.session.commit()
 
-        _process(job)
+        _process(job, manual_crop_fractions=crop_fractions)
         tickets.append({"ticket": job.ticket_number, "filename": original_filename})
 
     if not tickets:
