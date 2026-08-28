@@ -110,7 +110,19 @@ def test_packing_is_deterministic():
     assert first == second
 
 
-def test_rotation_only_applies_to_non_square_sizes_and_swaps_dimensions():
+def test_rotation_only_applies_to_non_square_sizes_and_swaps_dimensions(monkeypatch):
+    """This targets the rotation swap bookkeeping in pack()'s per-rect
+    loop, not whether the best-of-many-combinations search happens to
+    pick a rotated layout for this particular batch (it often doesn't -
+    a tighter unrotated grid frequently scores better, which is a good
+    thing). Pinned to the single combo that's known to rotate this
+    batch so the swap logic itself gets exercised deterministically."""
+    import printme.layout_engine.packer as packer_module
+    from rectpack import SORT_AREA, MaxRectsBssf
+
+    monkeypatch.setattr(packer_module, "_PACK_ALGOS", (MaxRectsBssf,))
+    monkeypatch.setattr(packer_module, "_SORT_ALGOS", (SORT_AREA,))
+
     items = (
         [PhotoItem(f"pp{i}", "Passport") for i in range(40)]
         + [PhotoItem(f"one{i}", "1x1") for i in range(10)]
@@ -158,6 +170,28 @@ def test_sheet_margin_is_zero_on_every_packed_sheet():
     assert len(sheets) >= 2
     for sheet in sheets:
         assert sheet.margin == 0
+
+
+def test_real_world_regression_ten_1x1_and_ten_2x2_pack_tightly():
+    """Regression test for a real customer order (10x "1x1" + 10x
+    "2x2") that visibly left roughly a third of the sheet completely
+    empty on the admin's Photo Sheets preview, even though everything
+    easily fit with room to spare. The old fixed (MaxRectsBssf,
+    SORT_AREA) combo scored only 65% bounding-box density here - one
+    of the worst of all 28 combinations tried empirically - while the
+    best-of-many search this test guards hits ~97%."""
+    items = [PhotoItem(f"one{i}", "1x1") for i in range(10)] + [
+        PhotoItem(f"two{i}", "2x2") for i in range(10)
+    ]
+    sheets = pack(items)
+
+    assert len(sheets) == 1
+    sheet = sheets[0]
+    max_x = max(item.x + item.width for item in sheet.items)
+    max_y = max(item.y + item.height for item in sheet.items)
+    item_area = sum(item.width * item.height for item in sheet.items)
+    bbox_density = item_area / (max_x * max_y)
+    assert bbox_density > 0.9, f"expected a tight pack, got {bbox_density:.2f} density"
 
 
 def test_unknown_size_name_raises():
