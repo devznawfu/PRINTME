@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}PRINTME! &mdash; Close of Day{% endblock %}
+{% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
+{% block body %}
+<div class="mx-auto flex max-w-[1040px] flex-col gap-8 px-8 py-10">
+  <div class="flex items-center justify-between gap-6">
+    <div class="flex flex-col gap-1.5">
+      <h1 class="text-[30px] font-bold tracking-tight">Close of Day</h1>
+      <span class="text-lg text-muted">{{ jobs_today_count }} job{{ "s" if jobs_today_count != 1 else "" }} submitted today.</span>
+    </div>
+    <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to queue</a>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div class="flex flex-col gap-1.5 rounded-3xl border border-border bg-panel p-6">
+      <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Done today</span>
+      <span class="text-[28px] font-bold tabular-nums">{{ done_count }}</span>
+    </div>
+    <div class="flex flex-col gap-1.5 rounded-3xl border border-border bg-panel p-6">
+      <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Average job value</span>
+      <span class="text-[28px] font-bold tabular-nums">{% if average_cost is not none %}&#8369;{{ "%.2f"|format(average_cost) }}{% else %}&mdash;{% endif %}</span>
+    </div>
+    <div class="flex flex-col gap-1.5 rounded-3xl border border-border bg-panel p-6">
+      <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Uncollected today</span>
+      <span class="text-[28px] font-bold tabular-nums">&#8369;{{ "%.2f"|format(uncollected_total) }}</span>
+      <span class="text-[14px] text-faint">{{ printing_count }} job{{ "s" if printing_count != 1 else "" }} still printing</span>
+    </div>
+    <div class="flex flex-col gap-1.5 rounded-3xl border border-border bg-panel p-6">
+      <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Sheets used</span>
+      <span class="text-[28px] font-bold tabular-nums">{{ sheets_today }}</span>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-4 rounded-3xl border border-border bg-panel p-6">
+    <h2 class="text-xl font-bold">Busiest hours</h2>
+    {% if not busiest_hours %}
+    <span class="text-[15px] text-faint">No jobs submitted yet today.</span>
+    {% else %}
+    <div class="flex flex-col gap-2">
+      {% for h in busiest_hours %}
+      <div class="flex items-center gap-3">
+        <span class="w-16 flex-none text-[14px] text-muted tabular-nums">{{ "%02d:00"|format(h.hour) }}</span>
+        <div class="h-5 flex-1 overflow-hidden rounded-md bg-inset">
+          <div class="h-full rounded-md bg-btn-bg" style="width: {{ h.pct }}%"></div>
+        </div>
+        <span class="w-6 flex-none text-right text-[14px] tabular-nums">{{ h.count }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
