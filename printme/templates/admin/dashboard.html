@@ -50,7 +50,7 @@
           New code
         </button>
       </form>
-      <span class="max-w-[150px] text-[16.5px] leading-snug text-warn-muted">{{ ("Code last reset at " + reset_at.strftime("%-I:%M %p")) if reset_at else "Code not reset today" }}</span>
+      <span class="max-w-[150px] text-[16.5px] leading-snug text-warn-muted">{{ ("Code last reset at " + reset_at.strftime("%I:%M %p").lstrip("0")) if reset_at else "Code not reset today" }}</span>
     </div>
   </div>
 

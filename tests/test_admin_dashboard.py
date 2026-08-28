@@ -1,6 +1,9 @@
+from datetime import datetime, timezone
+
 from printme.extensions import db
 from printme.models import Job, JobStatus, PhotoItemRow, seed_defaults
 from printme.routes.api import _printer_backend
+from printme.services.secret_code import reset_now
 
 
 def login(client):
@@ -52,6 +55,38 @@ class TestQrCodeRoute:
         assert resp.status_code == 200
         assert resp.mimetype == "image/png"
         assert resp.data.startswith(b"\x89PNG\r\n\x1a\n")
+
+
+class TestTodaysCodeResetDisplay:
+    """Regression test: the dashboard used to format last_reset_at with
+    "%-I:%M %p" (strip the hour's leading zero) - a glibc/macOS-only
+    strftime extension. It silently worked in this Linux dev container
+    but raised ValueError: Invalid format string on the real Windows
+    admin PC (Windows' C runtime strftime doesn't support "%-"), which
+    is exactly why it was never caught here before. Fixed with the
+    portable "%I:%M %p" plus a plain .lstrip("0") - covered directly
+    against a fixed, known timestamp so the exact rendered text is
+    pinned, not just "didn't crash"."""
+
+    def test_reset_time_renders_without_a_leading_zero_and_without_crashing(self, app, client):
+        with app.app_context():
+            code = reset_now(db.session)
+            code.last_reset_at = datetime(2026, 1, 1, 9, 5, tzinfo=timezone.utc)
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/")
+
+        assert resp.status_code == 200
+        assert b"Code last reset at 9:05 AM" in resp.data
+
+    def test_no_reset_yet_shows_fallback_text(self, app, client):
+        login(client)
+
+        resp = client.get("/admin/")
+
+        assert resp.status_code == 200
+        assert b"Code not reset today" in resp.data
 
 
 class TestDashboardPrinterDropdown:
