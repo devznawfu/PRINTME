@@ -249,6 +249,24 @@ class TestNewCodeReassurance:
         assert b"Won't cancel jobs already accepted." in resp.data
 
 
+class TestDashboardNavLinksToEveryAdminPage:
+    """Every admin page should be one click from the main queue - not
+    just built and routable, but actually reachable. Regression: Failure
+    Analysis originally only linked from Close of Day, two clicks deep,
+    while every sibling page (History, Pricing, Photo Sheets, Close of
+    Day) sat directly in the main nav."""
+
+    def test_nav_links_to_close_of_day_and_failure_analysis(self, client):
+        login(client)
+
+        resp = client.get("/admin/")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert '/admin/day"' in body
+        assert '/admin/failures"' in body
+
+
 class TestDashboardPrinterDropdown:
     def test_document_job_card_lists_every_printer(self, app, client):
         with app.app_context():
