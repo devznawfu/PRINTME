@@ -26,17 +26,13 @@ import logging
 import time
 from pathlib import Path
 
-import pymupdf
 from PIL import Image, ImageWin
 
+from printme.services.pdf_render import rasterize_pdf
 from printme.services.printing.base import PrintError, PrinterBackend
 from printme.services.printing.printer_registry import available_printers, is_valid_printer
 
 logger = logging.getLogger(__name__)
-
-# PDF page geometry is in points (1/72in); render at the same 300 DPI
-# the rest of the pipeline uses (printme/layout_engine/sizes.py).
-_PDF_ZOOM = 300 / 72
 
 # pywin32 doesn't expose these as named attributes on win32print (confirmed
 # via scripts/printer_capabilities.py on the real admin PC - win32print.DC_PAPERS
@@ -118,15 +114,7 @@ def _images_for(path, grayscale=False):
     don't need an RGB round-trip."""
     mode = "L" if grayscale else "RGB"
     if Path(path).suffix.lower() == ".pdf":
-        doc = pymupdf.open(str(path))
-        try:
-            matrix = pymupdf.Matrix(_PDF_ZOOM, _PDF_ZOOM)
-            return [
-                Image.frombytes("RGB", (pix.width, pix.height), pix.samples).convert(mode)
-                for pix in (page.get_pixmap(matrix=matrix) for page in doc)
-            ]
-        finally:
-            doc.close()
+        return [img.convert(mode) for img in rasterize_pdf(path)]
     with Image.open(path) as img:
         return [img.convert(mode)]
 
