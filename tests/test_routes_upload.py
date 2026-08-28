@@ -5,7 +5,7 @@ from unittest.mock import patch
 from pypdf import PdfWriter
 
 from printme.extensions import db
-from printme.models import Job, seed_defaults
+from printme.models import Job, JobStatus, seed_defaults
 from printme.models.pricing import rate_map
 from printme.services.secret_code import reset_now
 
@@ -727,3 +727,107 @@ class TestPendingConfirmationTotalCostFallback:
         assert resp.status_code == 200
         assert b"didn&#39;t print: P-001" in resp.data
         assert b"won't be charged" in resp.data
+
+
+class TestQueueStatusRoute:
+    """Turn 2b: GET /status/<ticket>.json - unauthenticated (same as
+    /confirmation itself), no customer PII in the response."""
+
+    def _make_job(self, **overrides):
+        defaults = dict(
+            ticket_number="P-500",
+            customer_name="Maria",
+            service_type="photo",
+            original_filename="photo.jpg",
+            upload_path="/uploads/photo.jpg",
+            status=JobStatus.READY_FOR_REVIEW,
+            total_cost=15.0,
+        )
+        defaults.update(overrides)
+        return Job(**defaults)
+
+    def test_missing_ticket_404s(self, client):
+        resp = client.get("/status/P-999.json")
+        assert resp.status_code == 404
+
+    def test_queued_status_reports_position_and_price(self, app, client):
+        with app.app_context():
+            db.session.add(self._make_job())
+            db.session.commit()
+
+        resp = client.get("/status/P-500.json")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["status"] == "queued"
+        assert data["ahead"] == 0
+        assert data["total_cost"] == 15.0
+
+    def test_ahead_counts_only_earlier_queued_jobs(self, app, client):
+        with app.app_context():
+            earlier = self._make_job(ticket_number="P-499")
+            db.session.add(earlier)
+            db.session.commit()
+            later = self._make_job(ticket_number="P-500")
+            db.session.add(later)
+            db.session.commit()
+
+        resp = client.get("/status/P-500.json")
+        data = resp.get_json()
+        assert data["ahead"] == 1
+
+        resp2 = client.get("/status/P-499.json")
+        data2 = resp2.get_json()
+        assert data2["ahead"] == 0
+
+    def test_printing_status(self, app, client):
+        with app.app_context():
+            db.session.add(self._make_job(status=JobStatus.PRINTING))
+            db.session.commit()
+
+        resp = client.get("/status/P-500.json")
+        data = resp.get_json()
+        assert data["status"] == "printing"
+        assert data["ahead"] == 0
+
+    def test_done_status_is_ready(self, app, client):
+        with app.app_context():
+            db.session.add(self._make_job(status=JobStatus.DONE))
+            db.session.commit()
+
+        resp = client.get("/status/P-500.json")
+        data = resp.get_json()
+        assert data["status"] == "ready"
+
+    def test_failed_status_is_an_issue(self, app, client):
+        with app.app_context():
+            job = self._make_job(status=JobStatus.FAILED, needs_attention=True)
+            job.attention_reason = "Photo processing failed."
+            db.session.add(job)
+            db.session.commit()
+
+        resp = client.get("/status/P-500.json")
+        data = resp.get_json()
+        assert data["status"] == "issue"
+
+    def test_resolves_to_the_most_recently_created_job_with_this_ticket(self, app, client):
+        """Ticket numbers are reused once a job goes terminal - polling
+        must never resolve to a stale job from a previous cycle."""
+        with app.app_context():
+            old = self._make_job(status=JobStatus.DONE)
+            db.session.add(old)
+            db.session.commit()
+            new = self._make_job(status=JobStatus.READY_FOR_REVIEW)
+            db.session.add(new)
+            db.session.commit()
+
+        resp = client.get("/status/P-500.json")
+        data = resp.get_json()
+        assert data["status"] == "queued"  # the new one, not the old DONE one
+
+    def test_response_carries_no_customer_name(self, app, client):
+        with app.app_context():
+            db.session.add(self._make_job())
+            db.session.commit()
+
+        resp = client.get("/status/P-500.json")
+        assert b"Maria" not in resp.data

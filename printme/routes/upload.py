@@ -23,6 +23,7 @@ from printme.models.job import (
     COLOR_MODES,
     PAPER_FINISHES,
     QUALITY_LEVELS,
+    Job,
     JobStatus,
     PhotoItemRow,
     create_job_with_ticket,
@@ -242,3 +243,42 @@ def confirmation():
     if not data:
         return redirect(url_for("upload.form"))
     return render_template("upload/confirmation.html", **data)
+
+
+# Statuses "ahead" counts against - anything still working through the
+# pipeline before it's physically being printed. A job's own status only
+# means "ahead" while IT is itself in this set too.
+_QUEUED_STATUSES = (JobStatus.UPLOADED, JobStatus.PROCESSING, JobStatus.READY_FOR_REVIEW)
+
+
+@bp.route("/status/<ticket>.json", methods=["GET"])
+def status(ticket):
+    """Turn 2b: replaces "we'll call your name" with a real queue
+    position. Unauthenticated by design, same as /confirmation itself -
+    a ticket number is already called aloud in the shop and carries no
+    customer PII in this response (no name, just status/position/price).
+
+    Ticket numbers are reused once a job goes terminal (CLAUDE.md - the
+    active-only uniqueness index allows it), so this always resolves to
+    the MOST RECENTLY created job with this ticket, never a stale one
+    from a previous day/cycle.
+    """
+    job = (
+        Job.query.filter_by(ticket_number=ticket).order_by(Job.created_at.desc()).first()
+    )
+    if job is None:
+        return jsonify(error="not found"), 404
+
+    if job.status == JobStatus.PRINTING:
+        customer_status, ahead = "printing", 0
+    elif job.status == JobStatus.DONE:
+        customer_status, ahead = "ready", 0
+    elif job.status in (JobStatus.FAILED, JobStatus.CANCELLED):
+        customer_status, ahead = "issue", 0
+    else:
+        customer_status = "queued"
+        ahead = Job.query.filter(
+            Job.status.in_(_QUEUED_STATUSES), Job.created_at < job.created_at
+        ).count()
+
+    return jsonify(status=customer_status, ahead=ahead, total_cost=job.total_cost)

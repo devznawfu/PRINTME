@@ -24,7 +24,14 @@
       </div>
     </div>
 
-    <div class="max-w-[300px] text-lg leading-relaxed text-text-soft">We'll call your name when it's ready. You can put your phone away.</div>
+    {# Turn 2b: replaces the old static "we'll call your name" line with
+       a real, polled queue position. Starts with that exact static text
+       so it still reads fine if JS fails to load - confirmation-status.js
+       only ever REPLACES this text, never depends on it being anything
+       specific first. #}
+    <div id="queue-status" data-tickets='{{ (tickets | rejectattr("failed") | map(attribute="ticket") | list) | tojson }}' class="max-w-[300px] text-lg leading-relaxed text-text-soft">
+      <span data-queue-status-line>We'll call your name when it's ready. You can put your phone away.</span>
+    </div>
 
     {% include "upload/partials/_confirmation_price.html" %}
 
@@ -38,4 +45,7 @@
     <a href="{{ url_for('upload.form') }}" class="mt-1.5 min-h-[58px] rounded-2xl border border-line px-[30px] py-4 text-[16.5px] font-bold transition-colors hover:border-text hover:text-text">Send something else</a>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/confirmation-status.js') }}"></script>
 {% endblock %}
