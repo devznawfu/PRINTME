@@ -24,6 +24,17 @@ import win32print
 
 from config import PRINTER_NAMES
 
+# pywin32 doesn't expose these as named attributes on win32print (confirmed:
+# win32print.DC_PAPERS raises AttributeError on the admin PC's pywin32
+# install) - these are the raw DeviceCapabilities fMode values straight from
+# the Win32 API (wingdi.h / MSDN's DeviceCapabilities docs), not something
+# pywin32 wraps.
+DC_PAPERS = 2
+DC_PAPERSIZE = 3
+DC_PAPERNAMES = 16
+DC_MEDIATYPENAMES = 34
+DC_MEDIATYPES = 35
+
 # Wording varies by driver/manufacturer - this is just a convenience
 # highlight over the raw table below, not something to trust blindly.
 BORDERLESS_HINT_WORDS = ("borderless", "full bleed", "edge", "photo")
@@ -58,9 +69,9 @@ def report_printer(printer_name):
     finally:
         win32print.ClosePrinter(handle)
 
-    paper_ids = _query(printer_name, port, win32print.DC_PAPERS, "DC_PAPERS")
-    paper_names = _query(printer_name, port, win32print.DC_PAPERNAMES, "DC_PAPERNAMES")
-    paper_sizes = _query(printer_name, port, win32print.DC_PAPERSIZE, "DC_PAPERSIZE")
+    paper_ids = _query(printer_name, port, DC_PAPERS, "DC_PAPERS")
+    paper_names = _query(printer_name, port, DC_PAPERNAMES, "DC_PAPERNAMES")
+    paper_sizes = _query(printer_name, port, DC_PAPERSIZE, "DC_PAPERSIZE")
 
     if paper_ids and paper_names and paper_sizes:
         print("  paper sizes (id, name, width_mm, height_mm):")
@@ -78,10 +89,8 @@ def report_printer(printer_name):
         else:
             print("  no paper name matched the borderless/photo hint words above")
 
-    media_ids = _query(printer_name, port, win32print.DC_MEDIATYPES, "DC_MEDIATYPES")
-    media_names = _query(
-        printer_name, port, win32print.DC_MEDIATYPENAMES, "DC_MEDIATYPENAMES"
-    )
+    media_ids = _query(printer_name, port, DC_MEDIATYPES, "DC_MEDIATYPES")
+    media_names = _query(printer_name, port, DC_MEDIATYPENAMES, "DC_MEDIATYPENAMES")
     if media_ids and media_names:
         print("  media types (id, name) - glossy vs. plain is often exposed here:")
         for mid, name in zip(media_ids, media_names):
