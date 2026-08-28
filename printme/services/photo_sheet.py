@@ -59,9 +59,12 @@ def record_packing_result(session, packed_sheets, item_to_job):
     return batch_id
 
 
-def _latest_batch_job_ids(session):
-    """(batch_id, job_ids) for the most recently created batch, or
-    (None, set()) if no batch has ever been packed."""
+def _latest_batch_item_ids(session):
+    """(batch_id, item_ids) for the most recently created batch, or
+    (None, set()) if no batch has ever been packed. item_ids are the
+    expanded per-print keys (e.g. "job12-row3-7", one per copy - see
+    PhotoItemRow.to_layout_items), not job ids - see pack_pending_
+    photo_jobs's docstring for why that distinction matters."""
     latest = (
         session.query(PhotoSheet.batch_id)
         .order_by(PhotoSheet.id.desc())
@@ -71,13 +74,13 @@ def _latest_batch_job_ids(session):
         return None, set()
 
     batch_id = latest[0]
-    job_ids = {
-        row.job_id
-        for row in session.query(PhotoSheetItem.job_id)
+    item_ids = {
+        row.item_key
+        for row in session.query(PhotoSheetItem.item_key)
         .join(PhotoSheet)
         .filter(PhotoSheet.batch_id == batch_id)
     }
-    return batch_id, job_ids
+    return batch_id, item_ids
 
 
 def pack_pending_photo_jobs(session):
@@ -87,10 +90,21 @@ def pack_pending_photo_jobs(session):
     a flagged job before staff have reviewed it; once approved, staff
     clear the flag and it's picked up by the next pack.
 
-    Idempotent: if the set of pending jobs is unchanged since the last
-    pack, the existing batch is reused instead of repacking - this is
-    called on every admin page load, so without this a page refresh
-    would otherwise mint a fresh duplicate batch each time.
+    Idempotent: if the exact set of individual prints requested (one
+    entry per copy) is unchanged since the last pack, the existing
+    batch is reused instead of repacking - this is called on every
+    admin page load, so without this a page refresh would otherwise
+    mint a fresh duplicate batch each time.
+
+    This compares the expanded per-print id set, not just which job ids
+    are pending - comparing job ids alone (a real bug an earlier version
+    of this function had) missed the case where a job already in the
+    pending set has its own quantity changed after being packed, e.g.
+    an admin qty increment on an already-packed job: the job SET stays
+    identical even though what it's asking for grew, so the stale batch
+    got silently reused and the extra prints never made it onto any
+    sheet - the job row itself showed the new quantity, but nothing
+    was ever queued to print it.
 
     Returns the batch_id (new or reused), or None if there was nothing
     to pack.
@@ -108,10 +122,6 @@ def pack_pending_photo_jobs(session):
     if not jobs:
         return None
 
-    latest_batch_id, latest_job_ids = _latest_batch_job_ids(session)
-    if {job.id for job in jobs} == latest_job_ids:
-        return latest_batch_id
-
     item_to_job = {}
     items = []
     for job in jobs:
@@ -122,6 +132,10 @@ def pack_pending_photo_jobs(session):
 
     if not items:
         return None
+
+    latest_batch_id, latest_item_ids = _latest_batch_item_ids(session)
+    if {item.item_id for item in items} == latest_item_ids:
+        return latest_batch_id
 
     packed_sheets = pack(items)
     return record_packing_result(session, packed_sheets, item_to_job)

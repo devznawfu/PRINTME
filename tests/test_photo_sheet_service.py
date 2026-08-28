@@ -156,6 +156,65 @@ class TestPackPendingPhotoJobs:
             assert second_batch_id != first_batch_id
             assert second_job_ids == {j1.id, j3.id}
 
+    def test_incrementing_an_already_packed_jobs_quantity_triggers_a_repack(self, app):
+        """Regression test for a real reported bug: order 10x '2x2' +
+        10x '1x1' as a customer, then on the admin dashboard bump the
+        '1x1' row from 10 to 13. The job id SET doesn't change (it's
+        still the same one job), so the old job-id-only idempotency
+        check wrongly reused the stale 20-item batch - the 3 extra
+        prints never got packed onto any sheet at all, even though the
+        job row itself correctly showed quantity=13. Comparing the
+        expanded per-print id set (not just job ids) is what actually
+        catches this."""
+        with app.app_context():
+            job = make_ready_photo_job("P-001", size_name="2x2", quantity=10)
+            row_1x1 = PhotoItemRow(size_name="1x1", quantity=10)
+            job.photo_items.append(row_1x1)
+            db.session.add(job)
+            db.session.commit()
+
+            first_batch_id = pack_pending_photo_jobs(db.session)
+            first_count = PhotoSheetItem.query.join(PhotoSheet).filter(
+                PhotoSheet.batch_id == first_batch_id
+            ).count()
+            assert first_count == 20
+
+            row_1x1.quantity = 13
+            db.session.commit()
+
+            second_batch_id = pack_pending_photo_jobs(db.session)
+            second_count = PhotoSheetItem.query.join(PhotoSheet).filter(
+                PhotoSheet.batch_id == second_batch_id
+            ).count()
+
+            assert second_batch_id != first_batch_id, (
+                "the batch must be regenerated when a pending job's own "
+                "quantity changes, not just when the set of jobs changes"
+            )
+            assert second_count == 23, (
+                f"expected all 23 requested prints (10 '2x2' + 13 '1x1') on "
+                f"the new batch, got {second_count}"
+            )
+
+    def test_decrementing_an_already_packed_jobs_quantity_triggers_a_repack(self, app):
+        with app.app_context():
+            job = make_ready_photo_job("P-001", size_name="1x1", quantity=10)
+            db.session.add(job)
+            db.session.commit()
+
+            first_batch_id = pack_pending_photo_jobs(db.session)
+
+            job.photo_items[0].quantity = 4
+            db.session.commit()
+
+            second_batch_id = pack_pending_photo_jobs(db.session)
+            second_count = PhotoSheetItem.query.join(PhotoSheet).filter(
+                PhotoSheet.batch_id == second_batch_id
+            ).count()
+
+            assert second_batch_id != first_batch_id
+            assert second_count == 4
+
     def test_mixes_multiple_jobs_onto_shared_sheets(self, app):
         with app.app_context():
             j1 = make_ready_photo_job("P-001", size_name="1x1", quantity=2)
