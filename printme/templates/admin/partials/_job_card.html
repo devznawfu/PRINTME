@@ -1,17 +1,15 @@
 {% macro job_card(card, flagged=False, printers=[]) %}
-<div class="flex flex-col gap-5 rounded-3xl border {{ 'border-warn-card-line bg-warn-card' if flagged else 'border-border bg-panel' }} p-6">
+<div class="flex flex-col gap-5 rounded-3xl border {{ 'border-warn-card-line bg-warn-card' if flagged else 'border-border bg-panel' }} p-6" data-job-card>
   <div class="flex gap-4">
-    <div class="flex h-[108px] w-[108px] flex-none items-end overflow-hidden rounded-2xl {{ 'bg-warn-thumb-a' if flagged else 'bg-thumb-a' }} p-2">
-      <span class="max-w-full truncate font-mono text-[11px] {{ 'text-warn-thumb-text' if flagged else 'text-thumb-text' }}">{{ card.thumb }}</span>
-    </div>
+    <div class="flex h-[108px] w-[108px] flex-none items-center justify-center overflow-hidden rounded-2xl {{ 'bg-warn-thumb-a' if flagged else 'bg-thumb-a' }}"></div>
     <div class="flex min-w-0 flex-1 flex-col gap-1.5">
-      <h3 class="truncate text-xl font-bold leading-tight">{{ card.job.customer_name }}</h3>
-      <span class="{{ 'text-warn-muted' if flagged else 'text-muted' }}">Ticket {{ card.job.ticket_number }}</span>
+      <h3 class="truncate font-mono text-2xl font-bold leading-tight">{{ card.job.ticket_number }}</h3>
+      <span class="truncate {{ 'text-warn-muted' if flagged else 'text-muted' }}">{{ card.job.customer_name }}</span>
       <span class="mt-1 inline-flex w-fit items-center gap-2 rounded-full {{ 'bg-warn-thumb-a text-warn-note-text' if flagged else 'bg-chip text-chip-text' }} px-3 py-1.5 text-sm font-bold">
         <span class="h-2 w-2 rounded-sm {{ 'bg-warn-title' if flagged else 'bg-chip-dot' }}"></span>{{ card.service_label }}
       </span>
-      <span class="{{ 'text-warn-muted' if flagged else 'text-muted' }} text-[15px]">{{ card.file_line }}</span>
-      <span class="{{ 'text-warn-muted' if flagged else 'text-muted' }} text-[15px] font-bold">&#8369;{{ "%.2f"|format(card.job.total_cost) }}</span>
+      <span data-card-file-line class="{{ 'text-warn-muted' if flagged else 'text-muted' }} text-[15px]">{{ card.file_line }}</span>
+      <span data-card-price class="{{ 'text-warn-muted' if flagged else 'text-muted' }} text-[15px] font-bold">&#8369;{{ "%.2f"|format(card.job.total_cost) }}</span>
     </div>
   </div>
 

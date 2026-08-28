@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, redirect, request, url_for
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
 from printme.routes.admin_auth import admin_required
+from printme.routes.admin_dashboard import file_line_for
 from printme.services import job_state
 from printme.services.pricing import price_job
 from printme.services.printing import get_printer_backend
@@ -73,7 +74,7 @@ def adjust_qty(job_id):
         pass  # e.g. a document job whose page_count isn't known yet
 
     if request.is_json:
-        return jsonify(qty=new_qty, total_cost=job.total_cost)
+        return jsonify(qty=new_qty, total_cost=job.total_cost, file_line=file_line_for(job))
     return redirect(url_for("admin_dashboard.dashboard"))
 
 

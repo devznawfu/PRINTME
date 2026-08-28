@@ -117,6 +117,30 @@ class TestAdjustPhotoRowQuantity:
             assert rows[passport_row_id] == 3
             assert rows[oneone_row_id] == 4
 
+    def test_response_includes_refreshed_file_line_and_total_cost(self, app, client):
+        """The qty stepper JS only updates the one row's own number
+        directly - the card's "N prints total" summary and price have
+        to come from this response, or they're stuck showing the value
+        from before the click even though the change did save."""
+        with app.app_context():
+            seed_defaults(db.session)
+            job = make_ready_photo_job()
+            row = PhotoItemRow(size_name="1x1", quantity=4)
+            job.photo_items.append(row)
+            db.session.add(job)
+            db.session.commit()
+            job_id, row_id = job.id, row.id
+        login(client)
+
+        resp = client.post(
+            f"/admin/jobs/{job_id}/qty",
+            json={"direction": "inc", "row_id": row_id},
+        )
+
+        body = resp.get_json()
+        assert body["file_line"] == "5 prints total"
+        assert body["total_cost"] is not None
+
 
 class TestPrintDocumentHonorsSelectedPrinter:
     def test_explicit_non_default_printer_is_used(self, app, client):

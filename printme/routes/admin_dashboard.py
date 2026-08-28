@@ -16,28 +16,34 @@ from printme.services.secret_code import get_current
 bp = Blueprint("admin_dashboard", __name__, url_prefix="/admin")
 
 
+def file_line_for(job):
+    """"N prints total" / "N copies" - shared with api.py's adjust_qty
+    so a live quantity change can report back text that matches
+    exactly what a full page reload would show, instead of the qty
+    stepper only updating its own row's number and leaving the card's
+    summary line stale."""
+    if job.service_type == "photo":
+        total_qty = sum(row.quantity for row in job.photo_items)
+        return f"{total_qty} {'print' if total_qty == 1 else 'prints'} total"
+    qty = job.copies or 1
+    return f"{qty} {'copy' if qty == 1 else 'copies'}"
+
+
 def _card(job):
     if job.service_type == "photo":
         rows = [
             {"row_id": row.id, "size_name": row.size_name, "quantity": row.quantity}
             for row in job.photo_items
         ]
-        total_qty = sum(r["quantity"] for r in rows)
-        thumb = rows[0]["size_name"] if len(rows) == 1 else f"{len(rows)} sizes" if rows else "Photo"
         service_label = "Photo printing"
-        file_line = f"{total_qty} {'print' if total_qty == 1 else 'prints'} total"
     else:
         rows = None
-        thumb = job.original_filename
-        qty = job.copies or 1
         service_label = "Document printing"
-        file_line = f"{qty} {'copy' if qty == 1 else 'copies'}"
 
     return {
         "job": job,
-        "thumb": thumb,
         "service_label": service_label,
-        "file_line": file_line,
+        "file_line": file_line_for(job),
         "rows": rows,
     }
 
