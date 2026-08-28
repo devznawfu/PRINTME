@@ -83,7 +83,7 @@ class TestProcessPhotoJobHappyPath:
             assert fetched.status == JobStatus.READY_FOR_REVIEW
             assert fetched.needs_attention is False
             assert fetched.processed_path == result.processed_path
-            assert fetched.total_cost == rate_map(db.session)["2x2"] * 2
+            assert fetched.total_cost == rate_map(db.session)["2x2-bond-standard"] * 2
 
 
 class TestProcessPhotoJobFlagging:

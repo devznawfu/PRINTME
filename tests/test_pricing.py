@@ -36,6 +36,11 @@ def make_document_job(**overrides):
 
 class TestComputeCost:
     def test_photo_job_sums_across_sizes_and_quantities(self, app):
+        """A job with no paper_finish/quality set defaults to
+        bond/standard - the same composite key seed_defaults() seeds
+        every size at initially, so pricing is unaffected by the
+        finish/quality axes existing until an admin actually
+        differentiates them."""
         with app.app_context():
             seed_defaults(db.session)
             rates = rate_map(db.session)
@@ -43,7 +48,28 @@ class TestComputeCost:
 
             cost = compute_cost(job, rates)
 
-            assert cost == rates["1x1"] * 2 + rates["Passport"] * 3
+            assert cost == rates["1x1-bond-standard"] * 2 + rates["Passport-bond-standard"] * 3
+
+    def test_photo_job_uses_the_jobs_own_finish_and_quality(self, app):
+        with app.app_context():
+            seed_defaults(db.session)
+            rates = rate_map(db.session)
+            rates["2x2-glossy-high"] = 999.0
+            job = make_photo_job(**{"2x2": 3})
+            job.paper_finish = "glossy"
+            job.quality = "high"
+
+            assert compute_cost(job, rates) == 999.0 * 3
+
+    def test_missing_composite_rate_raises_a_clear_error(self, app):
+        with app.app_context():
+            seed_defaults(db.session)
+            rates = rate_map(db.session)
+            del rates["1x1-bond-standard"]
+            job = make_photo_job(**{"1x1": 1})
+
+            with pytest.raises(ValueError, match="missing rate for '1x1-bond-standard'"):
+                compute_cost(job, rates)
 
     def test_document_job_uses_bw_or_color_rate_times_pages_times_copies(self, app):
         with app.app_context():
@@ -91,7 +117,7 @@ class TestPriceJob:
             total = price_job(db.session, job)
 
             rates = rate_map(db.session)
-            assert total == rates["2x2"] * 4
+            assert total == rates["2x2-bond-standard"] * 4
             fetched = db.session.get(Job, job.id)
             assert fetched.total_cost == total
 
@@ -100,7 +126,7 @@ class TestPriceJob:
             seed_defaults(db.session)
             from printme.models import PricingRate
 
-            rate = PricingRate.query.filter_by(key="Visa").one()
+            rate = PricingRate.query.filter_by(key="Visa-bond-standard").one()
             rate.price = 999.0
             db.session.commit()
 
@@ -135,5 +161,5 @@ class TestRepriceActiveJobs:
             assert done_job_id not in repriced_ids  # not active, untouched
 
             rates = rate_map(db.session)
-            assert priceable.total_cost == rates["1x1"]
+            assert priceable.total_cost == rates["1x1-bond-standard"]
             assert unpriceable_doc.total_cost is None

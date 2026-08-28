@@ -2,10 +2,12 @@
 handled physically at the counter, outside this system."""
 
 from printme.extensions import db
+from printme.models.job import PAPER_FINISHES, QUALITY_LEVELS
 
-DEFAULT_RATES = {
-    "bw_page": 5.0,
-    "color_page": 10.0,
+# Every photo size's base price - the SAME regardless of finish/quality
+# initially, since those are separate axes an admin differentiates
+# from the pricing page, not something this codebase should guess at.
+_PHOTO_BASE_RATES = {
     "1x1": 15.0,
     "2x2": 15.0,
     "Passport": 20.0,
@@ -15,6 +17,13 @@ DEFAULT_RATES = {
     "5x7": 50.0,
     "4x4": 25.0,
 }
+
+DEFAULT_RATES = {"bw_page": 5.0, "color_page": 10.0}
+for _size, _base_price in _PHOTO_BASE_RATES.items():
+    for _finish in PAPER_FINISHES:
+        for _quality in QUALITY_LEVELS:
+            DEFAULT_RATES[f"{_size}-{_finish}-{_quality}"] = _base_price
+del _size, _base_price, _finish, _quality
 
 
 class PricingRate(db.Model):

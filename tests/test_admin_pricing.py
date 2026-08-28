@@ -49,14 +49,14 @@ class TestUpdatePricing:
 
         with app.app_context():
             form_data = {r.key: r.price for r in PricingRate.query.all()}
-        form_data["1x1"] = "50.00"
+        form_data["1x1-bond-standard"] = "50.00"
 
         resp = client.post("/admin/pricing/", data=form_data)
         assert resp.status_code == 302
 
         with app.app_context():
             rates = rate_map(db.session)
-            assert rates["1x1"] == 50.0
+            assert rates["1x1-bond-standard"] == 50.0
 
             fetched = db.session.get(Job, job_id)
             assert fetched.total_cost == 50.0 * 2

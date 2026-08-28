@@ -10,7 +10,15 @@ def compute_cost(job, rates):
     printme.models.pricing.rate_map). Does not touch the DB or the job
     row - pure computation over what's already loaded."""
     if job.service_type == "photo":
-        return sum(rates[row.size_name] * row.quantity for row in job.photo_items)
+        finish = job.paper_finish or "bond"
+        quality = job.quality or "standard"
+        total = 0.0
+        for row in job.photo_items:
+            key = f"{row.size_name}-{finish}-{quality}"
+            if key not in rates:
+                raise ValueError(f"missing rate for {key!r}")
+            total += rates[key] * row.quantity
+        return total
 
     if job.service_type == "document":
         if job.page_count is None:

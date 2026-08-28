@@ -288,15 +288,15 @@ class TestPricing:
             rates = rate_map(db.session)
             assert rates["bw_page"] == 5.0
             assert rates["color_page"] == 10.0
-            assert rates["1x1"] == 15.0
-            assert rates["Passport"] == 20.0
+            assert rates["1x1-bond-standard"] == 15.0
+            assert rates["Passport-glossy-high"] == 20.0
 
     def test_seed_does_not_overwrite_edited_rates(self, app):
         with app.app_context():
             seed_defaults(db.session)
-            rate = PricingRate.query.filter_by(key="Passport").one()
+            rate = PricingRate.query.filter_by(key="Passport-bond-standard").one()
             rate.price = 25.0
             db.session.commit()
 
             seed_defaults(db.session)
-            assert rate_map(db.session)["Passport"] == 25.0
+            assert rate_map(db.session)["Passport-bond-standard"] == 25.0
