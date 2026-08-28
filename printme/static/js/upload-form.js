@@ -77,7 +77,11 @@
       if (canCrop) {
         const cropBtn = document.createElement("button");
         cropBtn.type = "button";
-        cropBtn.className = "cursor-pointer px-2 py-1 text-sm text-muted";
+        // Bold + full-contrast (not text-muted like Remove) - this is
+        // a real, useful action on the row, not a secondary/destructive
+        // one, and needs to actually read as clickable rather than
+        // blend in next to the filename.
+        cropBtn.className = "cursor-pointer px-2 py-1 text-sm font-bold text-text underline underline-offset-2";
         cropBtn.textContent = state.crops.has(entry.id) ? "Edit crop" : "Crop";
         cropBtn.addEventListener("click", () => {
           window.PrintmePhotoCrop.openCropDialog({
