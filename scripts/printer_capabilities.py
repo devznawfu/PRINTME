@@ -37,7 +37,11 @@ DC_MEDIATYPES = 35
 
 # Wording varies by driver/manufacturer - this is just a convenience
 # highlight over the raw table below, not something to trust blindly.
-BORDERLESS_HINT_WORDS = ("borderless", "full bleed", "edge", "photo")
+# "edge" alone is too broad (matched "A5 Long Edge" and "Ledger" on the
+# real Brother drivers, neither of which is actually borderless-capable)
+# - "borderless" is what these drivers actually say, so that carries
+# the real signal; the others are kept as a loose net for other brands.
+BORDERLESS_HINT_WORDS = ("borderless", "full bleed", "photo")
 
 
 def _query(printer_name, port, capability, capability_name):
@@ -74,21 +78,20 @@ def report_printer(printer_name):
     paper_sizes = _query(printer_name, port, DC_PAPERSIZE, "DC_PAPERSIZE")
 
     if paper_ids and paper_names and paper_sizes:
-        # DC_PAPERSIZE's real return shape from pywin32 hasn't been
-        # confirmed (assuming (width, height) tenths-of-mm tuples per
-        # POINT-array structs failed on the real printer with a str, not
-        # an int) - stay defensive and print the raw value on anything
-        # unexpected instead of crashing, so this still gets us real
-        # ground-truth data to build the actual parsing from.
+        # DC_PAPERSIZE returns a list of {'x': ..., 'y': ...} dicts (in
+        # tenths of a mm) on this pywin32 build, not (width, height)
+        # tuples - confirmed by running this against the real printers.
+        # Stay defensive anyway and fall back to the raw value for
+        # anything that doesn't match, in case a driver returns
+        # something else again.
         print("  paper sizes (id, name, size):")
         hints = []
         for pid, name, size in zip(paper_ids, paper_names, paper_sizes):
             clean_name = name.strip("\x00").strip() if isinstance(name, str) else repr(name)
             try:
-                w, h = size
-                w_mm, h_mm = float(w) / 10, float(h) / 10
+                w_mm, h_mm = size["x"] / 10, size["y"] / 10
                 size_repr = f"{w_mm:.1f} x {h_mm:.1f} mm"
-            except (TypeError, ValueError):
+            except (TypeError, KeyError):
                 size_repr = f"RAW (unrecognized shape): {size!r}"
             print(f"    {pid:>4}  {clean_name!r:30}  {size_repr}")
             if any(word in clean_name.lower() for word in BORDERLESS_HINT_WORDS):

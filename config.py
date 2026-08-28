@@ -29,15 +29,23 @@ PHOTO_SIZES = PRIMARY_PHOTO_SIZES + MORE_PHOTO_SIZES
 # used here.
 PRINTER_NAMES = ("Brother DCP-L2540DW series", "Brother DCP-T420W", "Brother DCP-T430W")
 
-# Populated from scripts/printer_capabilities.py output run on the real admin
-# PC. None = not yet diagnosed. DCP-L2540DW defaults False: it's a mono LASER
-# printer, and laser engines' fuser/paper-path mechanics make true edge-to-edge
-# printing essentially never available regardless of driver settings - a
-# hardware constraint, not something a future DEVMODE change can work around.
+# Confirmed against the real admin PC via scripts/printer_capabilities.py
+# (see printer_capabilities_output.txt for the full raw driver dump).
+# DCP-L2540DW: False - no borderless paper entry exists in its driver at
+# all (it also doesn't support media-type queries), consistent with it
+# being a mono LASER printer - laser engines' fuser/paper-path mechanics
+# make true edge-to-edge printing essentially never available regardless
+# of driver settings, a hardware constraint no DEVMODE change works around.
+# DCP-T420W/T430W: True - both drivers expose paper id 274,
+# "A4 (Borderless) (210 x 297 mm)", DeviceCapabilities size {'x': 2190,
+# 'y': 3060} (219.0 x 306.0mm - a few mm of intentional driver-side
+# bleed beyond the physical sheet, so paper-feed variance never leaves a
+# white sliver at the edge). This is the DEVMODE paper size the future
+# borderless print feature needs to select for these two printers.
 PRINTER_BORDERLESS_CAPABLE = {
     "Brother DCP-L2540DW series": False,
-    "Brother DCP-T420W": None,
-    "Brother DCP-T430W": None,
+    "Brother DCP-T420W": True,
+    "Brother DCP-T430W": True,
 }
 
 
