@@ -183,6 +183,15 @@
     img.onload = () => {
       naturalWidth = img.naturalWidth;
       naturalHeight = img.naturalHeight;
+
+      // showModal() MUST happen before measuring the frame: a native
+      // <dialog> is `display: none` until shown, so anything inside it
+      // (including this frame) has a zero-sized layout box beforehand -
+      // reading getBoundingClientRect() any earlier silently produces
+      // frameSize=0, which cascades into a 0x0 image (invisible, just
+      // the frame's own background color showing through).
+      dialog.showModal();
+
       frameSize = frame.getBoundingClientRect().width;
       baseScale = frameSize / Math.min(naturalWidth, naturalHeight);
 
@@ -196,7 +205,6 @@
         zoomInput.value = String(MIN_ZOOM);
       }
       render();
-      dialog.showModal();
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
