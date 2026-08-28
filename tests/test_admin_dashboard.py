@@ -44,6 +44,64 @@ def make_ready_photo_job(**overrides):
     return Job(**defaults)
 
 
+class TestStatusPollingEndpoint:
+    def test_requires_admin_login(self, client):
+        resp = client.get("/admin/status")
+        assert resp.status_code == 302
+
+    def test_no_jobs_returns_zero_count_and_null_latest(self, client):
+        login(client)
+        resp = client.get("/admin/status")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["count"] == 0
+        assert data["latest"] is None
+
+    def test_count_reflects_ready_for_review_jobs_only(self, app, client):
+        with app.app_context():
+            db.session.add(make_ready_photo_job())
+            db.session.add(make_ready_document_job(ticket_number="P-002"))
+            db.session.add(
+                make_ready_document_job(ticket_number="P-003", status=JobStatus.DONE)
+            )
+            db.session.commit()
+        login(client)
+
+        resp = client.get("/admin/status")
+        data = resp.get_json()
+        assert data["count"] == 2
+        assert data["latest"] is not None
+
+    def test_fingerprint_changes_when_a_new_job_arrives(self, app, client):
+        login(client)
+        first = client.get("/admin/status").get_json()
+
+        with app.app_context():
+            db.session.add(make_ready_document_job())
+            db.session.commit()
+
+        second = client.get("/admin/status").get_json()
+        assert (first["count"], first["latest"]) != (second["count"], second["latest"])
+
+    def test_fingerprint_changes_when_a_pending_jobs_quantity_changes(self, app, client):
+        with app.app_context():
+            job = make_ready_document_job()
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        first = client.get("/admin/status").get_json()
+
+        with app.app_context():
+            job = db.session.get(Job, job_id)
+            job.copies = (job.copies or 1) + 1
+            db.session.commit()
+
+        second = client.get("/admin/status").get_json()
+        assert first["latest"] != second["latest"]
+
+
 class TestQrCodeRoute:
     def test_requires_admin_login(self, client):
         resp = client.get("/admin/qr-code.png")

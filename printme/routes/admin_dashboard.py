@@ -3,7 +3,7 @@
 each with its specific reason) - design-reference/admin-dashboard.html.
 """
 
-from flask import Blueprint, Response, render_template, request, session
+from flask import Blueprint, Response, jsonify, render_template, request, session
 
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
@@ -81,6 +81,30 @@ def dashboard():
         display_name=session.get("admin_display_name", "staff"),
         printers=available_printers(),
     )
+
+
+@bp.route("/status", methods=["GET"])
+@admin_required
+def status():
+    """Cheap polling endpoint for admin-auto-refresh.js: a fingerprint
+    (count + latest update time) of every job currently shown on this
+    dashboard. The JS polls this every few seconds and reloads the
+    page only when it actually changes - so staff never have to
+    manually refresh to see a new job arrive, a quantity change, or a
+    job get flagged/cancelled, but nothing reloads out from under an
+    admin mid-action (e.g. the crop dialog open) for no reason.
+
+    Scoped to READY_FOR_REVIEW jobs - exactly the set the dashboard
+    itself queries into ready_cards/flagged_cards - so a status change
+    that moves a job out of that set (printed, cancelled) changes the
+    count and is caught too, not just edits to jobs still in it.
+    """
+    relevant = Job.query.filter(Job.status == JobStatus.READY_FOR_REVIEW)
+    count = relevant.count()
+    latest = db.session.query(db.func.max(Job.updated_at)).filter(
+        Job.status == JobStatus.READY_FOR_REVIEW
+    ).scalar()
+    return jsonify(count=count, latest=latest.isoformat() if latest else None)
 
 
 @bp.route("/qr-code.png", methods=["GET"])
