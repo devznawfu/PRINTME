@@ -66,6 +66,39 @@ Two things worth knowing:
   already in use) are logged there, since there's no visible console to
   read them from otherwise.
 
+### Letting customer phones actually reach it
+
+Also from an elevated ("Run as administrator") PowerShell prompt, once:
+
+```
+.\scripts\allow_firewall_port.ps1
+```
+
+Windows blocks inbound connections by default — without this, the server
+can be running perfectly and phones on the same network still won't be
+able to load the page.
+
+If PRINTME! is meant to run on its own dedicated router (separate from
+whatever else the shop's main WiFi is used for) rather than sharing the
+main network, a few things have to actually be true on that router, not
+just on this PC:
+- **No MAC address filter limiting it to the admin PC** — that would block
+  every customer phone from joining at all. Either remove the filter or
+  add every device you expect, which isn't practical for walk-in
+  customers — remove it.
+- **WiFi turned on** with a customer-facing name/password. AP (client)
+  isolation is fine to leave on — it stops phones from seeing each other,
+  not from reaching the admin PC.
+- **A DHCP reservation for the admin PC** on that router, so its LAN IP
+  never changes. The dashboard's QR code already regenerates itself from
+  whatever address it's loaded at (it doesn't need this), but a **printed**
+  copy taped to the counter does — it only stays correct if the IP behind
+  it never changes.
+- When printing that QR code or writing down the address by hand, do it
+  from a browser connected to the **same network customers will use** —
+  not `127.0.0.1`, not the main WiFi's IP if that's a different network —
+  since it encodes whatever address reached it.
+
 ## Tests
 
 ```
