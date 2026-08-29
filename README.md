@@ -11,6 +11,9 @@ LAN-hosted photo &amp; document printing shop system with automated photo proces
    python -m venv venv
    venv\Scripts\pip install -r requirements.txt
    ```
+   Or run `setup.ps1`, which does this step plus installs LibreOffice
+   (needed for DOCX printing - CLAUDE.md's "LibreOffice headless or
+   equivalent") silently in one go.
 
 2. **Apply the database schema**
    ```
