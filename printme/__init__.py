@@ -13,14 +13,21 @@ def create_app(config_name=None):
     config_name = config_name or os.environ.get("FLASK_ENV", "dev")
     app.config.from_object(CONFIG_BY_NAME[config_name])
 
-    from config import INSTANCE_DIR
+    from config import BASE_DIR, INSTANCE_DIR
 
     INSTANCE_DIR.mkdir(parents=True, exist_ok=True)
     app.config["UPLOAD_DIR"].mkdir(parents=True, exist_ok=True)
     app.config["PROCESSED_DIR"].mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
-    migrate.init_app(app, db)
+    # An absolute path, not the "migrations" default - Flask-Migrate
+    # resolves a relative directory against the process's current
+    # working directory, not this file's location. That's silently
+    # correct when launched from the repo root (dev, `flask db upgrade`
+    # from a terminal) but breaks when something else launches wsgi.py
+    # from a different cwd (e.g. Windows Task Scheduler, which starts
+    # processes in its own default folder unless told otherwise).
+    migrate.init_app(app, db, directory=str(BASE_DIR / "migrations"))
 
     import printme.models  # noqa: F401  (register models with db.metadata)
 
