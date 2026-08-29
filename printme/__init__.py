@@ -56,10 +56,12 @@ def create_app(config_name=None):
     if not app.config.get("TESTING"):
         try:
             with app.app_context():
+                from printme.models.availability import seed_defaults as seed_availability
                 from printme.models.pricing import seed_defaults
                 from printme.services.secret_code import get_current
 
                 seed_defaults(db.session)
+                seed_availability(db.session)
                 get_current(db.session)
         except OperationalError:
             app.logger.warning(
