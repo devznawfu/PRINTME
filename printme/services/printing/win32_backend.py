@@ -28,7 +28,7 @@ from pathlib import Path
 
 from PIL import Image, ImageWin
 
-from printme.services.pdf_render import rasterize_pdf
+from printme.services.pdf_render import rasterize_pdf, zoom_for_dpi
 from printme.services.printing.base import PrintError, PrinterBackend
 from printme.services.printing.printer_registry import available_printers, is_valid_printer
 
@@ -39,6 +39,17 @@ logger = logging.getLogger(__name__)
 # raises AttributeError there) - raw Win32 DeviceCapabilities fMode values.
 _DC_PAPERS = 2
 _DC_PAPERNAMES = 16
+
+# Driver paper-name substrings to look for per admin-selectable size (see
+# models.job.PAPER_SIZES) - never a hardcoded Windows paper-size ID, same
+# reasoning as the borderless lookup below: only DeviceCapabilities on the
+# real driver is authoritative, and different Brother drivers may name an
+# entry differently (e.g. "Folio" vs "8 1/2 x 13 in").
+_PAPER_SIZE_NAME_CANDIDATES = {
+    "Letter": ("letter",),
+    "Folio": ("folio", "8 1/2 x 13", "8.5 x 13"),
+    "A4": ("a4",),
+}
 
 
 def _match_borderless_paper_id(paper_ids, paper_names, target_size_name="a4"):
@@ -53,6 +64,25 @@ def _match_borderless_paper_id(paper_ids, paper_names, target_size_name="a4"):
     for pid, name in zip(paper_ids, paper_names):
         clean = (name or "").strip("\x00").strip().lower()
         if target_size_name in clean and "borderless" in clean:
+            return pid
+    return None
+
+
+def _match_paper_id(paper_ids, paper_names, size_name):
+    """The driver paper id for a plain (non-borderless) entry matching
+    one of `size_name`'s known name candidates, or None if nothing
+    matches or `size_name` isn't recognized. Deliberately excludes any
+    "borderless" entry - that's a distinct mode with its own bleed/
+    cover-scale math (see _borderless_dc/_draw_images), not a plain
+    paper size a document print should ever land on by accident."""
+    candidates = _PAPER_SIZE_NAME_CANDIDATES.get(size_name)
+    if not candidates:
+        return None
+    for pid, name in zip(paper_ids, paper_names):
+        clean = (name or "").strip("\x00").strip().lower()
+        if "borderless" in clean:
+            continue
+        if any(candidate in clean for candidate in candidates):
             return pid
     return None
 
@@ -107,7 +137,71 @@ def _borderless_dc(printer_name):
         return None
 
 
-def _images_for(path, grayscale=False, page_range=None):
+def _configured_dc(printer_name, paper_size=None, orientation=None):
+    """A device context with an admin-selected paper size and/or
+    orientation applied via DocumentProperties, or None if neither was
+    requested, the driver has no matching paper entry, or anything else
+    goes wrong. Same fail-soft contract as _borderless_dc - callers fall
+    back to the plain CreatePrinterDC path (today's behavior) rather
+    than fail the job, since this can't be verified against a real
+    driver from this dev container."""
+    if not paper_size and not orientation:
+        return None
+
+    import win32con
+    import win32gui
+    import win32print
+    import win32ui
+
+    try:
+        hprinter = win32print.OpenPrinter(printer_name)
+        try:
+            port = win32print.GetPrinter(hprinter, 2)["pPortName"]
+            devmode = win32print.DocumentProperties(
+                0, hprinter, printer_name, None, None, win32con.DM_OUT_BUFFER
+            )
+
+            if paper_size:
+                paper_ids = win32print.DeviceCapabilities(printer_name, port, _DC_PAPERS)
+                paper_names = win32print.DeviceCapabilities(printer_name, port, _DC_PAPERNAMES)
+                paper_id = _match_paper_id(paper_ids, paper_names, paper_size)
+                if paper_id is None:
+                    logger.warning(
+                        "no %r paper entry found for %r, using printer default",
+                        paper_size,
+                        printer_name,
+                    )
+                else:
+                    devmode.PaperSize = paper_id
+                    devmode.Fields |= win32con.DM_PAPERSIZE
+
+            if orientation:
+                devmode.Orientation = (
+                    win32con.DMORIENT_LANDSCAPE
+                    if orientation == "landscape"
+                    else win32con.DMORIENT_PORTRAIT
+                )
+                devmode.Fields |= win32con.DM_ORIENTATION
+
+            win32print.DocumentProperties(
+                0,
+                hprinter,
+                printer_name,
+                devmode,
+                devmode,
+                win32con.DM_IN_BUFFER | win32con.DM_OUT_BUFFER,
+            )
+        finally:
+            win32print.ClosePrinter(hprinter)
+
+        raw_hdc = win32gui.CreateDC("WINSPOOL", printer_name, None, devmode)
+        return win32ui.CreateDCFromHandle(raw_hdc)
+    except Exception as exc:
+        logger.warning("paper/orientation setup failed for %r, falling back: %s", printer_name, exc)
+        return None
+
+
+def _images_for(path, grayscale=False, page_range=None, dpi=None):
     """Every page of `path` as a PIL Image (RGB, or "L" when grayscale
     is requested) - one element for a PNG/JPG, one per page for a PDF.
     PIL's ImageWin.Dib supports "L" mode directly, so grayscale pages
@@ -115,15 +209,25 @@ def _images_for(path, grayscale=False, page_range=None):
     PDF only) is ignored for non-PDF files - a single image is always
     exactly one page, and callers are expected to have already
     validated any range against the real page count (see
-    services/page_range.py) before it ever reaches here."""
+    services/page_range.py) before it ever reaches here. dpi overrides
+    the pipeline's normal 300 DPI rasterization - see Job.print_quality/
+    models.job.PRINT_QUALITIES - and only matters for PDFs; a JPG/PNG is
+    already a fixed-resolution image."""
     mode = "L" if grayscale else "RGB"
     if Path(path).suffix.lower() == ".pdf":
-        return [img.convert(mode) for img in rasterize_pdf(path, page_numbers=page_range)]
+        zoom = zoom_for_dpi(dpi) if dpi else None
+        kwargs = {"zoom": zoom} if zoom else {}
+        return [
+            img.convert(mode)
+            for img in rasterize_pdf(path, page_numbers=page_range, **kwargs)
+        ]
     with Image.open(path) as img:
         return [img.convert(mode)]
 
 
-def _draw_images(images, printer_name, borderless=False):
+def _draw_images(
+    images, printer_name, borderless=False, paper_size=None, orientation=None, margin=0.0
+):
     """Print every image in `images` as its own page of one document,
     scaled to fit the printer's printable area and centered - GDI's
     stretch-blit handles resampling, so this is correct regardless of
@@ -140,12 +244,21 @@ def _draw_images(images, printer_name, borderless=False):
     image. The scale mode keys off whether borderless setup ACTUALLY
     succeeded, not just whether it was requested - applying cover-crop
     math against the normal (smaller) printable area after a failed
-    borderless setup would wrongly crop real content."""
+    borderless setup would wrongly crop real content.
+
+    margin (0.0-1.0, documents only - never combined with borderless,
+    which is photo-sheet-only and means the opposite) insets the target
+    rectangle by that fraction of the page on each edge before the
+    contain-fit scale, so "wider margins" is real whitespace around the
+    content rather than a driver setting Windows has no generic field
+    for."""
     import win32con
     import win32ui
 
     hdc = _borderless_dc(printer_name) if borderless else None
     used_borderless = hdc is not None
+    if hdc is None and not borderless and (paper_size or orientation):
+        hdc = _configured_dc(printer_name, paper_size=paper_size, orientation=orientation)
     if hdc is None:
         hdc = win32ui.CreateDC()
         hdc.CreatePrinterDC(printer_name)
@@ -158,9 +271,11 @@ def _draw_images(images, printer_name, borderless=False):
             page_h = hdc.GetDeviceCaps(win32con.VERTRES)
             if used_borderless:
                 scale = max(page_w / img.width, page_h / img.height)
+                w, h = round(img.width * scale), round(img.height * scale)
             else:
-                scale = min(page_w / img.width, page_h / img.height)
-            w, h = round(img.width * scale), round(img.height * scale)
+                avail_w, avail_h = page_w * (1 - 2 * margin), page_h * (1 - 2 * margin)
+                scale = min(avail_w / img.width, avail_h / img.height)
+                w, h = round(img.width * scale), round(img.height * scale)
             x, y = (page_w - w) // 2, (page_h - h) // 2
             ImageWin.Dib(img).draw(hdc.GetHandleOutput(), (x, y, x + w, y + h))
             hdc.EndPage()
@@ -174,7 +289,17 @@ class Win32PrinterBackend(PrinterBackend):
         return available_printers()
 
     def print_file(
-        self, file_path, printer_name, copies=1, grayscale=False, borderless=False, page_range=None
+        self,
+        file_path,
+        printer_name,
+        copies=1,
+        grayscale=False,
+        borderless=False,
+        page_range=None,
+        paper_size=None,
+        orientation=None,
+        margin=0.0,
+        dpi=None,
     ):
         if not is_valid_printer(printer_name):
             raise PrintError(f"unknown printer: {printer_name!r}")
@@ -182,11 +307,18 @@ class Win32PrinterBackend(PrinterBackend):
             raise PrintError("copies must be at least 1")
 
         try:
-            images = _images_for(file_path, grayscale=grayscale, page_range=page_range)
+            images = _images_for(file_path, grayscale=grayscale, page_range=page_range, dpi=dpi)
             # No driver-level copy count is used (StartDoc/EndDoc is
             # per-copy below), so this loop is what "copies" means here.
             for _ in range(copies):
-                _draw_images(images, printer_name, borderless=borderless)
+                _draw_images(
+                    images,
+                    printer_name,
+                    borderless=borderless,
+                    paper_size=paper_size,
+                    orientation=orientation,
+                    margin=margin,
+                )
         except Exception as exc:
             raise PrintError(f"could not print {file_path} to {printer_name}: {exc}") from exc
 

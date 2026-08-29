@@ -19,7 +19,11 @@ from unittest.mock import MagicMock
 import pytest
 from pypdf import PdfWriter
 
-from printme.services.printing.win32_backend import _images_for, _match_borderless_paper_id
+from printme.services.printing.win32_backend import (
+    _images_for,
+    _match_borderless_paper_id,
+    _match_paper_id,
+)
 from printme.services.printing.base import PrintError
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -107,6 +111,20 @@ class TestImagesFor:
 
         assert _images_for(path)[0].mode == "RGB"
 
+    def test_dpi_overrides_the_default_300(self, tmp_path):
+        """Admin print_quality (draft/normal/best - models.job.
+        PRINT_QUALITIES) maps to rasterization DPI in this bitmap
+        pipeline, not a driver quality flag - a lower dpi must actually
+        produce a smaller raster."""
+        path = tmp_path / "doc.pdf"
+        path.write_bytes(_multi_page_pdf_bytes(1))
+
+        default_img = _images_for(path)[0]
+        draft_img = _images_for(path, dpi=150)[0]
+
+        assert draft_img.width < default_img.width
+        assert abs(draft_img.width - round(200 / 72 * 150)) <= 1
+
     def test_page_range_selects_a_subset_of_pdf_pages(self, tmp_path):
         path = tmp_path / "doc.pdf"
         path.write_bytes(_multi_page_pdf_bytes(5))
@@ -162,6 +180,47 @@ class TestMatchBorderlessPaperId:
         ids = [280]
         names = ["10 x 15 cm (Borderless) (4 x 6 in)"]
         assert _match_borderless_paper_id(ids, names, target_size_name="a4") is None
+
+
+class TestMatchPaperId:
+    def test_matches_letter(self):
+        ids = [1, 9]
+        names = ["Letter", "A4"]
+        assert _match_paper_id(ids, names, "Letter") == 1
+
+    def test_matches_folio_by_folio_name(self):
+        ids = [1, 14]
+        names = ["Letter", "Folio"]
+        assert _match_paper_id(ids, names, "Folio") == 14
+
+    def test_matches_folio_by_dimension_string(self):
+        """Not every driver names the PH "long" size "Folio" - some
+        list it by its raw dimensions instead."""
+        ids = [1, 256]
+        names = ["Letter", "8 1/2 x 13 in"]
+        assert _match_paper_id(ids, names, "Folio") == 256
+
+    def test_matches_a4(self):
+        ids = [9, 1]
+        names = ["A4", "Letter"]
+        assert _match_paper_id(ids, names, "A4") == 9
+
+    def test_borderless_entries_are_never_matched(self):
+        """A plain document print must never silently land on the
+        driver's borderless mode - that has its own bleed/cover-scale
+        contract (_borderless_dc/_draw_images) a document isn't using."""
+        ids = [274]
+        names = ["A4 (Borderless) (210 x 297 mm)"]
+        assert _match_paper_id(ids, names, "A4") is None
+
+    def test_unrecognized_size_name_returns_none(self):
+        assert _match_paper_id([1], ["Letter"], "Ledger") is None
+
+    def test_no_matching_entry_returns_none(self):
+        assert _match_paper_id([1], ["Letter"], "Folio") is None
+
+    def test_empty_lists_return_none(self):
+        assert _match_paper_id([], [], "A4") is None
 
 
 @pytest.fixture
@@ -287,6 +346,116 @@ class TestPrintFile:
         backend = _backend(fake_pywin32)
         with pytest.raises(PrintError):
             backend.print_file(tmp_path / "does-not-exist.png", "Brother DCP-T420W")
+
+    def test_margin_shrinks_the_drawn_rectangle(self, fake_pywin32, tmp_path):
+        """Windows DEVMODE has no generic margin field - this is pure
+        geometry in _draw_images, an inset applied before contain-fit,
+        not a driver setting."""
+        import win32con
+
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (100, 100), "white").save(path)
+
+        _, fake_hdc = fake_pywin32
+        fake_hdc.GetDeviceCaps.side_effect = lambda cap: 200 if cap is win32con.HORZRES else 200
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W", margin=0.1)
+
+        draw_rect = mod.ImageWin.Dib.return_value.draw.call_args[0][1]
+        # available area = 200 * (1 - 2*0.1) = 160 -> contain scale 1.6 -> 160x160
+        assert draw_rect[2] - draw_rect[0] == 160
+        assert draw_rect[3] - draw_rect[1] == 160
+
+    def test_zero_margin_matches_todays_default_behavior(self, fake_pywin32, tmp_path):
+        import win32con
+
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (100, 50), "white").save(path)
+
+        _, fake_hdc = fake_pywin32
+        fake_hdc.GetDeviceCaps.side_effect = lambda cap: 200 if cap is win32con.HORZRES else 60
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W")
+
+        draw_rect = mod.ImageWin.Dib.return_value.draw.call_args[0][1]
+        assert draw_rect[2] - draw_rect[0] == 120
+        assert draw_rect[3] - draw_rect[1] == 60
+
+    def test_paper_size_requested_calls_configured_dc(self, fake_pywin32, tmp_path, monkeypatch):
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (10, 10), "white").save(path)
+
+        calls = []
+        fake_configured_hdc = MagicMock()
+        fake_configured_hdc.GetDeviceCaps.return_value = 100
+        monkeypatch.setattr(
+            mod,
+            "_configured_dc",
+            lambda printer_name, paper_size=None, orientation=None: (
+                calls.append((paper_size, orientation)) or fake_configured_hdc
+            ),
+        )
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W", paper_size="Folio", orientation="landscape")
+
+        assert calls == [("Folio", "landscape")]
+        fake_win32ui, _ = fake_pywin32
+        fake_win32ui.CreateDC.assert_not_called()
+        fake_configured_hdc.StartDoc.assert_called_once()
+
+    def test_configured_dc_failure_falls_back_to_normal_dc(self, fake_pywin32, tmp_path, monkeypatch):
+        """Same fail-soft contract as borderless: a driver that doesn't
+        cooperate must still print, at the printer's current default,
+        rather than fail the whole job."""
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (10, 10), "white").save(path)
+
+        monkeypatch.setattr(
+            mod, "_configured_dc", lambda printer_name, paper_size=None, orientation=None: None
+        )
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W", paper_size="Folio")
+
+        fake_win32ui, fake_hdc = fake_pywin32
+        fake_win32ui.CreateDC.assert_called_once()
+        fake_hdc.CreatePrinterDC.assert_called_once_with("Brother DCP-T420W")
+
+    def test_neither_paper_size_nor_orientation_never_calls_configured_dc(
+        self, fake_pywin32, tmp_path, monkeypatch
+    ):
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (10, 10), "white").save(path)
+
+        called = []
+        monkeypatch.setattr(
+            mod,
+            "_configured_dc",
+            lambda printer_name, paper_size=None, orientation=None: called.append(printer_name),
+        )
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W")
+
+        assert called == []
 
     def test_borderless_uses_cover_scale_when_setup_succeeds(self, fake_pywin32, tmp_path, monkeypatch):
         """_borderless_dc's real DEVMODE/CreateDC dance can't be tested

@@ -12,6 +12,15 @@ from PIL import Image
 PDF_ZOOM_AT_300_DPI = 300 / 72
 
 
+def zoom_for_dpi(dpi):
+    """Points-to-pixels zoom factor for an arbitrary DPI - same 1/72in
+    math as PDF_ZOOM_AT_300_DPI, generalized for admin print-quality
+    presets (draft/normal/best - see models.job.PRINT_QUALITIES) that
+    need a lower or higher rasterization resolution than the pipeline's
+    normal 300 DPI default."""
+    return dpi / 72
+
+
 def rasterize_pdf(path, zoom=PDF_ZOOM_AT_300_DPI, page_numbers=None):
     """Every page of the PDF at `path` as an RGB PIL Image, rendered at
     `zoom`. `page_numbers`, if given, is a 1-indexed subset (e.g.

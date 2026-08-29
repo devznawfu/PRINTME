@@ -22,7 +22,17 @@ class PrinterBackend(ABC):
 
     @abstractmethod
     def print_file(
-        self, file_path, printer_name, copies=1, grayscale=False, borderless=False, page_range=None
+        self,
+        file_path,
+        printer_name,
+        copies=1,
+        grayscale=False,
+        borderless=False,
+        page_range=None,
+        paper_size=None,
+        orientation=None,
+        margin=0.0,
+        dpi=None,
     ):
         """Send file_path to printer_name. Raises PrintError on
         failure. Returns an opaque, backend-specific job identifier.
@@ -34,4 +44,19 @@ class PrinterBackend(ABC):
         the job if it isn't achievable. page_range, if given, is a
         1-indexed list of page numbers to print (PDF only) - None means
         every page. Callers are expected to have already validated the
-        range against the real page count (see services/page_range.py)."""
+        range against the real page count (see services/page_range.py).
+
+        Document-printing options (never combined with borderless=True,
+        which is photo-sheet-only): paper_size is one of
+        models.job.PAPER_SIZES or None (printer's current default,
+        today's behavior); orientation is "portrait"/"landscape"/None
+        (driver default); margin is a 0.0-1.0 fraction of the page each
+        edge is inset by before scale-to-fit (0.0 = fill the printable
+        area, today's default); dpi overrides the rasterization
+        resolution for PDF pages (None = the pipeline's normal 300 DPI -
+        see services/pdf_render.py) - this is what "print quality"
+        actually means in a pipeline that always sends a fixed bitmap to
+        the driver, not a driver-level quality flag. Backends that can't
+        honor paper_size/orientation on a given driver must fall back to
+        the current default rather than fail the job, same contract as
+        borderless."""

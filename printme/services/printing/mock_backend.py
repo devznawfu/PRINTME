@@ -25,7 +25,17 @@ class MockPrinterBackend(PrinterBackend):
         return available_printers()
 
     def print_file(
-        self, file_path, printer_name, copies=1, grayscale=False, borderless=False, page_range=None
+        self,
+        file_path,
+        printer_name,
+        copies=1,
+        grayscale=False,
+        borderless=False,
+        page_range=None,
+        paper_size=None,
+        orientation=None,
+        margin=0.0,
+        dpi=None,
     ):
         if not is_valid_printer(printer_name):
             raise PrintError(f"unknown printer: {printer_name!r}")
@@ -41,6 +51,10 @@ class MockPrinterBackend(PrinterBackend):
             "grayscale": grayscale,
             "borderless": borderless,
             "page_range": page_range,
+            "paper_size": paper_size,
+            "orientation": orientation,
+            "margin": margin,
+            "dpi": dpi,
         }
         self.print_log.append(entry)
         logger.info("mock print: %s", entry)
