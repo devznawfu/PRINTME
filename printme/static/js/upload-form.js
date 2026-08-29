@@ -542,6 +542,13 @@
     stepReviewEl.querySelector("[data-review-total]").textContent = totalText;
     stepReviewEl.querySelector("[data-review-submit-total]").textContent =
       total === null ? "this" : peso(total);
+    // "At the counter" (right) and "Pay cash at the counter" (left
+    // caption, static in the template) said the same thing twice, right
+    // next to each other, whenever the total isn't known yet (documents,
+    // before page count exists) - only the caption needs to change here,
+    // the big total text on the right reads fine on its own.
+    stepReviewEl.querySelector("[data-review-total-caption]").textContent =
+      total === null ? "Counted and confirmed when you pay" : "Pay cash at the counter";
     stepReviewEl.querySelector("[data-review-price-note]").textContent =
       note || "Prices are today's shop rates. Staff will confirm the total when you pay.";
   }
