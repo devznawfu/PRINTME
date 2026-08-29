@@ -36,7 +36,10 @@ def file_line_for(job):
         total_qty = sum(row.quantity for row in job.photo_items)
         return f"{total_qty} {'print' if total_qty == 1 else 'prints'} total"
     qty = job.copies or 1
-    return f"{qty} {'copy' if qty == 1 else 'copies'}"
+    copies_text = f"{qty} {'copy' if qty == 1 else 'copies'}"
+    if job.original_filename:
+        return f"{job.original_filename} · {copies_text}"
+    return copies_text
 
 
 def _card(job):
