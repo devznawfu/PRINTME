@@ -3,8 +3,13 @@
   "build": {
     "dockerfile": "../Dockerfile"
   },
-  "postCreateCommand": "pip install -r requirements.txt && git config core.hooksPath .githooks && chmod +x .githooks/pre-commit",
-  "forwardPorts": [5000],
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {}
+  },
+  "postCreateCommand": "pip install -r requirements.txt && npm install -g @anthropic-ai/claude-code && git config core.hooksPath .githooks && chmod +x .githooks/pre-commit",
+  "forwardPorts": [
+    5000
+  ],
   "customizations": {
     "vscode": {
       "settings": {
