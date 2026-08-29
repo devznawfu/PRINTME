@@ -34,6 +34,35 @@ LAN-hosted photo &amp; document printing shop system with automated photo proces
    ```
    Visit `http://127.0.0.1:5000/` for the customer upload portal, `http://127.0.0.1:5000/admin/login` for the staff dashboard (demo password: `print`, set `ADMIN_PASSWORD` for anything real).
 
+## Admin PC setup (production, do this once)
+
+For the actual shop PC — not the dev workflow above. After completing
+steps 1-4 above (venv, dependencies, the background-removal model cache,
+and the built CSS), run:
+
+```
+powershell -File scripts\install_startup_task.ps1
+```
+
+This registers a Scheduled Task that starts PRINTME! silently every time
+this Windows account logs in, and adds a "PRINTME Dashboard" icon to the
+Desktop that opens the admin dashboard like any other app — no terminal,
+no `pip install`, no `flask db upgrade`, ever again. Every future update
+to this repo just needs the new files copied in and the PC restarted (or
+sign out/in) — `wsgi.py` runs the equivalent of `flask db upgrade` itself
+on every launch, so the schema always catches up on its own.
+
+Two things worth knowing:
+- The task starts **at log on**, not before. If the counter PC should be
+  ready before anyone touches it, configure Windows for auto-logon
+  (Settings → Accounts → Sign-in options) — that's a Windows setting, not
+  something the install script does for you (it would otherwise need this
+  account's password stored in Task Scheduler).
+- If the dashboard ever doesn't load, check `instance\printme.log` first —
+  both a failed migration and a failed server start (e.g. the port
+  already in use) are logged there, since there's no visible console to
+  read them from otherwise.
+
 ## Tests
 
 ```
