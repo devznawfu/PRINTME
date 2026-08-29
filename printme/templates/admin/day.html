@@ -14,7 +14,11 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+    <div class="flex flex-col gap-1.5 rounded-3xl border border-border bg-panel p-6">
+      <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Revenue collected</span>
+      <span class="text-[28px] font-bold tabular-nums">&#8369;{{ "%.2f"|format(revenue_collected) }}</span>
+    </div>
     <div class="flex flex-col gap-1.5 rounded-3xl border border-border bg-panel p-6">
       <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Done today</span>
       <span class="text-[28px] font-bold tabular-nums">{{ done_count }}</span>
@@ -26,7 +30,7 @@
     <div class="flex flex-col gap-1.5 rounded-3xl border border-border bg-panel p-6">
       <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Uncollected today</span>
       <span class="text-[28px] font-bold tabular-nums">&#8369;{{ "%.2f"|format(uncollected_total) }}</span>
-      <span class="text-[14px] text-faint">{{ printing_count }} job{{ "s" if printing_count != 1 else "" }} still printing</span>
+      <span class="text-[17px] text-faint">{{ printing_count }} job{{ "s" if printing_count != 1 else "" }} still printing</span>
     </div>
     <div class="flex flex-col gap-1.5 rounded-3xl border border-border bg-panel p-6">
       <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Sheets used</span>
@@ -34,23 +38,63 @@
     </div>
   </div>
 
+  {% if never_collected %}
+  <div class="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-border bg-panel px-6 py-5">
+    <span class="text-[17px] text-text">{{ never_collected|length }} job{{ "s" if never_collected|length != 1 else "" }} never collected. They stay on the shelf until you clear them.</span>
+    <a href="#never-collected" class="flex min-h-[44px] items-center rounded-2xl border border-line px-5 text-[15px] font-bold">See them</a>
+  </div>
+  {% endif %}
+
+  {% if paper_breakdown %}
+  <div class="flex flex-col gap-4 rounded-3xl border border-border bg-panel p-6">
+    <h2 class="text-xl font-bold">Paper used</h2>
+    <div class="flex flex-col gap-2">
+      {% set max_paper_count = paper_breakdown|map(attribute="count")|max %}
+      {% for p in paper_breakdown %}
+      <div class="flex items-center gap-3">
+        <span class="w-40 flex-none text-[17px] text-muted">{{ p.label }}</span>
+        <div class="h-5 flex-1 overflow-hidden rounded-md bg-inset">
+          <div class="h-full rounded-md bg-btn-bg" style="width: {{ (100 * p.count / max_paper_count)|round }}%"></div>
+        </div>
+        <span class="w-10 flex-none text-right text-[17px] tabular-nums">{{ p.count }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <div class="flex flex-col gap-4 rounded-3xl border border-border bg-panel p-6">
     <h2 class="text-xl font-bold">Busiest hours</h2>
     {% if not busiest_hours %}
-    <span class="text-[15px] text-faint">No jobs submitted yet today.</span>
+    <span class="text-[17px] text-faint">No jobs submitted yet today.</span>
     {% else %}
     <div class="flex flex-col gap-2">
       {% for h in busiest_hours %}
       <div class="flex items-center gap-3">
-        <span class="w-16 flex-none text-[14px] text-muted tabular-nums">{{ "%02d:00"|format(h.hour) }}</span>
+        <span class="w-16 flex-none text-[17px] text-muted tabular-nums">{{ "%02d:00"|format(h.hour) }}</span>
         <div class="h-5 flex-1 overflow-hidden rounded-md bg-inset">
           <div class="h-full rounded-md bg-btn-bg" style="width: {{ h.pct }}%"></div>
         </div>
-        <span class="w-6 flex-none text-right text-[14px] tabular-nums">{{ h.count }}</span>
+        <span class="w-6 flex-none text-right text-[17px] tabular-nums">{{ h.count }}</span>
       </div>
       {% endfor %}
     </div>
     {% endif %}
   </div>
+
+  {% if never_collected %}
+  <div id="never-collected" class="flex flex-col gap-4 rounded-3xl border border-border bg-panel p-6">
+    <h2 class="text-xl font-bold">Never collected</h2>
+    <div class="flex flex-col gap-2">
+      {% for job in never_collected %}
+      <div class="flex items-center gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3">
+        <span class="font-mono text-[17px] font-bold">{{ job.display_ticket }}</span>
+        <span class="flex-1 text-[17px] text-muted">{{ job.customer_name }}</span>
+        <span class="text-[17px] tabular-nums">&#8369;{{ "%.2f"|format(job.total_cost or 0) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

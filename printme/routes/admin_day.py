@@ -20,6 +20,7 @@ from printme.models.job import REPRINT_REASON_LABELS, Job, JobStatus
 from printme.models.photo_sheet import PhotoSheet
 from printme.models.pricing import rate_map
 from printme.routes.admin_auth import admin_required
+from printme.routes.admin_photo_sheets import _paper_key, _paper_label
 
 bp = Blueprint("admin_day", __name__, url_prefix="/admin")
 
@@ -47,6 +48,7 @@ def day_summary():
     )
     costs = [j.total_cost for j in done_today if j.total_cost is not None]
     average_cost = sum(costs) / len(costs) if costs else None
+    revenue_collected = sum(costs)
 
     # "Uncollected" scoping decision: there is no "collected"/"picked up"
     # flag anywhere in this system (CLAUDE.md keeps payment physical/cash
@@ -58,7 +60,45 @@ def day_summary():
     ).all()
     uncollected_total = sum(j.total_cost or 0 for j in printing_today)
 
-    sheets_today = PhotoSheet.query.filter(PhotoSheet.created_at >= today_start).count()
+    # "Never collected" is deliberately NOT scoped to today - it's the
+    # shop's whole backlog of jobs that finished printing but were never
+    # picked up ("stay on the shelf until you clear them"), which is a
+    # different question from today's still-printing count above.
+    never_collected = (
+        Job.query.filter(Job.status == JobStatus.PRINTING)
+        .order_by(Job.created_at)
+        .all()
+    )
+
+    # Paper breakdown reuses turn 3a's own grouping (finish, quality) -
+    # that's the real physical reorder decision in this app's model
+    # (every sheet belongs to exactly one job, which sets one finish/
+    # quality for its whole order), not a per-print-size split.
+    photo_sheets_today = PhotoSheet.query.filter(
+        PhotoSheet.created_at >= today_start
+    ).all()
+    paper_counts = {}
+    for sheet in photo_sheets_today:
+        sheet.job = db.session.get(Job, sheet.items[0].job_id) if sheet.items else None
+        key = _paper_key(sheet)
+        paper_counts[key] = paper_counts.get(key, 0) + 1
+    paper_breakdown = sorted(
+        (
+            {"label": _paper_label(key), "count": count}
+            for key, count in paper_counts.items()
+        ),
+        key=lambda r: -r["count"],
+    )
+
+    document_sheets_today = sum(
+        (j.page_count or 1) * (j.copies or 1)
+        for j in done_today
+        if j.service_type == "document"
+    )
+    if document_sheets_today:
+        paper_breakdown.append({"label": "A4 documents", "count": document_sheets_today})
+
+    sheets_today = len(photo_sheets_today) + document_sheets_today
 
     jobs_today = Job.query.filter(Job.created_at >= today_start).all()
     hour_counts = Counter(j.created_at.hour for j in jobs_today)
@@ -79,9 +119,12 @@ def day_summary():
         "admin/day.html",
         done_count=len(done_today),
         average_cost=average_cost,
+        revenue_collected=revenue_collected,
         uncollected_total=uncollected_total,
         printing_count=len(printing_today),
         sheets_today=sheets_today,
+        paper_breakdown=paper_breakdown,
+        never_collected=never_collected,
         busiest_hours=busiest_hours,
         jobs_today_count=len(jobs_today),
     )
