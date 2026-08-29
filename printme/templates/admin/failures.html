@@ -11,25 +11,37 @@
     <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to queue</a>
   </div>
 
+  <div class="flex items-center justify-between gap-4 rounded-3xl border border-border bg-panel px-6 py-5">
+    <div class="flex flex-col gap-0.5">
+      <span class="text-[17px] text-text">Jobs that failed to process</span>
+      <span class="text-[15px] text-muted">Last {{ window_days }} days</span>
+    </div>
+    <span class="text-[28px] font-bold tabular-nums">{{ failed_count }}</span>
+  </div>
+
   {% if not ranked %}
   <div class="rounded-3xl border border-dashed border-dash p-14 text-center text-lg text-faint">No reprints in the last {{ window_days }} days.</div>
   {% else %}
+  <div class="flex flex-col gap-2 rounded-2xl border border-warn-card-line bg-warn-note px-5 py-4">
+    <span class="text-[17px] font-bold text-warn-title">{{ ranked[0].label }} is {{ top_reason_pct }}% of your reprints</span>
+    <span class="text-[15px] text-warn-note-text">That's costing about &#8369;{{ "%.2f"|format(ranked[0].cost) }} over the last {{ window_days }} days.</span>
+  </div>
   <div class="flex flex-col gap-4">
     {% for r in ranked %}
     <div class="flex items-center justify-between gap-4 rounded-3xl border border-border bg-panel p-6">
       <div class="flex flex-col gap-1">
         <h3 class="text-lg font-bold leading-tight">{{ r.label }}</h3>
-        <span class="text-[15px] text-muted">{{ r.count }} reprint{{ "s" if r.count != 1 else "" }}</span>
+        <span class="text-[17px] text-muted">{{ r.count }} reprint{{ "s" if r.count != 1 else "" }}</span>
       </div>
       <span class="text-[22px] font-bold tabular-nums">&#8369;{{ "%.2f"|format(r.cost) }}</span>
     </div>
     {% endfor %}
   </div>
   <div class="flex items-center justify-between gap-4 rounded-3xl border border-border bg-inset p-6">
-    <span class="text-[15px] font-bold text-muted">Total estimated cost</span>
+    <span class="text-[17px] font-bold text-muted">Total estimated cost</span>
     <span class="text-[22px] font-bold tabular-nums">&#8369;{{ "%.2f"|format(total_cost) }}</span>
   </div>
-  <span class="text-[14px] text-faint">Charged reprints use their actual total; uncharged (shop-fault) reprints are estimated at &#8369;{{ "%.2f"|format(cost_per_sheet) }} per reprint, editable on the Pricing page.</span>
+  <span class="text-[17px] text-faint">Charged reprints use their actual total; uncharged (shop-fault) reprints are estimated at &#8369;{{ "%.2f"|format(cost_per_sheet) }} per reprint, editable on the Pricing page.</span>
   {% endif %}
 </div>
 {% endblock %}

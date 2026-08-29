@@ -168,12 +168,22 @@ def failures():
         key=lambda r: r["count"],
         reverse=True,
     )
+    total_reprints = len(reprints)
+    top_reason_pct = (
+        round(100 * ranked[0]["count"] / total_reprints) if ranked and total_reprints else 0
+    )
+
+    failed_count = Job.query.filter(
+        Job.status == JobStatus.FAILED, Job.created_at >= cutoff
+    ).count()
 
     return render_template(
         "admin/failures.html",
         ranked=ranked,
-        total_reprints=len(reprints),
+        total_reprints=total_reprints,
         total_cost=sum(r["cost"] for r in ranked),
         window_days=FAILURE_WINDOW_DAYS,
         cost_per_sheet=cost_per_sheet,
+        top_reason_pct=top_reason_pct,
+        failed_count=failed_count,
     )
