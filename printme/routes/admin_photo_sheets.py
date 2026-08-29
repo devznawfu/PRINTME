@@ -101,6 +101,14 @@ def photo_sheets():
         if not out_path.exists() or stale:
             render_photo_sheet(db.session, sheet, out_path)
         sheet.rendered_path = str(out_path)
+        # Cache-busting the <img> URL itself, same fix and same reason as
+        # the dashboard thumbnail (admin_dashboard.py's _thumb_version):
+        # the URL never otherwise changes across a recrop, so a browser's
+        # own in-memory image cache can keep showing the old bitmap even
+        # though the server is already serving fresh bytes - correct
+        # server behavior alone wasn't enough to fix this, confirmed by
+        # this exact complaint recurring after the server-side fix landed.
+        sheet.preview_version = int(out_path.stat().st_mtime)
     db.session.commit()
 
     # Grouped by paper type is the default - the shop's real cost is
