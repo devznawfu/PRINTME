@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% import "partials/_icons.html" as icons %}
+{% block title %}PRINTME! &mdash; Upload QR Code{% endblock %}
+{% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
+{% block body %}
+<div class="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg px-8 py-16 text-center print:min-h-0 print:gap-6 print:py-10">
+  <div class="print:hidden">
+    <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to dashboard</a>
+  </div>
+
+  <div class="flex items-center gap-3.5">
+    {{ icons.logo_mark(40) }}
+    <span class="text-[34px] font-bold tracking-tight">PRINTME!</span>
+  </div>
+
+  <div class="flex flex-col items-center gap-3">
+    <span class="text-[22px] font-bold uppercase tracking-[0.14em] text-muted">Scan to start your order</span>
+    <img src="{{ url_for('admin_dashboard.qr_code') }}" alt="QR code linking to the upload portal" width="360" height="360" class="rounded-2xl border border-line">
+  </div>
+
+  <button type="button" onclick="window.print()" class="print:hidden flex min-h-[64px] items-center rounded-2xl bg-btn-bg px-10 text-lg font-bold text-btn-text transition-colors hover:bg-btn-hover">Print this sign</button>
+</div>
+{% endblock %}

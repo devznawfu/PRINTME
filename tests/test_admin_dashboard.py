@@ -239,6 +239,23 @@ class TestCodeSignRoute:
         assert "In effect since 9:05 AM" in body
 
 
+class TestQrSignRoute:
+    def test_requires_admin_login(self, client):
+        resp = client.get("/admin/qr/sign")
+        assert resp.status_code == 302
+        assert "/admin/login" in resp.headers["Location"]
+
+    def test_shows_the_qr_code_image(self, client):
+        login(client)
+
+        resp = client.get("/admin/qr/sign")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert "admin/qr-code.png" in body
+        assert "Print this sign" in body
+
+
 class TestNewCodeReassurance:
     def test_dashboard_reassures_staff_a_new_code_wont_cancel_jobs(self, client):
         login(client)

@@ -168,3 +168,14 @@ def qr_code():
     scan."""
     png_bytes = generate_upload_qr_png(request.host_url)
     return Response(png_bytes, mimetype="image/png")
+
+
+@bp.route("/qr/sign", methods=["GET"])
+@admin_required
+def qr_sign():
+    """Print-friendly, chrome-free page: just the upload QR code, big,
+    for staff to print and post at the counter - same pattern as
+    code_sign(). Must be opened from the customer-facing address (the
+    same LAN the router hands to phones) since qr_code() encodes
+    whatever request.host_url this page was reached through."""
+    return render_template("admin/qr_sign.html")
