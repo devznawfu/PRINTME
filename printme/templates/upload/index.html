@@ -45,14 +45,19 @@
       <button type="button" data-service-pick="photo" class="flex flex-col items-start gap-3 rounded-[20px] border border-line bg-panel-soft px-4 py-5 pb-[18px] text-left leading-tight">
         <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="M3 16.5l4.5-4 4 3.5 3.5-3 6 5"></path></svg>
         <span class="text-[17px] font-bold">Photo<br>Printing</span>
-        <span class="text-[13px] text-muted">ID photos: 1&times;1, 2&times;2, Passport, Visa</span>
+        <span class="text-[17px] text-muted">ID photos: 1&times;1, 2&times;2, Passport, Visa</span>
+        {% set photo_prices = [] %}
+        {% for k, v in (rates or {}).items() %}{% if '-' in k %}{% set _ = photo_prices.append(v) %}{% endif %}{% endfor %}
+        <span class="text-[17px] font-bold text-text">From &#8369;{{ "%g"|format(photo_prices|min) if photo_prices else 15 }} each</span>
       </button>
       <button type="button" data-service-pick="document" class="flex flex-col items-start gap-3 rounded-[20px] border border-line bg-panel-soft px-4 py-5 pb-[18px] text-left leading-tight">
         <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h6"></path></svg>
         <span class="text-[17px] font-bold">Document<br>Printing</span>
-        <span class="text-[13px] text-muted">PDFs, forms, copies</span>
+        <span class="text-[17px] text-muted">PDFs, forms, copies</span>
+        <span class="text-[17px] font-bold text-text">&#8369;{{ "%g"|format((rates or {}).get("bw_page", 5)) }} a page, &#8369;{{ "%g"|format((rates or {}).get("color_page", 10)) }} in color</span>
       </button>
     </div>
+    <div class="rounded-2xl bg-panel-soft px-4 py-3.5 text-[17px] leading-snug text-muted">Both? Start with photos &mdash; you can send documents right after, on the same code.</div>
   </div>
 
   <div id="step-form" class="{{ 'flex' if errors else 'hidden' }} flex-col gap-[34px] px-[22px] pt-[26px] pb-10">
