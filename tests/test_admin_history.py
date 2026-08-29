@@ -249,7 +249,11 @@ class TestReprintRoute:
             assert new_job.upload_path != new_job.processed_path
             assert Path(new_job.upload_path).exists()
 
-    def test_charge_normally_prices_the_reprint(self, app, client):
+    def test_reprint_is_always_free_even_if_a_stray_charge_normally_is_posted(self, app, client):
+        """The "charge normally" opt-in was removed - a reprint is
+        always the shop's fault, full stop. Never trust a client-posted
+        field for something that no longer exists server-side, same
+        defensive stance as page_range's server-side revalidation."""
         with app.app_context():
             seed_defaults(db.session)
             old = make_terminal_photo_job(app, JobStatus.DONE, ticket="P-001")
@@ -266,8 +270,7 @@ class TestReprintRoute:
         assert resp.status_code == 302
         with app.app_context():
             new_job = Job.query.filter(Job.id != old_id).order_by(Job.id.desc()).first()
-            assert new_job.total_cost is not None
-            assert new_job.total_cost > 0
+            assert new_job.total_cost == 0.0
 
     def test_second_reprint_of_the_same_original_gets_r2(self, app, client):
         with app.app_context():
@@ -373,4 +376,4 @@ class TestReprintRoute:
         body = resp.get_data(as_text=True)
         assert "reprint_reason" in body
         assert "Bad print" in body
-        assert "charge_normally" in body
+        assert "charge_normally" not in body

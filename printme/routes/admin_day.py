@@ -140,11 +140,12 @@ def failures():
 
     cost_per_sheet = rate_map(db.session).get("cost_per_sheet", 0.0)
 
-    # A charged ("charge normally") reprint has a real customer-price
-    # total_cost - use that. An uncharged ($0, shop-fault) reprint still
-    # cost the shop real paper/ink, so it's estimated at cost_per_sheet
-    # instead. This is a flat per-reprint estimate, not a real sheet
-    # count (that would require re-running the packer for jobs that may
+    # Every reprint is $0 to the customer now ("charge normally" was
+    # removed - a reprint is always the shop's mistake), so total_cost
+    # is never used here; every reprint is estimated at cost_per_sheet,
+    # since it still cost the shop real paper/ink. This is a flat
+    # per-reprint estimate, not a real sheet count (that would require
+    # re-running the packer for jobs that may
     # not even be packed yet) - deliberately simple, per the "scoped
     # small" plan for this feature.
     by_reason = {}

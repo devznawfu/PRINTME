@@ -10,10 +10,11 @@ number may since have been handed to an unrelated job.
 Reprint (turn 3c) is a close variant of Restore for the specific case
 of a customer complaint (bad print, paper jam, wrong crop, wants
 more) - it links the new job back to the original via reprint_of/
-reprint_reason and defaults to a $0 total (shop-fault assumption)
-unless staff opt to charge normally. Kept as its own independent
-route rather than refactored to share code with restore(), so
-restore's already-tested behavior can't be destabilized by this.
+reprint_reason and is always a $0 total (a reprint is always the
+shop's mistake, not the customer's - the earlier "charge normally"
+opt-in was removed). Kept as its own independent route rather than
+refactored to share code with restore(), so restore's already-tested
+behavior can't be destabilized by this.
 """
 
 import shutil
@@ -138,9 +139,11 @@ def restore(job_id):
 def reprint(job_id):
     """Reprint an already-done job under a NEW ticket (Job row), linked
     back to the original via reprint_of - the original's own status/
-    history is never touched. Defaults to $0 (a shop-fault assumption:
-    most reprints are the shop's mistake, not the customer's) unless
-    staff explicitly check "charge normally"."""
+    history is never touched. Always $0 - a reprint is always the
+    shop's mistake, not the customer's, full stop. The "charge
+    normally" opt-in was removed; if a customer genuinely wants extra
+    copies rather than a redo of a mistake, that's a new job through
+    the normal upload flow, not a reprint."""
     old = db.session.get(Job, job_id)
     if old is None:
         return redirect(url_for("admin_history.history"))
@@ -153,8 +156,6 @@ def reprint(job_id):
     if reason not in REPRINT_REASONS:
         flash("Pick a reason for the reprint.", "error")
         return redirect(url_for("admin_history.history"))
-
-    charge_normally = request.form.get("charge_normally") == "on"
 
     fields = dict(
         customer_name=old.customer_name,
@@ -202,12 +203,8 @@ def reprint(job_id):
                 PhotoItemRow(size_name=row.size_name, quantity=row.quantity)
             )
 
-    if charge_normally:
-        db.session.commit()
-        price_job(db.session, new_job)
-    else:
-        new_job.total_cost = 0.0
-        db.session.commit()
+    new_job.total_cost = 0.0
+    db.session.commit()
 
     dashboard_url = url_for("admin_dashboard.dashboard")
     flash(
