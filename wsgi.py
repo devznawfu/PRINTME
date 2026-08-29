@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from logging.handlers import RotatingFileHandler
 
@@ -39,9 +40,14 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        # 0.0.0.0, not 127.0.0.1: customer phones need to reach this over
-        # the shop's LAN, not just the admin PC itself.
-        serve(app, host="0.0.0.0", port=5000)
+        # SERVE_HOST defaults to 0.0.0.0 (every interface) but should be
+        # locked to the admin PC's reserved IP on the dedicated customer
+        # router (e.g. 192.168.50.2) in production - otherwise anything
+        # else the PC is connected to (the shop's main WiFi, a VPN/WSL
+        # virtual adapter) can reach the print queue too, not just
+        # customers on the intended network.
+        host = os.environ.get("SERVE_HOST", "0.0.0.0")
+        serve(app, host=host, port=5000)
     except Exception:
         # Under pythonw.exe there is no console at all - an uncaught
         # exception here (e.g. port 5000 already in use, maybe a
