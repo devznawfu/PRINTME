@@ -4,6 +4,7 @@ each with its specific reason) - design-reference/admin-dashboard.html.
 """
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from flask import Blueprint, Response, jsonify, render_template, request, session
 
@@ -42,6 +43,22 @@ def file_line_for(job):
     return copies_text
 
 
+def _thumb_version(job):
+    """Cache-busting value for the job-card thumbnail <img>, tied to the
+    served file's own mtime rather than Job.updated_at - recrop rewrites
+    processed_path to the same string each time, so SQLAlchemy never
+    marks that column dirty and updated_at's onupdate never fires, even
+    though the file's bytes really did change (same trap that made the
+    Photo Sheets render cache go stale - see admin_photo_sheets.py)."""
+    path = job.processed_path or job.upload_path
+    if not path:
+        return 0
+    try:
+        return int(Path(path).stat().st_mtime)
+    except OSError:
+        return 0
+
+
 def _card(job):
     if job.service_type == "photo":
         rows = [
@@ -58,6 +75,7 @@ def _card(job):
         "service_label": service_label,
         "file_line": file_line_for(job),
         "rows": rows,
+        "thumb_version": _thumb_version(job) if job.service_type == "photo" else None,
     }
 
 

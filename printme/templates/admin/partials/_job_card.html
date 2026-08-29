@@ -7,7 +7,7 @@
             data-job-id="{{ card.job.id }}"
             data-preview-title="{{ card.job.display_ticket }} &middot; {{ card.job.original_filename }}"
             class="relative h-[108px] w-[108px] flex-none cursor-zoom-in overflow-hidden rounded-2xl border {{ 'border-warn-card-line bg-warn-thumb-a' if flagged else 'border-line bg-thumb-a' }}">
-      <img src="{{ url_for('admin_review.thumb', job_id=card.job.id) }}"
+      <img src="{{ url_for('admin_review.thumb', job_id=card.job.id) }}?v={{ card.thumb_version }}"
            alt="Photo for {{ card.job.display_ticket }}"
            loading="lazy"
            onerror="this.remove()"
