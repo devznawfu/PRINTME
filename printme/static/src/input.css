@@ -229,6 +229,10 @@ body {
    correct to add text-text on individual <dialog> elements too. */
 dialog {
   color: var(--color-text);
+  /* Preflight zeroes margin on every element, including <dialog> - that
+     kills the margin:auto native .showModal() centering depends on,
+     leaving every dialog pinned top-left instead of centered. */
+  margin: auto;
 }
 
 /* Entrance animations, transcribed from design-reference/*.html's
