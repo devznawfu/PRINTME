@@ -43,6 +43,9 @@
     <div class="flex flex-col gap-1.5">
       <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-warn-title">Today's code</h2>
       <span class="text-lg text-warn-muted">Read this out to customers before they upload.</span>
+      {% if rotated_at %}
+      <span class="text-[15px] text-warn-muted">Set {{ rotated_at.strftime("%I:%M %p").lstrip("0") }}, automatically</span>
+      {% endif %}
       <span class="text-[15px] text-warn-muted">{{ code_usage_count }} job{{ "s" if code_usage_count != 1 else "" }} submitted with this code today.</span>
       <a href="{{ url_for('admin_dashboard.code_sign') }}" class="text-[15px] font-bold text-warn-title underline">Print a sign for the counter</a>
     </div>

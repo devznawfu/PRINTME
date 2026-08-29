@@ -89,6 +89,7 @@ def dashboard():
         flagged_cards=[_card(j) for j in flagged_jobs],
         todays_code=code.code,
         reset_at=code.last_reset_at,
+        rotated_at=code.rotated_at,
         code_usage_count=code_usage_count,
         printed_today=printed_today,
         free_space_gb=round(free_space_bytes(".") / (1024**3), 1),
