@@ -3,15 +3,15 @@
 # the server today," no remembering `flask db upgrade` (wsgi.py now does
 # that itself on every launch - see wsgi.py).
 #
-# Run this ONCE, from a normal (not necessarily elevated) PowerShell
+# Run this ONCE, from an elevated ("Run as administrator") PowerShell
 # prompt, after setup.ps1 has already created venv\ and installed
 # requirements.txt:
 #
 #   cd C:\PRINTME
-#   .\scripts\install_startup_task.ps1
+#   powershell -ExecutionPolicy Bypass -File .\scripts\install_startup_task.ps1
 #
-# Safe to re-run - Register-ScheduledTask -Force replaces the existing
-# task rather than erroring or duplicating it.
+# Safe to re-run - schtasks /Create /F replaces the existing task rather
+# than erroring or duplicating it.
 #
 # Deliberate choice: the trigger is "at log on," not "run whether user is
 # logged on or not." The latter needs this Windows account's password
@@ -41,18 +41,25 @@ if (-not (Test-Path $WsgiPath)) {
 
 Write-Host "Registering scheduled task '$TaskName'..."
 
-$action = New-ScheduledTaskAction -Execute $PythonwPath -Argument '"wsgi.py"' -WorkingDirectory $RepoRoot
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
-$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
-
-Register-ScheduledTask -TaskName $TaskName `
-    -Action $action -Trigger $trigger -Settings $settings -Principal $principal `
-    -Description "Runs the PRINTME! print queue server (wsgi.py) at log on. Installed by scripts/install_startup_task.ps1." `
-    -Force | Out-Null
+# schtasks.exe, not Register-ScheduledTask: the *-ScheduledTask cmdlets
+# go through a WMI/CIM provider that on some Windows installs returns
+# "Access is denied" even from a confirmed-elevated admin session, for
+# reasons unrelated to the account's actual rights (seen firsthand on
+# the real admin PC this was deployed to). schtasks.exe talks to Task
+# Scheduler directly and doesn't hit that wall.
+# /IT (interactive token) is the schtasks equivalent of LogonType
+# Interactive - runs only when this user is actually logged on, no
+# password ever stored, matching the deliberate choice described above.
+$TaskUser = "$env:USERDOMAIN\$env:USERNAME"
+$TaskAction = "$PythonwPath $WsgiPath"
+schtasks /Create /TN $TaskName /TR $TaskAction /SC ONLOGON /RU $TaskUser /RL LIMITED /IT /F
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "schtasks /Create failed (exit code $LASTEXITCODE) - see the output above."
+    exit 1
+}
 
 Write-Host "Starting it now, so you don't have to log out and back in to see it work..."
-Start-ScheduledTask -TaskName $TaskName
+schtasks /Run /TN $TaskName | Out-Null
 Start-Sleep -Seconds 2
 
 # Desktop shortcut - the "just open it like Chrome" piece. A plain
