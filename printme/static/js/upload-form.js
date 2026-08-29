@@ -46,6 +46,11 @@
 
   const state = {
     service: serviceInput.value || "photo",
+    // "photo" is the internal default so sizePicker/pricing/etc already
+    // work before any click, but that must not LOOK like a customer
+    // already chose something - the highlighted-border "selected" style
+    // only applies once a card is actually tapped.
+    serviceChosen: false,
     colorMode: colorModeInput.value || "bw",
     paperFinish: paperFinishInput.value || "bond",
     quality: qualityInput.value || "standard",
@@ -290,7 +295,7 @@
     sizePicker.classList.toggle("hidden", service !== "photo");
     documentOptions.classList.toggle("hidden", service !== "document");
     document.querySelectorAll("[data-service-pick]").forEach((btn) => {
-      const active = btn.dataset.servicePick === service;
+      const active = state.serviceChosen && btn.dataset.servicePick === service;
       // Toggle each pair explicitly - adding the active class without
       // also removing its inactive counterpart leaves both present,
       // and Tailwind's cascade order (not DOM order) decides the
@@ -591,6 +596,7 @@
 
   document.querySelectorAll("[data-service-pick]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      state.serviceChosen = true;
       setService(btn.dataset.servicePick);
       showStep("form");
     });
