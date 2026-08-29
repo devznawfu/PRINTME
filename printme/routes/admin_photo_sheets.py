@@ -69,17 +69,38 @@ def photo_sheets():
     rendered_dir.mkdir(parents=True, exist_ok=True)
     for sheet in sheets:
         out_path = rendered_dir / f"{sheet.batch_id}-{sheet.sheet_number}.png"
-        if not out_path.exists():
-            render_photo_sheet(db.session, sheet, out_path)
-        sheet.rendered_path = str(out_path)
         # Every sheet belongs to exactly one job - pack_pending_photo_jobs
         # never mixes different jobs' prints onto the same physical sheet
         # (a shop-owner decision, see CLAUDE.md's Smart Layout Engine
         # section) - so any item's job_id identifies the whole sheet's
         # owner. Attached dynamically, same pattern as rendered_path
-        # above, so the template can show whose sheet this is and what
+        # below, so the template can show whose sheet this is and what
         # paper it needs (finish/quality live on the Job, not the sheet).
         sheet.job = db.session.get(Job, sheet.items[0].job_id) if sheet.items else None
+        # A recrop doesn't change which items/rows exist on a sheet, only
+        # their pixels, so batch_id (and this render's cache key) stays
+        # the same - the render-once check must also catch "the job's
+        # processed photo changed since this PNG was rendered," not just
+        # "no PNG yet." Comparing against the processed FILE's own mtime
+        # (not Job.updated_at) because recrop rewrites processed_path to
+        # the same string each time - SQLAlchemy doesn't mark a column
+        # dirty when the new value equals the old one, so updated_at's
+        # onupdate never fires even though the file's bytes really did
+        # change.
+        source_path = (
+            Path(sheet.job.processed_path)
+            if sheet.job and sheet.job.processed_path
+            else None
+        )
+        stale = (
+            out_path.exists()
+            and source_path
+            and source_path.exists()
+            and source_path.stat().st_mtime > out_path.stat().st_mtime
+        )
+        if not out_path.exists() or stale:
+            render_photo_sheet(db.session, sheet, out_path)
+        sheet.rendered_path = str(out_path)
     db.session.commit()
 
     # Grouped by paper type is the default - the shop's real cost is
