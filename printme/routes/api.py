@@ -139,6 +139,32 @@ def document_page_preview(job_id, page_number):
     return send_file(out_path, mimetype="image/png")
 
 
+@bp.route("/jobs/<int:job_id>/preview/<int:page_number>/full.png", methods=["GET"])
+@admin_required
+def document_page_preview_full(job_id, page_number):
+    """The real full-resolution render of one page - what "tap to view
+    full size" in the review dialog actually opens. Cached separately
+    from the small 220px thumbnail above (different filename) so
+    neither one downgrades the other; this is the same 300 DPI render
+    the printer itself gets, so it's genuinely large enough to zoom
+    into on a phone or a monitor, not just the same small thumbnail
+    reopened in a new tab."""
+    job = db.session.get(Job, job_id)
+    if job is None or job.service_type != "document" or not job.processed_path:
+        return "", 404
+
+    max_pages = job.page_count or 1
+    if page_number < 1 or page_number > max_pages:
+        return "", 404
+
+    preview_dir = Path(current_app.config["PROCESSED_DIR"]) / "previews"
+    out_path = preview_dir / f"job{job_id}-p{page_number}-full.png"
+    if not out_path.exists():
+        render_page_thumbnail(job.processed_path, page_number, out_path, max_dim=None)
+
+    return send_file(out_path, mimetype="image/png")
+
+
 @bp.route("/jobs/<int:job_id>/print", methods=["POST"])
 @admin_required
 def print_document(job_id):

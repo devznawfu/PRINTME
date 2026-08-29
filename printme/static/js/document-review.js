@@ -119,9 +119,17 @@
     return `/admin/jobs/${jobId}/preview/${page}.png`;
   }
 
+  // The real 300 DPI render (same resolution the printer gets), not the
+  // small 220px thumbnail - that thumbnail reopened in a new tab was the
+  // literal bug "tap to view full size" reported: it was never actually
+  // bigger, just the same tiny image on a bigger background.
+  function pageImageUrlFull(jobId, page) {
+    return `/admin/jobs/${jobId}/preview/${page}/full.png`;
+  }
+
   function showInHero(page) {
     focusedPage = page;
-    heroImg.src = pageImageUrl(currentJobId, page);
+    heroImg.src = pageImageUrlFull(currentJobId, page);
     heroCaption.textContent = `Page ${page} of ${maxPages} - tap the image to open it full size`;
     thumbsEl.querySelectorAll("[data-thumb-page]").forEach((wrap) => {
       const isFocused = parseInt(wrap.dataset.thumbPage, 10) === page;
@@ -131,7 +139,7 @@
   }
 
   heroBtn.addEventListener("click", () => {
-    window.open(pageImageUrl(currentJobId, focusedPage), "_blank");
+    window.open(pageImageUrlFull(currentJobId, focusedPage), "_blank");
   });
 
   function buildThumbs(jobId) {

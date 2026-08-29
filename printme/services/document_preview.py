@@ -12,11 +12,15 @@ from printme.services.pdf_render import rasterize_pdf
 
 
 def render_page_thumbnail(processed_path, page_number, out_path, max_dim=220):
-    """A PNG thumbnail of one page (1-indexed) of `processed_path`,
-    written to `out_path`. PDFs render via pdf_render.rasterize_pdf; a
-    single-image document (JPG/PNG/JFIF) is just resized - it only
-    ever has page 1, callers are expected to have already validated
-    page_number against the job's real page count."""
+    """A PNG of one page (1-indexed) of `processed_path`, written to
+    `out_path`. PDFs render via pdf_render.rasterize_pdf (full 300 DPI -
+    plenty for zooming in on, e.g. a Letter page comes out around
+    2550x3300px); a single-image document (JPG/PNG/JFIF) is opened as-is.
+    max_dim=None skips the thumbnail downscale entirely, for the "view
+    full size" version - the card/review-dialog thumbnails still pass
+    the default 220 to keep those small and fast to load. Callers are
+    expected to have already validated page_number against the job's
+    real page count."""
     processed_path = Path(processed_path)
     if processed_path.suffix.lower() == ".pdf":
         img = rasterize_pdf(processed_path, page_numbers=[page_number])[0]
@@ -24,7 +28,8 @@ def render_page_thumbnail(processed_path, page_number, out_path, max_dim=220):
         with Image.open(processed_path) as opened:
             img = opened.convert("RGB")
 
-    img.thumbnail((max_dim, max_dim))
+    if max_dim is not None:
+        img.thumbnail((max_dim, max_dim))
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     img.save(out_path, format="PNG")
