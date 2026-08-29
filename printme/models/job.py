@@ -37,7 +37,26 @@ MAX_TICKET_ALLOCATION_ATTEMPTS = 5
 
 SERVICE_TYPES = ("photo", "document")
 COLOR_MODES = ("color", "bw")
-PAPER_SIZES = ("Letter", "A4", "Legal")
+# "Legal" (US, 8.5x14in) was the original guess here but was never wired
+# to any UI - the shop actually means PH "long" bond paper (8.5x13in,
+# the standard Windows/DEVMODE name for that size is "Folio"), confirmed
+# against a photo of the shop's own paper stock. Renamed rather than
+# added-alongside since this column has never had real data in it.
+PAPER_SIZES = ("Letter", "Folio", "A4")
+PAPER_SIZE_LABELS = {
+    "Letter": 'Short (8.5" × 11")',
+    "Folio": 'Long (8.5" × 13")',
+    "A4": "A4 (21 × 29.7cm)",
+}
+ORIENTATIONS = ("portrait", "landscape")
+MARGINS = ("normal", "narrow", "wide")
+MARGIN_LABELS = {"normal": "Normal", "narrow": "Narrower", "wide": "Wider"}
+PRINT_QUALITIES = ("draft", "normal", "best")
+PRINT_QUALITY_LABELS = {
+    "draft": "Draft (faster, lighter)",
+    "normal": "Normal",
+    "best": "Best (slower, sharper)",
+}
 # Photo printing only. Both are priced (see models/pricing.py's
 # composite {size}-{finish}-{quality} rate keys) - defaulted to
 # "bond"/"standard" wherever unset (e.g. document jobs, or a job
@@ -139,9 +158,15 @@ class Job(db.Model):
     # upload; it is filled after PDF conversion/inspection.
     color_mode = db.Column(db.String(8))  # color|bw
     duplex = db.Column(db.Boolean)
-    paper_size = db.Column(db.String(8))  # Letter|A4|Legal
+    paper_size = db.Column(db.String(8))  # Letter|Folio|A4, see PAPER_SIZES
     copies = db.Column(db.Integer, default=1)
     page_count = db.Column(db.Integer)
+    orientation = db.Column(db.String(10))  # portrait|landscape
+    margin = db.Column(db.String(8))  # normal|narrow|wide
+    # NOT the same thing as the photo `quality` column below (glossy
+    # finish standard|high) - named print_quality to avoid colliding
+    # with it, since this one means rasterization DPI (draft/normal/best).
+    print_quality = db.Column(db.String(10))  # draft|normal|best
 
     # Photo options (null for document jobs).
     paper_finish = db.Column(db.String(8))  # glossy|bond
