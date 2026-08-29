@@ -137,9 +137,9 @@
   --pm-ok-dot: #8cc98c;
   --pm-ok-dot-text: #16210f;
 
-  --pm-err-bg: #2a2118;
-  --pm-err-line: #4a3a24;
-  --pm-err-text: #f0a868;
+  --pm-err-bg: #2a1815;
+  --pm-err-line: #4a2620;
+  --pm-err-text: #ef8f76;
 
   --pm-warn-bg: #1b1814;
   --pm-warn-line: #46381f;
@@ -192,9 +192,9 @@
   --pm-ok-dot: #3e7a3b;
   --pm-ok-dot-text: #ffffff;
 
-  --pm-err-bg: #fdf1e3;
-  --pm-err-line: #efd5b3;
-  --pm-err-text: #95591a;
+  --pm-err-bg: #fbeee9;
+  --pm-err-line: #edcfc4;
+  --pm-err-text: #8f3b2f;
 
   --pm-warn-bg: #fdf6ea;
   --pm-warn-line: #eddcbc;
