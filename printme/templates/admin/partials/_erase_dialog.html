@@ -1,0 +1,45 @@
+{# Manual "snip" tool: freehand erase directly on an already-processed
+   photo, for a leftover background-removal artifact or a stray object
+   the automatic crop caught. Shared dialog (like every other admin
+   dialog), opened from a job card's "Erase" button, the flagged-job
+   review page, or a Photo Sheets item hotspot - photo-erase.js exposes
+   openEraseDialog() precisely so all three can reuse it.
+
+   The image/canvas wrapper's aspect-ratio is set to the real photo's
+   natural dimensions in JS before drawing starts - without that, an
+   object-contain image can letterbox inside a differently-shaped box,
+   and a canvas overlay sized to the whole box (not just the visible
+   image content) would misalign every stroke's fraction coordinates
+   once mapped back to the real photo server-side. #}
+<dialog id="erase-dialog" class="rounded-3xl border border-border bg-panel p-0 text-text backdrop:bg-black/60">
+  <div class="flex w-[420px] max-w-[92vw] flex-col gap-4 p-6">
+    <div class="flex flex-col gap-1">
+      <h3 class="text-xl font-bold tracking-tight">Snip out the unwanted part</h3>
+      <p class="text-[15px] text-muted">Drag over what shouldn't be there. It gets painted over, matching the photo's white background.</p>
+    </div>
+
+    <div data-erase-wrapper class="relative overflow-hidden rounded-2xl border border-line bg-inset" style="aspect-ratio: 1 / 1;">
+      <img data-erase-image alt="" class="pointer-events-none absolute inset-0 h-full w-full">
+      <canvas data-erase-canvas class="absolute inset-0 h-full w-full cursor-crosshair touch-none"></canvas>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Brush size</span>
+      <div class="grid grid-cols-3 gap-2.5">
+        <button type="button" data-brush-size="small" class="min-h-[48px] rounded-xl border-2 border-line text-[15px] font-bold">Small</button>
+        <button type="button" data-brush-size="medium" class="min-h-[48px] rounded-xl border-2 border-line text-[15px] font-bold">Medium</button>
+        <button type="button" data-brush-size="large" class="min-h-[48px] rounded-xl border-2 border-line text-[15px] font-bold">Large</button>
+      </div>
+    </div>
+
+    <div class="flex gap-2.5">
+      <button type="button" data-erase-undo-btn class="flex min-h-[50px] flex-1 items-center justify-center rounded-2xl border border-line text-[15px] font-bold">Undo last</button>
+      <button type="button" data-erase-clear-btn class="flex min-h-[50px] flex-1 items-center justify-center rounded-2xl border border-line text-[15px] font-bold">Clear all</button>
+    </div>
+
+    <div class="flex gap-2.5">
+      <button type="button" data-erase-save-btn class="flex min-h-[58px] flex-1 items-center justify-center rounded-2xl bg-btn-bg text-[17px] font-bold text-btn-text transition-colors hover:bg-btn-hover">Save</button>
+      <button type="button" data-erase-cancel-btn class="flex min-h-[58px] flex-1 items-center justify-center rounded-2xl border border-line text-[17px] font-bold">Cancel</button>
+    </div>
+  </div>
+</dialog>

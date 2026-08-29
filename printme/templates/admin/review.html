@@ -25,6 +25,15 @@
       <span class="text-sm font-bold uppercase tracking-wider text-warn-title">After automatic clean-up</span>
       {% if job.processed_path %}
       <img src="{{ url_for('admin_review.processed_image', job_id=job.id) }}" alt="Processed photo" class="h-[320px] w-full rounded-2xl border border-warn-card-line object-contain bg-warn-thumb-a">
+      {% if job.service_type == "photo" %}
+      <form id="erase-form-{{ job.id }}" method="post" action="{{ url_for('admin_review.erase', job_id=job.id) }}" class="hidden">
+        <input type="hidden" name="strokes" data-erase-strokes-field>
+      </form>
+      <button type="button" data-erase-trigger data-job-id="{{ job.id }}" data-processed-image-url="{{ url_for('admin_review.processed_image', job_id=job.id) }}" class="flex min-h-[54px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl border border-warn-card-line text-[17px] font-bold text-warn-title">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20L8.5 8.5M9 15l-3.5 3.5a2.1 2.1 0 0 1-3-3L6 12l6.5-6.5a2.1 2.1 0 0 1 3 3L12 12"></path></svg>
+        Erase an unwanted part
+      </button>
+      {% endif %}
       {% else %}
       <div class="flex h-[320px] w-full items-center justify-center rounded-2xl border border-warn-card-line bg-warn-thumb-a text-warn-thumb-text">Not processed yet</div>
       {% endif %}
@@ -43,4 +52,14 @@
     </form>
   </div>
 </div>
+
+{% if job.service_type == "photo" %}
+{% include "admin/partials/_erase_dialog.html" %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if job.service_type == "photo" %}
+<script src="{{ url_for('static', filename='js/photo-erase.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin-photo-erase.js') }}"></script>
+{% endif %}
 {% endblock %}

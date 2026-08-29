@@ -124,6 +124,7 @@
 {% include "admin/partials/_print_confirm_dialog.html" %}
 {% include "admin/partials/_document_review_dialog.html" %}
 {% include "upload/partials/_crop_dialog.html" %}
+{% include "admin/partials/_erase_dialog.html" %}
 {% include "admin/partials/_photo_preview_dialog.html" %}
 {% endblock %}
 {% block scripts %}
@@ -133,6 +134,8 @@
 <script src="{{ url_for('static', filename='js/document-review.js') }}"></script>
 <script src="{{ url_for('static', filename='js/photo-crop.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin-photo-crop.js') }}"></script>
+<script src="{{ url_for('static', filename='js/photo-erase.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin-photo-erase.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin-photo-preview.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin-auto-refresh.js') }}"></script>
 {% endblock %}

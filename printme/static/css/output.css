@@ -232,6 +232,9 @@
   }
 }
 @layer utilities {
+  .pointer-events-none {
+    pointer-events: none;
+  }
   .collapse {
     visibility: collapse;
   }
@@ -460,6 +463,12 @@
   .min-h-\[46px\] {
     min-height: 46px;
   }
+  .min-h-\[48px\] {
+    min-height: 48px;
+  }
+  .min-h-\[50px\] {
+    min-height: 50px;
+  }
   .min-h-\[52px\] {
     min-height: 52px;
   }
@@ -550,6 +559,9 @@
   .w-\[400px\] {
     width: 400px;
   }
+  .w-\[420px\] {
+    width: 420px;
+  }
   .w-\[520px\] {
     width: 520px;
   }
@@ -567,6 +579,9 @@
   }
   .max-w-\[90vw\] {
     max-width: 90vw;
+  }
+  .max-w-\[92vw\] {
+    max-width: 92vw;
   }
   .max-w-\[150px\] {
     max-width: 150px;
@@ -629,6 +644,9 @@
   .transform {
     transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
   }
+  .cursor-crosshair {
+    cursor: crosshair;
+  }
   .cursor-not-allowed {
     cursor: not-allowed;
   }
@@ -640,6 +658,9 @@
   }
   .touch-none {
     touch-action: none;
+  }
+  .resize {
+    resize: both;
   }
   .grid-cols-1 {
     grid-template-columns: repeat(1, minmax(0, 1fr));
