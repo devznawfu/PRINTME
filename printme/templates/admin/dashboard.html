@@ -122,6 +122,7 @@
 </div>
 
 {% include "admin/partials/_print_confirm_dialog.html" %}
+{% include "admin/partials/_document_review_dialog.html" %}
 {% include "upload/partials/_crop_dialog.html" %}
 {% include "admin/partials/_photo_preview_dialog.html" %}
 {% endblock %}
@@ -129,6 +130,7 @@
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin-dashboard.js') }}"></script>
 <script src="{{ url_for('static', filename='js/print-confirm.js') }}"></script>
+<script src="{{ url_for('static', filename='js/document-review.js') }}"></script>
 <script src="{{ url_for('static', filename='js/photo-crop.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin-photo-crop.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin-photo-preview.js') }}"></script>

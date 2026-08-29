@@ -1,0 +1,115 @@
+{# Turn "view details & print" for document jobs: replaces the old bare
+   printer+page-range mini-form on the card. One shared dialog, JS points
+   its controls at whichever job was clicked via the HTML `form=""`
+   attribute trick (same one print-confirm.js already uses for its
+   submit button) - every control here lives outside the actual <form>,
+   which stays a plain hidden element per job card
+   (see _job_card.html), and is bound to it by id at open time.
+
+   Every option group is a row of large tap targets, not a <select> -
+   this is used daily by non-technical staff, and a wrong tap on a
+   dropdown is easier to make (and harder to notice) than a wrong tap
+   on a big labeled button. #}
+<dialog id="document-review-dialog" class="rounded-3xl border border-border bg-panel p-0 text-text backdrop:bg-black/50">
+  <div class="flex max-h-[85vh] w-[600px] flex-col overflow-y-auto">
+    <div class="flex flex-col gap-1 border-b border-header-line px-7 py-6">
+      <span data-review-filename class="truncate text-[19px] font-bold"></span>
+      <span data-review-page-count class="text-[17px] text-muted"></span>
+    </div>
+
+    <div class="flex flex-col gap-6 px-7 py-6">
+      <div class="flex flex-col gap-2.5">
+        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Pages (tap a thumbnail to include or skip it)</span>
+        <div data-review-thumbs class="flex flex-wrap gap-2.5 rounded-2xl border border-line bg-inset p-3"></div>
+        <div class="flex items-center gap-3">
+          <label for="document-review-page-range" class="text-[17px] font-bold">Pages to print</label>
+          <input id="document-review-page-range" type="text" name="page_range" data-review-page-range-input placeholder="e.g. 1-3,5 (blank = all pages)" class="h-[50px] flex-1 rounded-xl border border-line bg-inset px-4 text-[17px]">
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Printer</span>
+        <select name="printer" data-review-printer-select class="h-[54px] w-full rounded-xl border border-line bg-inset px-4 text-[17px]">
+          {% for p in printers %}
+          <option value="{{ p }}">{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Copies</span>
+        <div data-review-copies-stepper class="flex w-fit items-center gap-1.5 rounded-[18px] border border-line bg-panel-soft p-1.5">
+          <button type="button" data-review-copies-dec aria-label="Decrease copies" class="flex h-14 w-14 items-center justify-center rounded-[14px] bg-inset text-2xl leading-none">&minus;</button>
+          <span data-review-copies-display class="min-w-[40px] text-center text-[19px] font-bold">1</span>
+          <input type="hidden" name="copies" data-review-copies-input value="1">
+          <button type="button" data-review-copies-inc aria-label="Increase copies" class="flex h-14 w-14 items-center justify-center rounded-[14px] bg-inset text-2xl leading-none">+</button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Color</span>
+        <div data-choice-group="color_mode" class="grid grid-cols-2 gap-2.5">
+          <button type="button" data-choice-value="color" class="min-h-[54px] rounded-2xl border-2 border-line px-4 text-[17px] font-bold">Color</button>
+          <button type="button" data-choice-value="bw" class="min-h-[54px] rounded-2xl border-2 border-line px-4 text-[17px] font-bold">Black &amp; white</button>
+        </div>
+        <input type="hidden" name="color_mode" data-choice-input="color_mode" value="bw">
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Paper size</span>
+        <div data-choice-group="paper_size" class="grid grid-cols-3 gap-2.5">
+          <button type="button" data-choice-value="Letter" class="flex min-h-[64px] flex-col items-center justify-center rounded-2xl border-2 border-line px-2 text-center">
+            <span class="text-[17px] font-bold">Short</span><span class="text-[13px] text-muted">8.5&Prime; &times; 11&Prime;</span>
+          </button>
+          <button type="button" data-choice-value="Folio" class="flex min-h-[64px] flex-col items-center justify-center rounded-2xl border-2 border-line px-2 text-center">
+            <span class="text-[17px] font-bold">Long</span><span class="text-[13px] text-muted">8.5&Prime; &times; 13&Prime;</span>
+          </button>
+          <button type="button" data-choice-value="A4" class="flex min-h-[64px] flex-col items-center justify-center rounded-2xl border-2 border-line px-2 text-center">
+            <span class="text-[17px] font-bold">A4</span><span class="text-[13px] text-muted">21 &times; 29.7cm</span>
+          </button>
+        </div>
+        <input type="hidden" name="paper_size" data-choice-input="paper_size" value="A4">
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Orientation</span>
+        <div data-choice-group="orientation" class="grid grid-cols-2 gap-2.5">
+          <button type="button" data-choice-value="portrait" class="min-h-[54px] rounded-2xl border-2 border-line px-4 text-[17px] font-bold">Portrait</button>
+          <button type="button" data-choice-value="landscape" class="min-h-[54px] rounded-2xl border-2 border-line px-4 text-[17px] font-bold">Landscape</button>
+        </div>
+        <input type="hidden" name="orientation" data-choice-input="orientation" value="portrait">
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Margins</span>
+        <div data-choice-group="margin" class="grid grid-cols-3 gap-2.5">
+          <button type="button" data-choice-value="narrow" class="min-h-[54px] rounded-2xl border-2 border-line px-2 text-[17px] font-bold">Narrower</button>
+          <button type="button" data-choice-value="normal" class="min-h-[54px] rounded-2xl border-2 border-line px-2 text-[17px] font-bold">Normal</button>
+          <button type="button" data-choice-value="wide" class="min-h-[54px] rounded-2xl border-2 border-line px-2 text-[17px] font-bold">Wider</button>
+        </div>
+        <input type="hidden" name="margin" data-choice-input="margin" value="normal">
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Print quality</span>
+        <div data-choice-group="print_quality" class="grid grid-cols-3 gap-2.5">
+          <button type="button" data-choice-value="draft" class="flex min-h-[54px] flex-col items-center justify-center rounded-2xl border-2 border-line px-2 text-center">
+            <span class="text-[17px] font-bold">Draft</span><span class="text-[13px] text-muted">Faster, lighter</span>
+          </button>
+          <button type="button" data-choice-value="normal" class="min-h-[54px] rounded-2xl border-2 border-line px-2 text-[17px] font-bold">Normal</button>
+          <button type="button" data-choice-value="best" class="flex min-h-[54px] flex-col items-center justify-center rounded-2xl border-2 border-line px-2 text-center">
+            <span class="text-[17px] font-bold">Best</span><span class="text-[13px] text-muted">Slower, sharper</span>
+          </button>
+        </div>
+        <input type="hidden" name="print_quality" data-choice-input="print_quality" value="normal">
+      </div>
+
+      <span class="text-[15px] text-faint">Scaling: fits the page automatically - always the biggest size that stays on the paper.</span>
+    </div>
+
+    <div class="flex gap-3 border-t border-header-line px-7 py-6">
+      <button type="button" data-review-cancel-btn autofocus class="flex min-h-[58px] flex-1 items-center justify-center rounded-2xl bg-btn-bg text-[17px] font-bold text-btn-text transition-colors hover:bg-btn-hover">Not yet</button>
+      <button type="button" data-review-print-btn class="flex min-h-[58px] flex-1 items-center justify-center rounded-2xl border border-line text-[17px] font-bold">Print</button>
+    </div>
+  </div>
+</dialog>

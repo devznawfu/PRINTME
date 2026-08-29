@@ -468,3 +468,90 @@ class TestPrintDocumentHonorsSelectedPrinter:
         )
 
         assert _printer_backend.print_log[before:] == []
+
+
+class TestPrintDocumentNewOptions:
+    """The 'view details & print' dialog's paper size/orientation/margin/
+    quality/copies/color fields - all optional overrides, falling back
+    to the job's stored values (or a sane default) when missing/invalid,
+    and persisted back onto the job either way."""
+
+    def test_paper_size_orientation_margin_quality_reach_the_backend(self, app, client):
+        with app.app_context():
+            job = make_ready_document_job()
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        client.post(
+            f"/admin/jobs/{job_id}/print",
+            data={
+                "printer": "Brother DCP-T430W",
+                "paper_size": "Folio",
+                "orientation": "landscape",
+                "margin": "wide",
+                "print_quality": "best",
+            },
+        )
+
+        entry = _printer_backend.print_log[before:][0]
+        assert entry["paper_size"] == "Folio"
+        assert entry["orientation"] == "landscape"
+        assert entry["margin"] == 0.14
+        assert entry["dpi"] == 600
+
+    def test_copies_override_reaches_the_backend_and_is_persisted(self, app, client):
+        with app.app_context():
+            job = make_ready_document_job(copies=1)
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        client.post(
+            f"/admin/jobs/{job_id}/print",
+            data={"printer": "Brother DCP-T430W", "copies": "4"},
+        )
+
+        assert _printer_backend.print_log[before:][0]["copies"] == 4
+        with app.app_context():
+            assert db.session.get(Job, job_id).copies == 4
+
+    def test_invalid_paper_size_falls_back_to_jobs_stored_value(self, app, client):
+        with app.app_context():
+            job = make_ready_document_job()
+            job.paper_size = "Letter"
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        client.post(
+            f"/admin/jobs/{job_id}/print",
+            data={"printer": "Brother DCP-T430W", "paper_size": "NotARealSize"},
+        )
+
+        assert _printer_backend.print_log[before:][0]["paper_size"] == "Letter"
+
+    def test_missing_new_fields_default_to_a4_portrait_normal_normal(self, app, client):
+        """A job created before these fields existed (all NULL) must
+        still print with sane defaults, not None reaching the backend."""
+        with app.app_context():
+            job = make_ready_document_job()
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        before = len(_printer_backend.print_log)
+        client.post(f"/admin/jobs/{job_id}/print", data={"printer": "Brother DCP-T430W"})
+
+        entry = _printer_backend.print_log[before:][0]
+        assert entry["paper_size"] == "A4"
+        assert entry["orientation"] == "portrait"
+        assert entry["margin"] == 0.06
+        assert entry["dpi"] == 300

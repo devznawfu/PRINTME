@@ -38,6 +38,8 @@ def file_line_for(job):
         return f"{total_qty} {'print' if total_qty == 1 else 'prints'} total"
     qty = job.copies or 1
     copies_text = f"{qty} {'copy' if qty == 1 else 'copies'}"
+    if job.page_count:
+        copies_text = f"{job.page_count} page{'s' if job.page_count != 1 else ''} · {copies_text}"
     if job.original_filename:
         return f"{job.original_filename} · {copies_text}"
     return copies_text

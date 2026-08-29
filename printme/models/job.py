@@ -51,12 +51,22 @@ PAPER_SIZE_LABELS = {
 ORIENTATIONS = ("portrait", "landscape")
 MARGINS = ("normal", "narrow", "wide")
 MARGIN_LABELS = {"normal": "Normal", "narrow": "Narrower", "wide": "Wider"}
+# Fraction of the page each edge is inset by before scale-to-fit (see
+# services/printing/win32_backend.py's _draw_images) - Windows DEVMODE
+# has no generic margin field, so this is pure geometry, not a driver
+# setting.
+MARGIN_INSETS = {"normal": 0.06, "narrow": 0.01, "wide": 0.14}
 PRINT_QUALITIES = ("draft", "normal", "best")
 PRINT_QUALITY_LABELS = {
     "draft": "Draft (faster, lighter)",
     "normal": "Normal",
     "best": "Best (slower, sharper)",
 }
+# Rasterization DPI per quality preset - this pipeline always sends a
+# fixed bitmap to the printer driver, so sharpness is actually
+# controlled by our own DPI, not a driver quality flag. 300 matches the
+# pipeline's long-standing default (services/pdf_render.py).
+PRINT_QUALITY_DPI = {"draft": 150, "normal": 300, "best": 600}
 # Photo printing only. Both are priced (see models/pricing.py's
 # composite {size}-{finish}-{quality} rate keys) - defaulted to
 # "bond"/"standard" wherever unset (e.g. document jobs, or a job

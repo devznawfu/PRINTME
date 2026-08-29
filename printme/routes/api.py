@@ -8,7 +8,17 @@ from pathlib import Path
 from flask import Blueprint, current_app, flash, jsonify, redirect, request, send_file, url_for
 
 from printme.extensions import db
-from printme.models.job import Job, JobStatus
+from printme.models.job import (
+    COLOR_MODES,
+    MARGIN_INSETS,
+    MARGINS,
+    ORIENTATIONS,
+    PAPER_SIZES,
+    PRINT_QUALITIES,
+    PRINT_QUALITY_DPI,
+    Job,
+    JobStatus,
+)
 from printme.routes.admin_auth import admin_required
 from printme.routes.admin_dashboard import file_line_for
 from printme.services import job_state
@@ -152,14 +162,51 @@ def print_document(job_id):
         flash(f"Couldn't print: {exc}")
         return redirect(url_for("admin_dashboard.dashboard"))
 
+    # Everything below is the admin's final tweak at print time (the
+    # "view details & print" dialog) - falls back to whatever the job
+    # already had (or a sane default) if a field is missing/invalid,
+    # same permissive style as the printer fallback above, then persists
+    # the admin's choice back onto the job so a later reprint remembers it.
+    copies = job.copies or 1
+    try:
+        copies = max(1, min(99, int(request.form.get("copies", copies))))
+    except (TypeError, ValueError):
+        pass
+    color_mode = request.form.get("color_mode")
+    if color_mode not in COLOR_MODES:
+        color_mode = job.color_mode or "bw"
+    paper_size = request.form.get("paper_size")
+    if paper_size not in PAPER_SIZES:
+        paper_size = job.paper_size or "A4"
+    orientation = request.form.get("orientation")
+    if orientation not in ORIENTATIONS:
+        orientation = job.orientation or "portrait"
+    margin = request.form.get("margin")
+    if margin not in MARGINS:
+        margin = job.margin or "normal"
+    print_quality = request.form.get("print_quality")
+    if print_quality not in PRINT_QUALITIES:
+        print_quality = job.print_quality or "normal"
+
+    job.copies = copies
+    job.color_mode = color_mode
+    job.paper_size = paper_size
+    job.orientation = orientation
+    job.margin = margin
+    job.print_quality = print_quality
+
     try:
         job_state.mark_printing(db.session, job)
         _printer_backend.print_file(
             job.processed_path,
             printer_name,
-            copies=job.copies or 1,
-            grayscale=job.color_mode == "bw",
+            copies=copies,
+            grayscale=color_mode == "bw",
             page_range=pages if raw_range else None,
+            paper_size=paper_size,
+            orientation=orientation,
+            margin=MARGIN_INSETS[margin],
+            dpi=PRINT_QUALITY_DPI[print_quality],
         )
         job_state.mark_done(db.session, job)
     except Exception as exc:

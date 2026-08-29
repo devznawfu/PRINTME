@@ -1,0 +1,209 @@
+// "View details & print" for document jobs: one shared dialog, opened
+// from any document job card's [data-document-review-trigger] button.
+// Every option control lives inside the dialog but submits through the
+// card's own hidden <form id="print-form-{jobId}"> via the HTML `form=""`
+// attribute (bound dynamically per job at open time, same trick
+// print-confirm.js already uses for its confirm button) - so there is
+// still exactly one real <form> per job card, this dialog just supplies
+// its fields from a different place in the DOM.
+//
+// The live preview (rotate for landscape, desaturate for black & white,
+// inset border for margin, dim pages outside the selected range) is
+// purely client-side CSS on the same thumbnail images real staff will
+// look at before deciding anything - not a claim about exact print
+// output, just enough to make each choice legible at a glance.
+(function () {
+  const dialog = document.getElementById("document-review-dialog");
+  if (!dialog) return;
+
+  const filenameEl = dialog.querySelector("[data-review-filename]");
+  const pageCountEl = dialog.querySelector("[data-review-page-count]");
+  const thumbsEl = dialog.querySelector("[data-review-thumbs]");
+  const pageRangeInput = dialog.querySelector("[data-review-page-range-input]");
+  const printerSelect = dialog.querySelector("[data-review-printer-select]");
+  const copiesDisplay = dialog.querySelector("[data-review-copies-display]");
+  const copiesInput = dialog.querySelector("[data-review-copies-input]");
+  const cancelBtn = dialog.querySelector("[data-review-cancel-btn]");
+  const printBtn = dialog.querySelector("[data-review-print-btn]");
+
+  const boundFields = [pageRangeInput, printerSelect, copiesInput, ...dialog.querySelectorAll("[data-choice-input]")];
+
+  let maxPages = 1;
+  let includedPages = new Set();
+
+  function parsePageRange(spec, max) {
+    const trimmed = (spec || "").trim();
+    if (!trimmed) {
+      const all = [];
+      for (let i = 1; i <= max; i++) all.push(i);
+      return all;
+    }
+    const pages = new Set();
+    for (const rawToken of trimmed.split(",")) {
+      const token = rawToken.trim();
+      if (!token) continue;
+      if (token.includes("-")) {
+        const [startRaw, endRaw] = token.split("-");
+        const start = (startRaw || "").trim();
+        const end = (endRaw || "").trim();
+        if (!/^\d+$/.test(start) || !/^\d+$/.test(end)) return null;
+        const startN = parseInt(start, 10);
+        const endN = parseInt(end, 10);
+        if (startN > endN) return null;
+        for (let i = startN; i <= endN; i++) pages.add(i);
+      } else {
+        if (!/^\d+$/.test(token)) return null;
+        pages.add(parseInt(token, 10));
+      }
+    }
+    if (pages.size === 0) return null;
+    for (const p of pages) {
+      if (p < 1 || p > max) return null;
+    }
+    return Array.from(pages).sort((a, b) => a - b);
+  }
+
+  function describePageRange(pages, max) {
+    if (pages.length === max) return "";
+    const sorted = [...pages].sort((a, b) => a - b);
+    const spans = [];
+    let start = sorted[0];
+    let prev = sorted[0];
+    for (let i = 1; i < sorted.length; i++) {
+      const p = sorted[i];
+      if (p === prev + 1) {
+        prev = p;
+        continue;
+      }
+      spans.push(start === prev ? `${start}` : `${start}-${prev}`);
+      start = prev = p;
+    }
+    spans.push(start === prev ? `${start}` : `${start}-${prev}`);
+    return spans.join(",");
+  }
+
+  function applyThumbLooks() {
+    const orientation = dialog.querySelector('[data-choice-input="orientation"]').value;
+    const colorMode = dialog.querySelector('[data-choice-input="color_mode"]').value;
+    const margin = dialog.querySelector('[data-choice-input="margin"]').value;
+    const marginInset = { normal: "6%", narrow: "1%", wide: "14%" }[margin] || "6%";
+
+    thumbsEl.querySelectorAll("[data-thumb-page]").forEach((wrap) => {
+      const page = parseInt(wrap.dataset.thumbPage, 10);
+      const img = wrap.querySelector("img");
+      wrap.classList.toggle("opacity-30", !includedPages.has(page));
+      img.style.transform = orientation === "landscape" ? "rotate(90deg)" : "none";
+      img.style.filter = colorMode === "bw" ? "grayscale(1)" : "none";
+      img.style.padding = marginInset;
+    });
+  }
+
+  function syncPageRangeInput() {
+    pageRangeInput.value = describePageRange(Array.from(includedPages).sort((a, b) => a - b), maxPages);
+  }
+
+  function buildThumbs(jobId) {
+    thumbsEl.innerHTML = "";
+    for (let p = 1; p <= maxPages; p++) {
+      const wrap = document.createElement("button");
+      wrap.type = "button";
+      wrap.dataset.thumbPage = String(p);
+      wrap.title = `Page ${p} - tap to include or skip`;
+      wrap.className = "flex flex-col items-center gap-1 rounded-xl border border-line bg-panel p-1.5 transition-opacity";
+      const img = document.createElement("img");
+      img.src = `/admin/jobs/${jobId}/preview/${p}.png`;
+      img.alt = `Page ${p}`;
+      img.className = "h-[90px] w-[70px] rounded-md object-cover transition-transform";
+      const label = document.createElement("span");
+      label.className = "text-[13px] font-bold text-muted";
+      label.textContent = String(p);
+      wrap.append(img, label);
+      wrap.addEventListener("click", () => {
+        if (includedPages.has(p)) {
+          if (includedPages.size === 1) return; // never allow zero pages selected
+          includedPages.delete(p);
+        } else {
+          includedPages.add(p);
+        }
+        syncPageRangeInput();
+        applyThumbLooks();
+      });
+      thumbsEl.appendChild(wrap);
+    }
+  }
+
+  function setChoice(group, value) {
+    const input = dialog.querySelector(`[data-choice-input="${group}"]`);
+    input.value = value;
+    dialog.querySelectorAll(`[data-choice-group="${group}"] [data-choice-value]`).forEach((btn) => {
+      const active = btn.dataset.choiceValue === value;
+      btn.classList.toggle("border-btn-bg", active);
+      btn.classList.toggle("bg-inset", active);
+      btn.classList.toggle("border-line", !active);
+    });
+    applyThumbLooks();
+  }
+
+  dialog.querySelectorAll("[data-choice-group]").forEach((group) => {
+    const name = group.dataset.choiceGroup;
+    group.querySelectorAll("[data-choice-value]").forEach((btn) => {
+      btn.addEventListener("click", () => setChoice(name, btn.dataset.choiceValue));
+    });
+  });
+
+  function setCopies(value) {
+    copiesDisplay.textContent = String(value);
+    copiesInput.value = String(value);
+  }
+  dialog.querySelector("[data-review-copies-dec]").addEventListener("click", () => {
+    setCopies(Math.max(1, parseInt(copiesInput.value, 10) - 1));
+  });
+  dialog.querySelector("[data-review-copies-inc]").addEventListener("click", () => {
+    setCopies(Math.min(99, parseInt(copiesInput.value, 10) + 1));
+  });
+
+  pageRangeInput.addEventListener("input", () => {
+    const parsed = parsePageRange(pageRangeInput.value, maxPages);
+    if (parsed === null) return; // leave thumbnails as-is until it's valid again
+    includedPages = new Set(parsed);
+    applyThumbLooks();
+  });
+
+  document.querySelectorAll("[data-document-review-trigger]").forEach((trigger) => {
+    trigger.addEventListener("click", () => {
+      const jobId = trigger.dataset.jobId;
+      const formId = `print-form-${jobId}`;
+
+      maxPages = parseInt(trigger.dataset.pageCount, 10) || 1;
+      includedPages = new Set(Array.from({ length: maxPages }, (_, i) => i + 1));
+
+      filenameEl.textContent = trigger.dataset.filename || "";
+      pageCountEl.textContent = `${maxPages} page${maxPages !== 1 ? "s" : ""}`;
+
+      buildThumbs(jobId);
+      pageRangeInput.value = "";
+      setCopies(parseInt(trigger.dataset.copies, 10) || 1);
+      setChoice("color_mode", trigger.dataset.colorMode || "bw");
+      setChoice("paper_size", trigger.dataset.paperSize || "A4");
+      setChoice("orientation", trigger.dataset.orientation || "portrait");
+      setChoice("margin", trigger.dataset.margin || "normal");
+      setChoice("print_quality", trigger.dataset.printQuality || "normal");
+
+      const printerValue = trigger.dataset.printer;
+      if (printerValue) printerSelect.value = printerValue;
+
+      boundFields.forEach((el) => el.setAttribute("form", formId));
+      printBtn.setAttribute("form", formId);
+
+      dialog.showModal();
+    });
+  });
+
+  if (cancelBtn) cancelBtn.addEventListener("click", () => dialog.close());
+  if (printBtn) {
+    printBtn.addEventListener("click", () => {
+      const form = document.getElementById(printBtn.getAttribute("form"));
+      if (form) form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+  }
+})();
