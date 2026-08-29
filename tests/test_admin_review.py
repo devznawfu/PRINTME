@@ -242,3 +242,120 @@ class TestRecrop:
         )
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/admin/")
+
+
+class TestErase:
+    def _make_ready_job_with_processed_photo(self, app, client, **overrides):
+        """Erase edits an already-processed photo, unlike recrop (which
+        starts fresh from upload_path) - get a real processed_path onto
+        the job by running the real pipeline once via recrop (blank
+        crop = automatic), same as production would."""
+        with app.app_context():
+            seed_defaults(db.session)
+            job = make_photo_job(**overrides)
+            job.photo_items.append(PhotoItemRow(size_name="2x2", quantity=1))
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        client.post(f"/admin/jobs/{job_id}/recrop", data={"crop": ""})
+        return job_id
+
+    def test_valid_strokes_update_the_processed_photo(self, app, client):
+        login(client)
+        job_id = self._make_ready_job_with_processed_photo(app, client)
+        with app.app_context():
+            processed_path = db.session.get(Job, job_id).processed_path
+            before = Path(processed_path).read_bytes()
+
+        resp = client.post(
+            f"/admin/jobs/{job_id}/erase",
+            data={
+                "strokes": '{"strokes": [[{"x": 0.5, "y": 0.5}]], "radius": 0.1}'
+            },
+        )
+
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/admin/")
+        after = Path(processed_path).read_bytes()
+        assert before != after
+
+    def test_blank_strokes_flashes_and_does_not_touch_the_file(self, app, client):
+        login(client)
+        job_id = self._make_ready_job_with_processed_photo(app, client)
+        with app.app_context():
+            processed_path = db.session.get(Job, job_id).processed_path
+            before = Path(processed_path).read_bytes()
+
+        resp = client.post(f"/admin/jobs/{job_id}/erase", data={"strokes": ""})
+
+        assert resp.status_code == 302
+        assert Path(processed_path).read_bytes() == before
+
+    def test_malformed_strokes_does_not_error(self, app, client):
+        login(client)
+        job_id = self._make_ready_job_with_processed_photo(app, client)
+
+        resp = client.post(f"/admin/jobs/{job_id}/erase", data={"strokes": "{not valid json"})
+
+        assert resp.status_code == 302
+
+    def test_document_job_is_rejected(self, app, client):
+        with app.app_context():
+            job = Job(
+                ticket_number="P-002",
+                customer_name="Ben",
+                service_type="document",
+                original_filename="form.pdf",
+                upload_path="/uploads/form.pdf",
+                processed_path="/uploads/form.pdf",
+                status=JobStatus.READY_FOR_REVIEW,
+                color_mode="bw",
+                page_count=1,
+                copies=1,
+                total_cost=5.0,
+            )
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        resp = client.post(f"/admin/jobs/{job_id}/erase", data={"strokes": ""})
+        assert resp.status_code == 404
+
+    def test_job_not_ready_for_review_is_rejected(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            job = make_photo_job(status=JobStatus.DONE)
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        resp = client.post(f"/admin/jobs/{job_id}/erase", data={"strokes": ""})
+        assert resp.status_code == 404
+
+    def test_missing_job_is_rejected(self, client):
+        login(client)
+        resp = client.post("/admin/jobs/999999/erase", data={"strokes": ""})
+        assert resp.status_code == 404
+
+    def test_no_processed_photo_yet_does_not_500(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)
+            job = make_photo_job(processed_path=None)
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+        login(client)
+
+        resp = client.post(
+            f"/admin/jobs/{job_id}/erase",
+            data={"strokes": '{"strokes": [[{"x": 0.5, "y": 0.5}]], "radius": 0.1}'},
+        )
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/admin/")
+
+    def test_requires_admin_login(self, client):
+        resp = client.post("/admin/jobs/1/erase", data={"strokes": ""})
+        assert resp.status_code == 302
+        assert "/admin/login" in resp.headers["Location"]

@@ -17,11 +17,13 @@ from flask import (
     send_file,
     url_for,
 )
+from PIL import Image
 
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
 from printme.routes.admin_auth import admin_required
 from printme.services.manual_crop import parse_crop_fractions
+from printme.services.photo_erase import apply_erase, parse_strokes
 from printme.services.photo_pipeline import process_photo_job
 
 bp = Blueprint("admin_review", __name__, url_prefix="/admin/jobs")
@@ -140,6 +142,46 @@ def recrop(job_id):
         manual_crop_fractions=crop_fractions,
     )
     flash("Photo re-cropped." if crop_fractions else "Reverted to the automatic crop.")
+    return redirect(url_for("admin_dashboard.dashboard"))
+
+
+@bp.route("/<int:job_id>/erase", methods=["POST"])
+@admin_required
+def erase(job_id):
+    """Manual snip: paints over an unwanted region (a leftover
+    background-removal artifact, a stray object the automatic crop
+    caught) directly on the already-processed photo, filled in white to
+    match the rest of the photo's background - not a re-run of the
+    pipeline, since this corrects that output rather than redoing face
+    detection/rembg from scratch.
+
+    Order matters: recrop() rebuilds processed_path from the ORIGINAL
+    upload every time, which would silently undo any erase made
+    before it - erase is meant as the last touch-up before printing,
+    not something safe to do before a later recrop.
+
+    Same status restriction as recrop() and for the same reason: a job
+    already printing/done/failed is past the point where touching its
+    processed photo makes sense."""
+    job = db.session.get(Job, job_id)
+    if job is None or job.service_type != "photo" or job.status != JobStatus.READY_FOR_REVIEW:
+        abort(404)
+
+    if not job.processed_path or not Path(job.processed_path).exists():
+        flash("Can't erase - there's no processed photo to edit yet.")
+        return redirect(url_for("admin_dashboard.dashboard"))
+
+    parsed = parse_strokes(request.form.get("strokes"))
+    if parsed is None:
+        flash("Nothing to erase.")
+        return redirect(url_for("admin_dashboard.dashboard"))
+    strokes, radius = parsed
+
+    with Image.open(job.processed_path) as img:
+        edited = apply_erase(img, strokes, radius)
+    edited.save(job.processed_path, format="PNG")
+
+    flash("Photo updated.")
     return redirect(url_for("admin_dashboard.dashboard"))
 
 
