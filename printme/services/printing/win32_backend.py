@@ -93,12 +93,12 @@ def _borderless_dc(printer_name):
     fall back to the normal CreatePrinterDC path on None - a live shop
     print job failing outright is worse than printing with a normal
     margin, so nothing here is allowed to raise."""
-    import win32con
-    import win32gui
-    import win32print
-    import win32ui
-
     try:
+        import win32con
+        import win32gui
+        import win32print
+        import win32ui
+
         hprinter = win32print.OpenPrinter(printer_name)
         try:
             port = win32print.GetPrinter(hprinter, 2)["pPortName"]
@@ -148,12 +148,12 @@ def _configured_dc(printer_name, paper_size=None, orientation=None):
     if not paper_size and not orientation:
         return None
 
-    import win32con
-    import win32gui
-    import win32print
-    import win32ui
-
     try:
+        import win32con
+        import win32gui
+        import win32print
+        import win32ui
+
         hprinter = win32print.OpenPrinter(printer_name)
         try:
             port = win32print.GetPrinter(hprinter, 2)["pPortName"]
@@ -251,7 +251,16 @@ def _draw_images(
     rectangle by that fraction of the page on each edge before the
     contain-fit scale, so "wider margins" is real whitespace around the
     content rather than a driver setting Windows has no generic field
-    for."""
+    for.
+
+    orientation="landscape" ALSO rotates each page image 90 degrees,
+    not just the DEVMODE flag - setting DEVMODE.Orientation alone tells
+    the driver the physical page is wide, but does nothing to the
+    picture being drawn onto it: without rotating the content too, a
+    normal portrait-shaped page just gets scaled down to fit inside the
+    now-wide printable area, which looks identical to a plain portrait
+    print except smaller. Matches how a real print dialog's Landscape
+    option behaves - it rotates your content, not just the paper."""
     import win32con
     import win32ui
 
@@ -265,7 +274,8 @@ def _draw_images(
 
     hdc.StartDoc("PRINTME print job")
     try:
-        for img in images:
+        for source_img in images:
+            img = source_img.transpose(Image.ROTATE_90) if orientation == "landscape" else source_img
             hdc.StartPage()
             page_w = hdc.GetDeviceCaps(win32con.HORZRES)
             page_h = hdc.GetDeviceCaps(win32con.VERTRES)

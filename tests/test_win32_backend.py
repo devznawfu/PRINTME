@@ -415,6 +415,73 @@ class TestPrintFile:
         fake_win32ui.CreateDC.assert_not_called()
         fake_configured_hdc.StartDoc.assert_called_once()
 
+    def test_landscape_actually_rotates_the_page_content(self, fake_pywin32, tmp_path, monkeypatch):
+        """Setting DEVMODE.Orientation alone (via _configured_dc) tells
+        the driver the paper is wide but does nothing to the image being
+        drawn onto it - without also rotating the content, a portrait
+        page just gets scaled down to fit inside the wider printable
+        area, which looks the same as a plain portrait print, only
+        smaller. This is the exact bug reported live: "it re-orients
+        the paper but the print is the same.\""""
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (100, 50), "white").save(path)  # a wide (landscape-shaped) source
+
+        monkeypatch.setattr(
+            mod, "_configured_dc", lambda printer_name, paper_size=None, orientation=None: None
+        )
+        _, fake_hdc = fake_pywin32
+        import win32con
+
+        # A tall (portrait) page, same as _configured_dc having flipped
+        # HORZRES/VERTRES for a landscape sheet.
+        fake_hdc.GetDeviceCaps.side_effect = lambda cap: 60 if cap is win32con.HORZRES else 200
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W", orientation="landscape")
+
+        drawn_image = mod.ImageWin.Dib.call_args[0][0]
+        # The 100x50 source rotated 90 degrees is 50x100 - taller than
+        # wide, matching a portrait-shaped result. If rotation didn't
+        # happen, this would still be 100x50 (wider than tall).
+        assert drawn_image.width == 50
+        assert drawn_image.height == 100
+
+    def test_portrait_orientation_does_not_rotate(self, fake_pywin32, tmp_path):
+        """Also a regression test for a real bug this uncovered: this
+        deliberately does NOT monkeypatch _configured_dc, so it exercises
+        the real function body - win32gui/win32print aren't mocked in
+        sys.modules here (only win32con/win32ui are, via fake_pywin32),
+        so this only passes if _configured_dc's own imports are inside
+        its try/except. They used to be above it, so a genuinely missing
+        module would have raised straight through print_file() instead
+        of falling back, contradicting its own "nothing here is allowed
+        to raise" docstring - same latent bug _borderless_dc had too."""
+        import printme.services.printing.win32_backend as mod
+        from PIL import Image
+
+        path = tmp_path / "sheet.png"
+        Image.new("RGB", (100, 50), "white").save(path)
+
+        backend = _backend(fake_pywin32)
+        backend.print_file(path, "Brother DCP-T420W", orientation="portrait")
+
+        drawn_image = mod.ImageWin.Dib.call_args[0][0]
+        assert drawn_image.width == 100
+        assert drawn_image.height == 50
+
+    def test_configured_dc_returns_none_when_pywin32_modules_are_unimportable(
+        self, fake_pywin32
+    ):
+        """Direct unit test of the same fix - win32gui/win32print are
+        real (unimportable) modules here, not mocked, so this only
+        passes if the import failure is caught rather than propagated."""
+        import printme.services.printing.win32_backend as mod
+
+        assert mod._configured_dc("Brother DCP-T420W", paper_size="A4") is None
+
     def test_configured_dc_failure_falls_back_to_normal_dc(self, fake_pywin32, tmp_path, monkeypatch):
         """Same fail-soft contract as borderless: a driver that doesn't
         cooperate must still print, at the printer's current default,
