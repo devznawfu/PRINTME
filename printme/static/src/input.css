@@ -254,5 +254,10 @@ dialog {
    covers both without per-button tuning. */
 a { transition: color 150ms ease; }
 a:hover { color: var(--color-muted); }
-button:not(:disabled) { transition: all 150ms ease; }
+/* Preflight never sets a pointer cursor on <button>, and the brightness
+   hover alone is too subtle for daily, non-technical use - a real
+   press effect (scale down on :active) gives the same immediate,
+   physical "yes, that registered" feedback a real button gives. */
+button:not(:disabled) { transition: all 150ms ease; cursor: pointer; }
 button:not(:disabled):hover { filter: brightness(1.08); }
+button:not(:disabled):active { transform: scale(0.97); }

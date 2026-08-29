@@ -1570,9 +1570,13 @@ a:hover {
 }
 button:not(:disabled) {
   transition: all 150ms ease;
+  cursor: pointer;
 }
 button:not(:disabled):hover {
   filter: brightness(1.08);
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
 }
 @property --tw-translate-x {
   syntax: "*";

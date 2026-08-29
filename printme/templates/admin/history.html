@@ -57,7 +57,7 @@
       </div>
       <div class="flex flex-wrap items-center gap-3">
         <form method="post" action="{{ url_for('admin_history.restore', job_id=job.id) }}">
-          <button type="submit" {{ "disabled" if not row.file_available }} class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[16px] font-bold disabled:cursor-not-allowed disabled:opacity-40">Restore</button>
+          <button type="submit" {{ "disabled" if not row.file_available }} class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[16px] font-bold transition-colors hover:bg-inset disabled:cursor-not-allowed disabled:opacity-40">Restore</button>
         </form>
         <form method="post" action="{{ url_for('admin_history.reprint', job_id=job.id) }}" class="flex flex-wrap items-center gap-2">
           <select name="reprint_reason" aria-label="Reprint reason" {{ "disabled" if not row.file_available }} class="h-[54px] rounded-xl border border-line bg-inset px-4 text-[15px] disabled:cursor-not-allowed disabled:opacity-40">

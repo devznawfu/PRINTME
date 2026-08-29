@@ -20,6 +20,7 @@ import shutil
 from pathlib import Path
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from markupsafe import Markup, escape
 
 from printme.models.job import (
     REPRINT_REASON_LABELS,
@@ -114,8 +115,19 @@ def restore(job_id):
     db.session.commit()
     price_job(db.session, new_job)
 
+    # The original job correctly stays right here in History, untouched -
+    # this is a real historical record, not something Restore/Reprint
+    # should ever remove. A real link to where the new job actually
+    # landed (rather than just naming it in text) is what makes that
+    # distinction legible: nothing here vanished, something new showed
+    # up on the dashboard.
+    dashboard_url = url_for("admin_dashboard.dashboard")
     flash(
-        f"Restored {old.display_ticket} as {new_job.display_ticket} - now in the print queue.",
+        Markup(
+            f"Restored {escape(old.display_ticket)} as "
+            f'<a href="{dashboard_url}" class="underline">{escape(new_job.display_ticket)}</a>'
+            " - now in the print queue."
+        ),
         "success",
     )
     return redirect(url_for("admin_history.history"))
@@ -197,8 +209,12 @@ def reprint(job_id):
         new_job.total_cost = 0.0
         db.session.commit()
 
+    dashboard_url = url_for("admin_dashboard.dashboard")
     flash(
-        f"Reprint {new_job.display_ticket} created ({REPRINT_REASON_LABELS[reason]}).",
+        Markup(
+            f'Reprint <a href="{dashboard_url}" class="underline">{escape(new_job.display_ticket)}</a>'
+            f" created ({escape(REPRINT_REASON_LABELS[reason])}) - now in the print queue."
+        ),
         "success",
     )
     return redirect(url_for("admin_history.history"))
