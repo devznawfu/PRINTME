@@ -44,6 +44,32 @@
     return parts.length > 1 ? parts.pop().toLowerCase() : "";
   }
 
+  function isPdfFile(file) {
+    return extensionOf(file.name) === "pdf";
+  }
+
+  // A loaded pdf.js document per file id, so opening the swipe viewer
+  // (or re-rendering a thumbnail after nothing else changed) doesn't
+  // re-parse the same PDF - also the source of the real page count
+  // used in the review step, which used to be a "we'll count it later"
+  // placeholder.
+  const pdfDocCache = new Map();
+  function loadPdfDoc(entry) {
+    if (pdfDocCache.has(entry.id)) return pdfDocCache.get(entry.id);
+    const promise = window.PrintmePdfPreview
+      ? window.PrintmePdfPreview.loadDocument(entry.file)
+      : Promise.reject(new Error("pdf-preview.js not loaded"));
+    pdfDocCache.set(entry.id, promise);
+    promise.catch(() => pdfDocCache.delete(entry.id)); // let a failed load be retried
+    return promise;
+  }
+
+  function renderPdfThumb(entry, canvas, maxDim) {
+    return loadPdfDoc(entry)
+      .then((pdfDoc) => window.PrintmePdfPreview.renderPageToCanvas(pdfDoc, 1, canvas, maxDim))
+      .catch((err) => console.error("PDF thumbnail failed:", err));
+  }
+
   const state = {
     service: serviceInput.value || "photo",
     // "photo" is the internal default so sizePicker/pricing/etc already
@@ -135,6 +161,7 @@
       state.service === "photo" &&
       window.PrintmePhotoCrop &&
       window.PrintmePhotoCrop.isImageFile(entry.file);
+    const isPdf = isPdfFile(entry.file);
 
     const row = document.createElement("div");
     row.className =
@@ -162,6 +189,11 @@
           '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>';
         thumbWrap.appendChild(tick);
       }
+    } else if (isPdf) {
+      const canvas = document.createElement("canvas");
+      canvas.className = "h-full w-full object-cover";
+      thumbWrap.appendChild(canvas);
+      renderPdfThumb(entry, canvas, 104);
     } else {
       thumbWrap.className += " flex items-center justify-center text-muted";
       thumbWrap.innerHTML =
@@ -179,6 +211,16 @@
       note.className = "text-[13px] font-bold text-ok-dot";
       note.textContent = "Crop saved";
       meta.appendChild(note);
+    } else if (isPdf) {
+      const pageNote = document.createElement("span");
+      pageNote.className = "text-[13px] text-muted";
+      pageNote.textContent = "PDF";
+      meta.appendChild(pageNote);
+      loadPdfDoc(entry)
+        .then((pdfDoc) => {
+          pageNote.textContent = `${pdfDoc.numPages} page${pdfDoc.numPages !== 1 ? "s" : ""}`;
+        })
+        .catch(() => {});
     } else if (!canCrop) {
       const ext = document.createElement("span");
       ext.className = "text-[13px] text-muted";
@@ -187,6 +229,22 @@
     }
 
     row.append(thumbWrap, meta);
+
+    if (isPdf && window.PrintmePdfViewer) {
+      const viewBtn = document.createElement("button");
+      viewBtn.type = "button";
+      viewBtn.className =
+        "flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-panel px-3.5 text-[17px] font-bold";
+      viewBtn.innerHTML =
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>' +
+        "View";
+      viewBtn.addEventListener("click", () => {
+        loadPdfDoc(entry).then((pdfDoc) => {
+          window.PrintmePdfViewer.openPdfViewer({ pdfDoc, filename: entry.file.name });
+        });
+      });
+      row.append(viewBtn);
+    }
 
     if (canCrop) {
       const cropBtn = document.createElement("button");
@@ -455,13 +513,18 @@
   }
 
   function buildReviewThumb(entry) {
-    const wrap = document.createElement("div");
-    wrap.className =
-      "h-[82px] w-[82px] flex-none overflow-hidden rounded-[14px] bg-thumb-a";
     const canCrop =
       state.service === "photo" &&
       window.PrintmePhotoCrop &&
       window.PrintmePhotoCrop.isImageFile(entry.file);
+    const isPdf = isPdfFile(entry.file);
+    const tag = isPdf && window.PrintmePdfViewer ? "button" : "div";
+    const wrap = document.createElement(tag);
+    if (tag === "button") wrap.type = "button";
+    wrap.className =
+      "h-[82px] w-[82px] flex-none overflow-hidden rounded-[14px] bg-thumb-a" +
+      (tag === "button" ? " cursor-pointer" : "");
+
     if (canCrop) {
       const img = document.createElement("img");
       img.alt = "";
@@ -470,6 +533,19 @@
       renderThumb(entry).then((src) => {
         if (src) img.src = src;
       });
+    } else if (isPdf) {
+      const canvas = document.createElement("canvas");
+      canvas.className = "h-full w-full object-cover";
+      wrap.appendChild(canvas);
+      renderPdfThumb(entry, canvas, 164);
+      if (window.PrintmePdfViewer) {
+        wrap.title = "Tap to see every page";
+        wrap.addEventListener("click", () => {
+          loadPdfDoc(entry).then((pdfDoc) => {
+            window.PrintmePdfViewer.openPdfViewer({ pdfDoc, filename: entry.file.name });
+          });
+        });
+      }
     } else {
       wrap.className += " flex items-center justify-center text-muted";
       wrap.innerHTML =
@@ -517,6 +593,19 @@
       } else if (state.service === "photo") {
         cropNote.className = "text-[17px] text-text-soft";
         cropNote.textContent = "We centred the face for you";
+      } else if (isPdfFile(entry.file)) {
+        // Was "we'll count the pages when your file opens" - pdf.js has
+        // already parsed the document for the thumbnail above, so the
+        // real count is just sitting there instead of a placeholder.
+        cropNote.className = "text-[17px] text-text-soft";
+        cropNote.textContent = "Counting pages…";
+        loadPdfDoc(entry)
+          .then((pdfDoc) => {
+            cropNote.textContent = `${pdfDoc.numPages} page${pdfDoc.numPages !== 1 ? "s" : ""}`;
+          })
+          .catch(() => {
+            cropNote.textContent = "";
+          });
       }
       meta.appendChild(cropNote);
       card.appendChild(meta);

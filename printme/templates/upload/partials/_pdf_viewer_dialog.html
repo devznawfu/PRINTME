@@ -1,0 +1,22 @@
+{# Full-page swipeable PDF viewer, opened from a file row's "View"
+   button (upload-form.js) or the review step's thumbnail (turn 5's
+   "swipe left to right to see the pages clearly"). Shares pdf.js
+   rendering (pdf-preview.js) with the small file-row/review
+   thumbnails - this just points it at a bigger canvas and adds
+   prev/next + touch-swipe page navigation. #}
+<dialog id="pdf-viewer-dialog" class="rounded-3xl border border-line bg-panel p-0 text-text backdrop:bg-black/75">
+  <div class="flex h-[82vh] w-[92vw] max-w-[480px] flex-col">
+    <div class="flex items-center justify-between gap-3 border-b border-header-line px-5 py-4">
+      <span data-pdf-viewer-filename class="truncate text-[17px] font-bold"></span>
+      <button type="button" data-pdf-viewer-close-btn class="flex h-11 w-11 flex-none cursor-pointer items-center justify-center rounded-xl border border-line text-lg font-bold">&times;</button>
+    </div>
+    <div data-pdf-viewer-stage class="relative flex flex-1 items-center justify-center overflow-hidden bg-inset">
+      <canvas data-pdf-viewer-canvas class="max-h-full max-w-full"></canvas>
+      <button type="button" data-pdf-viewer-prev aria-label="Previous page" class="absolute left-2.5 top-1/2 flex h-14 w-14 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-bg/85 text-2xl font-bold disabled:opacity-30">&lsaquo;</button>
+      <button type="button" data-pdf-viewer-next aria-label="Next page" class="absolute right-2.5 top-1/2 flex h-14 w-14 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-bg/85 text-2xl font-bold disabled:opacity-30">&rsaquo;</button>
+    </div>
+    <div class="flex items-center justify-center border-t border-header-line px-5 py-4">
+      <span data-pdf-viewer-page-label class="text-[15px] font-bold text-muted"></span>
+    </div>
+  </div>
+</dialog>

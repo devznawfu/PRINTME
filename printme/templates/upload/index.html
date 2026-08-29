@@ -213,11 +213,14 @@
   </form>
 </div>
 {% include "upload/partials/_crop_dialog.html" %}
+{% include "upload/partials/_pdf_viewer_dialog.html" %}
 {% endblock %}
 {% block scripts %}
 <script type="application/json" id="pm-rates">{{ rates | tojson }}</script>
 <script src="{{ url_for('static', filename='js/stepper.js') }}"></script>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/photo-crop.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pdf-preview.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pdf-viewer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/upload-form.js') }}"></script>
 {% endblock %}
