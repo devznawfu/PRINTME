@@ -1,21 +1,40 @@
 {% extends "base.html" %}
 {% import "partials/_icons.html" as icons %}
-{% block title %}PRINTME! &mdash; Upload QR Code{% endblock %}
+{% block title %}PRINTME! &mdash; Counter Sign{% endblock %}
 {% block theme_script %}{% include "admin/partials/_theme_script.html" %}{% endblock %}
 {% block body %}
-<div class="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg px-8 py-16 text-center print:min-h-0 print:gap-6 print:py-10">
+<div class="flex min-h-screen flex-col items-center gap-10 bg-bg px-8 py-14 text-center print:min-h-0 print:gap-8 print:py-6">
   <div class="print:hidden">
     <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to dashboard</a>
   </div>
 
   <div class="flex items-center gap-3.5">
-    {{ icons.logo_mark(40) }}
-    <span class="text-[34px] font-bold tracking-tight">PRINTME!</span>
+    {{ icons.logo_mark(44) }}
+    <span class="text-[38px] font-bold tracking-tight">PRINTME!</span>
   </div>
 
-  <div class="flex flex-col items-center gap-3">
-    <span class="text-[22px] font-bold uppercase tracking-[0.14em] text-muted">Scan to start your order</span>
-    <img src="{{ url_for('admin_dashboard.qr_code') }}" alt="QR code linking to the upload portal" width="360" height="360" class="rounded-2xl border border-line">
+  <div class="grid w-full max-w-[820px] grid-cols-1 gap-8 sm:grid-cols-2">
+    {% if wifi_ssid %}
+    <div class="flex flex-col items-center gap-4 rounded-[26px] border border-line p-8">
+      <div class="flex items-center gap-2.5 text-muted">
+        <span class="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-btn-bg text-[17px] font-bold text-btn-text">1</span>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14 0"></path><path d="M8.5 16.35a6 6 0 0 1 7 0"></path><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"></circle></svg>
+      </div>
+      <h2 class="text-[19px] font-bold uppercase tracking-[0.1em]">Connect to our WiFi</h2>
+      <img src="{{ url_for('admin_dashboard.qr_code_wifi') }}" alt="QR code to join the {{ wifi_ssid }} WiFi network" width="280" height="280" class="rounded-2xl border border-line">
+      <span class="text-[16.5px] text-muted">Scan with your camera app, or join "<span class="font-bold">{{ wifi_ssid }}</span>" manually.</span>
+    </div>
+    {% endif %}
+
+    <div class="flex flex-col items-center gap-4 rounded-[26px] border border-line p-8">
+      <div class="flex items-center gap-2.5 text-muted">
+        <span class="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-btn-bg text-[17px] font-bold text-btn-text">{{ "2" if wifi_ssid else "1" }}</span>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><path d="M14 14h3v3h-3zM19 14h2v2M14 19h2v2M19 19h2v2"></path></svg>
+      </div>
+      <h2 class="text-[19px] font-bold uppercase tracking-[0.1em]">Scan to start your order</h2>
+      <img src="{{ url_for('admin_dashboard.qr_code') }}" alt="QR code linking to the upload portal" width="280" height="280" class="rounded-2xl border border-line">
+      <span class="text-[16.5px] text-muted">Opens the upload page right on your phone.</span>
+    </div>
   </div>
 
   <button type="button" onclick="window.print()" class="print:hidden flex min-h-[64px] items-center rounded-2xl bg-btn-bg px-10 text-lg font-bold text-btn-text transition-colors hover:bg-btn-hover">Print this sign</button>

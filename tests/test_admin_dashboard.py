@@ -255,6 +255,55 @@ class TestQrSignRoute:
         assert "admin/qr-code.png" in body
         assert "Print this sign" in body
 
+    def test_omits_wifi_step_when_no_wifi_ssid_configured(self, app, client):
+        app.config["CUSTOMER_WIFI_SSID"] = ""
+        login(client)
+
+        resp = client.get("/admin/qr/sign")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert "Connect to our WiFi" not in body
+        assert "admin/qr-code-wifi.png" not in body
+
+    def test_shows_wifi_step_when_wifi_ssid_configured(self, app, client):
+        app.config["CUSTOMER_WIFI_SSID"] = "PRINTME!"
+        login(client)
+
+        resp = client.get("/admin/qr/sign")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert "Connect to our WiFi" in body
+        assert "admin/qr-code-wifi.png" in body
+        assert "PRINTME!" in body
+
+
+class TestQrCodeWifiRoute:
+    def test_requires_admin_login(self, client):
+        resp = client.get("/admin/qr-code-wifi.png")
+        assert resp.status_code == 302
+        assert "/admin/login" in resp.headers["Location"]
+
+    def test_404s_when_no_wifi_ssid_configured(self, app, client):
+        app.config["CUSTOMER_WIFI_SSID"] = ""
+        login(client)
+
+        resp = client.get("/admin/qr-code-wifi.png")
+
+        assert resp.status_code == 404
+
+    def test_returns_a_real_qr_png_when_configured(self, app, client):
+        app.config["CUSTOMER_WIFI_SSID"] = "PRINTME!"
+        app.config["CUSTOMER_WIFI_PASSWORD"] = "hunter22"
+        login(client)
+
+        resp = client.get("/admin/qr-code-wifi.png")
+
+        assert resp.status_code == 200
+        assert resp.mimetype == "image/png"
+        assert resp.data.startswith(b"\x89PNG\r\n\x1a\n")
+
 
 class TestNewCodeReassurance:
     def test_dashboard_reassures_staff_a_new_code_wont_cancel_jobs(self, client):

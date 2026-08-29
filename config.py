@@ -63,6 +63,13 @@ class Config:
     PROCESSED_DIR = PROCESSED_DIR
     ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "print")
+    # The dedicated customer-facing router's WiFi credentials (e.g. the
+    # TL-WR840N) - not something this app configures, just something it
+    # prints as a scannable QR code alongside the upload-portal one.
+    # Blank by default: the printable sign falls back to text-only
+    # instructions when unset, rather than encoding an empty network.
+    CUSTOMER_WIFI_SSID = os.environ.get("CUSTOMER_WIFI_SSID", "")
+    CUSTOMER_WIFI_PASSWORD = os.environ.get("CUSTOMER_WIFI_PASSWORD", "")
     UPLOAD_RETENTION_DAYS = 2
     SCHEDULER_ENABLED = True
 

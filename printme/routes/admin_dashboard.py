@@ -6,13 +6,13 @@ each with its specific reason) - design-reference/admin-dashboard.html.
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Blueprint, Response, jsonify, render_template, request, session
+from flask import Blueprint, Response, abort, current_app, jsonify, render_template, request, session
 
 from printme.extensions import db
 from printme.models.job import Job, JobStatus
 from printme.routes.admin_auth import admin_required
 from printme.services.printing.printer_registry import available_printers
-from printme.services.qr import generate_upload_qr_png
+from printme.services.qr import generate_upload_qr_png, generate_wifi_qr_png
 from printme.services.retention import free_space_bytes
 from printme.services.secret_code import get_current
 
@@ -170,12 +170,32 @@ def qr_code():
     return Response(png_bytes, mimetype="image/png")
 
 
+@bp.route("/qr-code-wifi.png", methods=["GET"])
+@admin_required
+def qr_code_wifi():
+    """QR code that joins a phone straight to the customer WiFi network
+    - CUSTOMER_WIFI_SSID/PASSWORD (config.py), set from the dedicated
+    router's own settings. 404s when unset rather than encoding an
+    empty network, matching qr_sign()'s text-only fallback for the
+    same case."""
+    ssid = current_app.config["CUSTOMER_WIFI_SSID"]
+    password = current_app.config["CUSTOMER_WIFI_PASSWORD"]
+    if not ssid:
+        abort(404)
+    png_bytes = generate_wifi_qr_png(ssid, password)
+    return Response(png_bytes, mimetype="image/png")
+
+
 @bp.route("/qr/sign", methods=["GET"])
 @admin_required
 def qr_sign():
-    """Print-friendly, chrome-free page: just the upload QR code, big,
-    for staff to print and post at the counter - same pattern as
-    code_sign(). Must be opened from the customer-facing address (the
-    same LAN the router hands to phones) since qr_code() encodes
-    whatever request.host_url this page was reached through."""
-    return render_template("admin/qr_sign.html")
+    """Print-friendly, chrome-free A4 sheet: WiFi QR code (step 1) plus
+    the upload-portal QR code (step 2), for staff to print and post at
+    the counter - same pattern as code_sign(). Must be opened from the
+    customer-facing address (the same LAN the router hands to phones)
+    since qr_code() encodes whatever request.host_url this page was
+    reached through."""
+    return render_template(
+        "admin/qr_sign.html",
+        wifi_ssid=current_app.config["CUSTOMER_WIFI_SSID"],
+    )
