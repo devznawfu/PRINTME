@@ -11,6 +11,27 @@
     <a href="{{ url_for('admin_dashboard.dashboard') }}" class="flex min-h-[54px] items-center rounded-2xl border border-line px-6 text-[17px] font-bold">Back to queue</a>
   </div>
 
+  <div class="flex flex-col gap-4 rounded-3xl border border-border bg-panel p-6">
+    <div class="flex flex-col gap-1">
+      <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-muted">Available to customers</h2>
+      <span class="text-[15px] text-faint">Turned off = hidden from the upload page entirely, right away - not a price change.</span>
+    </div>
+    <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
+      <span class="text-[17px] font-bold">Photo Printing</span>
+      <form method="post" action="{{ url_for('admin_pricing.toggle_availability') }}">
+        <input type="hidden" name="key" value="service:photo">
+        <button type="submit" class="flex min-h-[46px] items-center rounded-xl border px-5 text-[15px] font-bold {{ 'border-ok-line bg-ok-bg text-ok-dot' if photo_service_enabled else 'border-line text-muted' }}">{{ "Available" if photo_service_enabled else "Unavailable" }}</button>
+      </form>
+    </div>
+    <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
+      <span class="text-[17px] font-bold">Document Printing</span>
+      <form method="post" action="{{ url_for('admin_pricing.toggle_availability') }}">
+        <input type="hidden" name="key" value="service:document">
+        <button type="submit" class="flex min-h-[46px] items-center rounded-xl border px-5 text-[15px] font-bold {{ 'border-ok-line bg-ok-bg text-ok-dot' if document_service_enabled else 'border-line text-muted' }}">{{ "Available" if document_service_enabled else "Unavailable" }}</button>
+      </form>
+    </div>
+  </div>
+
   <form method="post" action="{{ url_for('admin_pricing.update_pricing') }}" class="flex flex-col gap-8 rounded-3xl border border-border bg-panel p-6">
     <div class="flex flex-col gap-4">
       <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-muted">Documents</h2>
@@ -29,7 +50,13 @@
       <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-muted">Photos</h2>
       {% for group in photo_groups %}
       <div class="flex flex-col gap-3 rounded-2xl border border-header-line bg-inset p-4">
-        <span class="text-[17px] font-bold">{{ group.size }}</span>
+        <div class="flex items-center justify-between gap-4">
+          <span class="text-[17px] font-bold">{{ group.size }}</span>
+          <form method="post" action="{{ url_for('admin_pricing.toggle_availability') }}">
+            <input type="hidden" name="key" value="{{ group.key }}">
+            <button type="submit" class="flex min-h-[40px] items-center rounded-lg border px-4 text-[13px] font-bold {{ 'border-ok-line bg-ok-bg text-ok-dot' if group.enabled else 'border-line text-muted' }}">{{ "Available" if group.enabled else "Unavailable" }}</button>
+          </form>
+        </div>
         <div class="flex flex-col gap-2">
           {% for finish in finishes %}
           {% for quality in qualities %}

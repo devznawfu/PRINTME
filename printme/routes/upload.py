@@ -19,6 +19,7 @@ from config import (
     PRIMARY_PHOTO_SIZES,
 )
 from printme.extensions import db
+from printme.models.availability import availability_map, size_key
 from printme.models.job import (
     COLOR_MODES,
     PAPER_FINISHES,
@@ -48,6 +49,15 @@ def _clamp_qty(raw, default=1, minimum=1, maximum=99):
     return max(minimum, min(maximum, n))
 
 
+def _enabled_sizes(availability):
+    """PHOTO_SIZES filtered down to whatever's currently enabled - a
+    size missing from `availability` (shouldn't happen once seeded, but
+    a customer request always outlives an admin's future schema
+    changes) defaults to enabled, same permissive-default posture as
+    every other "field missing" case in this route."""
+    return [s for s in PHOTO_SIZES if availability.get(size_key(s), True)]
+
+
 def _process(job, manual_crop_fractions=None):
     """Dispatch a freshly-created job to its pipeline. Errors are
     swallowed here - the pipelines already mark the job failed+flagged
@@ -70,12 +80,16 @@ def _process(job, manual_crop_fractions=None):
 
 @bp.route("/", methods=["GET"])
 def form():
+    availability = availability_map(db.session)
+    enabled_sizes = set(_enabled_sizes(availability))
     return render_template(
         "upload/index.html",
         photo_sizes=PHOTO_SIZES,
-        primary_photo_sizes=PRIMARY_PHOTO_SIZES,
-        more_photo_sizes=MORE_PHOTO_SIZES,
+        primary_photo_sizes=[s for s in PRIMARY_PHOTO_SIZES if s in enabled_sizes],
+        more_photo_sizes=[s for s in MORE_PHOTO_SIZES if s in enabled_sizes],
         rates=rate_map(db.session),
+        photo_service_enabled=availability.get("service:photo", True),
+        document_service_enabled=availability.get("service:document", True),
     )
 
 
@@ -84,8 +98,16 @@ def submit():
     name = (request.form.get("name") or "").strip()
     code = (request.form.get("code") or "").strip()
     service = request.form.get("service") if request.form.get("service") in ("photo", "document") else "photo"
+    availability = availability_map(db.session)
+    enabled_sizes = set(_enabled_sizes(availability))
+    # Never trust that a disabled size/service wasn't selected by a stale
+    # page still open in someone's browser (or a crafted request) - same
+    # server-side-is-the-real-authority posture as page_range's
+    # revalidation in api.py. A disabled size just can't contribute a
+    # quantity, silently, same as any other "ignore this field" case in
+    # this route; a disabled service becomes a real, visible error below.
     qty_by_size = {
-        s: _clamp_qty(request.form.get(f"qty_{s}"), default=0, minimum=0)
+        s: (_clamp_qty(request.form.get(f"qty_{s}"), default=0, minimum=0) if s in enabled_sizes else 0)
         for s in PHOTO_SIZES
     }
     qty = _clamp_qty(request.form.get("qty"))
@@ -106,6 +128,8 @@ def submit():
     allowed_extensions = PHOTO_ALLOWED_EXTENSIONS if service == "photo" else ALLOWED_UPLOAD_EXTENSIONS
 
     errors = []
+    if not availability.get(f"service:{service}", True):
+        errors.append("Sorry, that isn't available right now - ask staff.")
     if not name:
         errors.append("Please enter your name.")
     if is_locked_out(session):
@@ -145,8 +169,8 @@ def submit():
         return render_template(
             "upload/index.html",
             photo_sizes=PHOTO_SIZES,
-            primary_photo_sizes=PRIMARY_PHOTO_SIZES,
-            more_photo_sizes=MORE_PHOTO_SIZES,
+            primary_photo_sizes=[s for s in PRIMARY_PHOTO_SIZES if s in enabled_sizes],
+            more_photo_sizes=[s for s in MORE_PHOTO_SIZES if s in enabled_sizes],
             errors=errors,
             name=name,
             service=service,
@@ -156,6 +180,8 @@ def submit():
             paper_finish=paper_finish,
             quality=quality,
             rates=rate_map(db.session),
+            photo_service_enabled=availability.get("service:photo", True),
+            document_service_enabled=availability.get("service:document", True),
         ), status
 
     if errors:

@@ -1,5 +1,14 @@
 from printme.extensions import db
-from printme.models import Job, JobStatus, PhotoItemRow, PricingRate, seed_defaults
+from printme.models import (
+    Availability,
+    Job,
+    JobStatus,
+    PhotoItemRow,
+    PricingRate,
+    seed_availability_defaults,
+    seed_defaults,
+)
+from printme.models.availability import availability_map, size_key
 from printme.models.pricing import INTERNAL_COST_KEYS, rate_map
 
 
@@ -77,3 +86,82 @@ class TestUpdatePricing:
 
             fetched = db.session.get(Job, job_id)
             assert fetched.total_cost == 50.0 * 2
+
+
+class TestAvailabilityToggle:
+    def test_defaults_to_everything_enabled(self, app, client):
+        with app.app_context():
+            seed_defaults(db.session)  # PricingRate rows - photo_groups needs these to render at all
+            seed_availability_defaults(db.session)
+        login(client)
+
+        resp = client.get("/admin/pricing/")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert body.count(">Available<") >= 10  # 2 services + 8 photo sizes
+
+    def test_toggle_flips_a_photo_size(self, app, client):
+        with app.app_context():
+            seed_availability_defaults(db.session)
+        login(client)
+
+        resp = client.post("/admin/pricing/availability", data={"key": size_key("4x6")})
+        assert resp.status_code == 302
+
+        with app.app_context():
+            assert availability_map(db.session)[size_key("4x6")] is False
+
+        # toggling again flips it back
+        client.post("/admin/pricing/availability", data={"key": size_key("4x6")})
+        with app.app_context():
+            assert availability_map(db.session)[size_key("4x6")] is True
+
+    def test_toggle_flips_a_whole_service(self, app, client):
+        with app.app_context():
+            seed_availability_defaults(db.session)
+        login(client)
+
+        client.post("/admin/pricing/availability", data={"key": "service:document"})
+
+        with app.app_context():
+            assert availability_map(db.session)["service:document"] is False
+
+    def test_unknown_key_is_ignored_without_error(self, app, client):
+        with app.app_context():
+            seed_availability_defaults(db.session)
+        login(client)
+
+        resp = client.post("/admin/pricing/availability", data={"key": "size:not-a-real-size"})
+
+        assert resp.status_code == 302
+
+    def test_requires_admin_login(self, client):
+        resp = client.post("/admin/pricing/availability", data={"key": "service:photo"})
+        assert resp.status_code == 302
+        assert "/admin/login" in resp.headers["Location"]
+
+    def test_disabled_size_is_hidden_from_the_customer_upload_page(self, app, client):
+        with app.app_context():
+            seed_availability_defaults(db.session)
+            row = db.session.get(Availability, size_key("4x6"))
+            row.enabled = False
+            db.session.commit()
+
+        resp = client.get("/")
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert "data-stepper-input name=\"qty_4x6\"" not in body
+
+    def test_disabled_service_card_is_marked_unavailable_on_the_upload_page(self, app, client):
+        with app.app_context():
+            seed_availability_defaults(db.session)
+            row = db.session.get(Availability, "service:document")
+            row.enabled = False
+            db.session.commit()
+
+        resp = client.get("/")
+
+        assert resp.status_code == 200
+        assert b"Not available right now" in resp.data
