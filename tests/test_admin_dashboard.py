@@ -277,6 +277,8 @@ class TestQrSignRoute:
         assert "Connect to our WiFi" in body
         assert "admin/qr-code-wifi.png" in body
         assert "PRINTME!" in body
+        assert "your phone's own Camera app" in body
+        assert "Google Lens" in body
 
 
 class TestQrCodeWifiRoute:

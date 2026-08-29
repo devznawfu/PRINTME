@@ -29,8 +29,8 @@ class TestGenerateWifiQrPng:
 
     def test_decodes_to_a_scannable_wifi_payload(self):
         png_bytes = generate_wifi_qr_png("PRINTME!", "hunter22")
-        assert _decode(png_bytes) == "WIFI:T:WPA;S:PRINTME!;P:hunter22;;"
+        assert _decode(png_bytes) == "WIFI:T:WPA;S:PRINTME!;P:hunter22;H:false;;"
 
     def test_escapes_special_characters_in_ssid_and_password(self):
         png_bytes = generate_wifi_qr_png('shop;wifi,"main"', 'ab\\c;d,e"f')
-        assert _decode(png_bytes) == 'WIFI:T:WPA;S:shop\\;wifi\\,\\"main\\";P:ab\\\\c\\;d\\,e\\"f;;'
+        assert _decode(png_bytes) == 'WIFI:T:WPA;S:shop\\;wifi\\,\\"main\\";P:ab\\\\c\\;d\\,e\\"f;H:false;;'
