@@ -64,10 +64,42 @@
     return promise;
   }
 
+  // Mobile browsers - especially budget/older Android WebViews with a
+  // tight per-tab memory ceiling - can crash the whole upload page when
+  // a batch of many files each triggers a full-resolution decode or PDF
+  // page render at once. Capping how many run concurrently keeps peak
+  // memory bounded no matter how large the batch is, instead of scaling
+  // with it (a real order here is routinely 10-20+ files at once).
+  const MAX_CONCURRENT_THUMB_RENDERS = 2;
+  let activeThumbRenders = 0;
+  const thumbRenderQueue = [];
+
+  function runThumbTask(task) {
+    return new Promise((resolve, reject) => {
+      thumbRenderQueue.push({ task, resolve, reject });
+      pumpThumbRenderQueue();
+    });
+  }
+
+  function pumpThumbRenderQueue() {
+    while (activeThumbRenders < MAX_CONCURRENT_THUMB_RENDERS && thumbRenderQueue.length > 0) {
+      const { task, resolve, reject } = thumbRenderQueue.shift();
+      activeThumbRenders++;
+      task()
+        .then(resolve, reject)
+        .finally(() => {
+          activeThumbRenders--;
+          pumpThumbRenderQueue();
+        });
+    }
+  }
+
   function renderPdfThumb(entry, canvas, maxDim) {
-    return loadPdfDoc(entry)
-      .then((pdfDoc) => window.PrintmePdfPreview.renderPageToCanvas(pdfDoc, 1, canvas, maxDim))
-      .catch((err) => console.error("PDF thumbnail failed:", err));
+    return runThumbTask(() =>
+      loadPdfDoc(entry)
+        .then((pdfDoc) => window.PrintmePdfPreview.renderPageToCanvas(pdfDoc, 1, canvas, maxDim))
+        .catch((err) => console.error("PDF thumbnail failed:", err))
+    );
   }
 
   const state = {
@@ -114,36 +146,75 @@
   // alone never was (a real gap flagged in the transparency-pass design).
   const thumbCache = new Map(); // file id -> dataURL, keyed by its current crop state
 
+  function cropRectFor(crop, sourceWidth, sourceHeight) {
+    // Fractions are relative to the natural image; no crop = square
+    // centre cover, matching the pipeline's auto-centre closely enough
+    // for a small row thumbnail. Works the same whether sourceWidth/
+    // sourceHeight came from a full-resolution decode or an already-
+    // downscaled one, since fractions are resolution-independent.
+    if (crop) {
+      return {
+        sx: crop.x * sourceWidth,
+        sy: crop.y * sourceHeight,
+        sw: crop.w * sourceWidth,
+        sh: crop.h * sourceHeight,
+      };
+    }
+    const side = Math.min(sourceWidth, sourceHeight);
+    return { sx: (sourceWidth - side) / 2, sy: (sourceHeight - side) / 2, sw: side, sh: side };
+  }
+
+  // createImageBitmap can downscale WHILE decoding, so the full-
+  // resolution pixel buffer (tens of MB for a modern phone camera
+  // photo - the exact thing that was crashing the upload page on
+  // low-RAM Android phones) never has to exist in memory just to
+  // produce a 104px thumbnail. Only one dimension is given so the
+  // browser derives the other itself, preserving the true aspect ratio
+  // (specifying both would stretch non-square photos, corrupting the
+  // crop math below). Falls back to the plain <img> decode path on
+  // browsers without this, or if it throws for any reason.
+  function decodeDownscaled(file) {
+    if (!window.createImageBitmap) return Promise.resolve(null);
+    return createImageBitmap(file, { resizeWidth: 900, resizeQuality: "medium" }).catch(() => null);
+  }
+
   function renderThumb(entry) {
     const crop = state.crops.get(entry.id);
     const key = entry.id + ":" + (crop ? JSON.stringify(crop) : "auto");
     if (thumbCache.has(key)) return Promise.resolve(thumbCache.get(key));
 
+    return runThumbTask(async () => {
+      const S = 104;
+      const bitmap = await decodeDownscaled(entry.file);
+      const dataUrl = bitmap ? drawThumb(bitmap, crop, S, true) : await drawThumbFromImg(entry.file, crop, S);
+      if (dataUrl) thumbCache.set(key, dataUrl);
+      return dataUrl;
+    });
+  }
+
+  function drawThumb(source, crop, S, isBitmap) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = S;
+    const ctx = canvas.getContext("2d");
+    // ImageBitmap exposes width/height; a detached <img> (never
+    // attached to the DOM, no layout box) only reliably exposes its
+    // intrinsic size via naturalWidth/naturalHeight - branching
+    // explicitly here instead of duck-typing avoids depending on
+    // browser-specific fallback behavior for the unattached case.
+    const width = isBitmap ? source.width : source.naturalWidth;
+    const height = isBitmap ? source.height : source.naturalHeight;
+    const { sx, sy, sw, sh } = cropRectFor(crop, width, height);
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, S, S);
+    if (isBitmap) source.close(); // release the decoded bitmap immediately, don't wait on GC
+    return canvas.toDataURL("image/jpeg", 0.72);
+  }
+
+  function drawThumbFromImg(file, crop, S) {
     return new Promise((resolve) => {
-      const url = URL.createObjectURL(entry.file);
+      const url = URL.createObjectURL(file);
       const image = new Image();
       image.onload = () => {
-        const S = 104;
-        const canvas = document.createElement("canvas");
-        canvas.width = canvas.height = S;
-        const ctx = canvas.getContext("2d");
-        // Fractions are relative to the natural image; no crop = square
-        // centre cover, matching the pipeline's auto-centre closely
-        // enough for a small row thumbnail.
-        let sx, sy, sw, sh;
-        if (crop) {
-          sx = crop.x * image.naturalWidth;
-          sy = crop.y * image.naturalHeight;
-          sw = crop.w * image.naturalWidth;
-          sh = crop.h * image.naturalHeight;
-        } else {
-          sw = sh = Math.min(image.naturalWidth, image.naturalHeight);
-          sx = (image.naturalWidth - sw) / 2;
-          sy = (image.naturalHeight - sh) / 2;
-        }
-        ctx.drawImage(image, sx, sy, sw, sh, 0, 0, S, S);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
-        thumbCache.set(key, dataUrl);
+        const dataUrl = drawThumb(image, crop, S, false);
         URL.revokeObjectURL(url);
         resolve(dataUrl);
       };
