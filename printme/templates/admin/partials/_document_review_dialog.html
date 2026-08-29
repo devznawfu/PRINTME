@@ -19,7 +19,17 @@
 
     <div class="flex flex-col gap-6 px-7 py-6">
       <div class="flex flex-col gap-2.5">
-        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">Pages (tap a thumbnail to include or skip it)</span>
+        <span class="text-[13px] font-bold uppercase tracking-wide text-muted">What's actually on this page</span>
+        <button type="button" data-review-hero-btn title="Tap to open full size" class="group relative flex h-[360px] w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-2xl border border-line bg-inset p-2">
+          <img data-review-hero-img alt="" class="max-h-full max-w-full rounded-lg object-contain shadow-page">
+          <span class="absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full bg-bg/85 px-3 py-1.5 text-[13px] font-bold text-text opacity-0 transition-opacity group-hover:opacity-100">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M11 8v6M8 11h6M16.5 16.5L21 21"></path></svg>
+            Tap to view full size
+          </span>
+        </button>
+        <span data-review-hero-caption class="text-center text-[15px] text-muted"></span>
+
+        <span class="mt-2 text-[13px] font-bold uppercase tracking-wide text-muted">All pages (tap to view large, tap the checkmark to include or skip)</span>
         <div data-review-thumbs class="flex flex-wrap gap-2.5 rounded-2xl border border-line bg-inset p-3"></div>
         <div class="flex items-center gap-3">
           <label for="document-review-page-range" class="text-[17px] font-bold">Pages to print</label>

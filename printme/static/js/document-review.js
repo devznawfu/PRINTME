@@ -18,6 +18,9 @@
 
   const filenameEl = dialog.querySelector("[data-review-filename]");
   const pageCountEl = dialog.querySelector("[data-review-page-count]");
+  const heroBtn = dialog.querySelector("[data-review-hero-btn]");
+  const heroImg = dialog.querySelector("[data-review-hero-img]");
+  const heroCaption = dialog.querySelector("[data-review-hero-caption]");
   const thumbsEl = dialog.querySelector("[data-review-thumbs]");
   const pageRangeInput = dialog.querySelector("[data-review-page-range-input]");
   const printerSelect = dialog.querySelector("[data-review-printer-select]");
@@ -30,6 +33,8 @@
 
   let maxPages = 1;
   let includedPages = new Set();
+  let currentJobId = null;
+  let focusedPage = 1;
 
   function parsePageRange(spec, max) {
     const trimmed = (spec || "").trim();
@@ -87,38 +92,76 @@
     const colorMode = dialog.querySelector('[data-choice-input="color_mode"]').value;
     const margin = dialog.querySelector('[data-choice-input="margin"]').value;
     const marginInset = { normal: "6%", narrow: "1%", wide: "14%" }[margin] || "6%";
+    const transform = orientation === "landscape" ? "rotate(90deg)" : "none";
+    const filter = colorMode === "bw" ? "grayscale(1)" : "none";
 
     thumbsEl.querySelectorAll("[data-thumb-page]").forEach((wrap) => {
       const page = parseInt(wrap.dataset.thumbPage, 10);
       const img = wrap.querySelector("img");
-      wrap.classList.toggle("opacity-30", !includedPages.has(page));
-      img.style.transform = orientation === "landscape" ? "rotate(90deg)" : "none";
-      img.style.filter = colorMode === "bw" ? "grayscale(1)" : "none";
+      const included = includedPages.has(page);
+      wrap.classList.toggle("opacity-30", !included);
+      wrap.querySelector("[data-thumb-toggle]").textContent = included ? "✓" : "";
+      img.style.transform = transform;
+      img.style.filter = filter;
       img.style.padding = marginInset;
     });
+
+    heroImg.style.transform = transform;
+    heroImg.style.filter = filter;
+    heroImg.style.padding = marginInset;
   }
 
   function syncPageRangeInput() {
     pageRangeInput.value = describePageRange(Array.from(includedPages).sort((a, b) => a - b), maxPages);
   }
 
+  function pageImageUrl(jobId, page) {
+    return `/admin/jobs/${jobId}/preview/${page}.png`;
+  }
+
+  function showInHero(page) {
+    focusedPage = page;
+    heroImg.src = pageImageUrl(currentJobId, page);
+    heroCaption.textContent = `Page ${page} of ${maxPages} - tap the image to open it full size`;
+    thumbsEl.querySelectorAll("[data-thumb-page]").forEach((wrap) => {
+      const isFocused = parseInt(wrap.dataset.thumbPage, 10) === page;
+      wrap.classList.toggle("border-btn-bg", isFocused);
+      wrap.classList.toggle("border-line", !isFocused);
+    });
+  }
+
+  heroBtn.addEventListener("click", () => {
+    window.open(pageImageUrl(currentJobId, focusedPage), "_blank");
+  });
+
   function buildThumbs(jobId) {
     thumbsEl.innerHTML = "";
     for (let p = 1; p <= maxPages; p++) {
-      const wrap = document.createElement("button");
-      wrap.type = "button";
+      const wrap = document.createElement("div");
       wrap.dataset.thumbPage = String(p);
-      wrap.title = `Page ${p} - tap to include or skip`;
-      wrap.className = "flex flex-col items-center gap-1 rounded-xl border border-line bg-panel p-1.5 transition-opacity";
+      wrap.className = "relative flex flex-col items-center gap-1 rounded-xl border-2 border-line bg-panel p-1.5 transition-opacity";
+
+      const previewBtn = document.createElement("button");
+      previewBtn.type = "button";
+      previewBtn.title = `View page ${p} large`;
+      previewBtn.className = "cursor-pointer";
       const img = document.createElement("img");
-      img.src = `/admin/jobs/${jobId}/preview/${p}.png`;
+      img.src = pageImageUrl(jobId, p);
       img.alt = `Page ${p}`;
       img.className = "h-[90px] w-[70px] rounded-md object-cover transition-transform";
+      previewBtn.appendChild(img);
+      previewBtn.addEventListener("click", () => showInHero(p));
+
       const label = document.createElement("span");
       label.className = "text-[13px] font-bold text-muted";
       label.textContent = String(p);
-      wrap.append(img, label);
-      wrap.addEventListener("click", () => {
+
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.dataset.thumbToggle = "";
+      toggleBtn.title = `Include or skip page ${p} when printing`;
+      toggleBtn.className = "absolute -right-2 -top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 border-line bg-ok-bg text-[15px] font-bold text-ok-dot";
+      toggleBtn.addEventListener("click", () => {
         if (includedPages.has(p)) {
           if (includedPages.size === 1) return; // never allow zero pages selected
           includedPages.delete(p);
@@ -128,8 +171,11 @@
         syncPageRangeInput();
         applyThumbLooks();
       });
+
+      wrap.append(previewBtn, label, toggleBtn);
       thumbsEl.appendChild(wrap);
     }
+    showInHero(1);
   }
 
   function setChoice(group, value) {
@@ -173,6 +219,7 @@
     trigger.addEventListener("click", () => {
       const jobId = trigger.dataset.jobId;
       const formId = `print-form-${jobId}`;
+      currentJobId = jobId;
 
       maxPages = parseInt(trigger.dataset.pageCount, 10) || 1;
       includedPages = new Set(Array.from({ length: maxPages }, (_, i) => i + 1));
