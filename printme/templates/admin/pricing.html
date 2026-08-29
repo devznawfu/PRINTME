@@ -16,10 +16,10 @@
       <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-muted">Documents</h2>
       {% for rate in document_rates %}
       <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
-        <label for="rate-{{ rate.key }}" class="text-[15px] font-bold">{{ document_rate_labels.get(rate.key, rate.key) }}</label>
+        <label for="rate-{{ rate.key }}" class="text-[17px] font-bold">{{ document_rate_labels.get(rate.key, rate.key) }}</label>
         <div class="flex items-center gap-2">
           <span class="text-lg text-muted">&#8369;</span>
-          <input id="rate-{{ rate.key }}" name="{{ rate.key }}" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rate.price) }}" class="h-[46px] w-[110px] rounded-xl border border-line bg-panel px-3 text-right text-[15px]">
+          <input id="rate-{{ rate.key }}" name="{{ rate.key }}" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rate.price) }}" class="h-[46px] w-[110px] rounded-xl border border-line bg-panel px-3 text-right text-[17px]">
         </div>
       </div>
       {% endfor %}
@@ -29,17 +29,17 @@
       <h2 class="text-[15px] font-bold uppercase tracking-[0.14em] text-muted">Photos</h2>
       {% for group in photo_groups %}
       <div class="flex flex-col gap-3 rounded-2xl border border-header-line bg-inset p-4">
-        <span class="text-[15px] font-bold">{{ group.size }}</span>
-        <div class="grid grid-cols-2 gap-3">
+        <span class="text-[17px] font-bold">{{ group.size }}</span>
+        <div class="flex flex-col gap-2">
           {% for finish in finishes %}
           {% for quality in qualities %}
           {% set rate = group.cells.get((finish, quality)) %}
           {% if rate %}
           <div class="flex items-center justify-between gap-3 rounded-xl border border-line bg-panel px-3 py-2.5">
-            <label for="rate-{{ rate.key }}" class="text-[13px] text-muted">{{ finish|capitalize }}, {{ quality }}</label>
+            <label for="rate-{{ rate.key }}" class="text-[17px] text-muted">{{ finish|capitalize }}, {{ quality }}</label>
             <div class="flex items-center gap-1.5">
-              <span class="text-sm text-muted">&#8369;</span>
-              <input id="rate-{{ rate.key }}" name="{{ rate.key }}" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rate.price) }}" class="h-[38px] w-[80px] rounded-lg border border-line bg-panel px-2 text-right text-[14px]">
+              <span class="text-lg text-muted">&#8369;</span>
+              <input id="rate-{{ rate.key }}" name="{{ rate.key }}" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rate.price) }}" class="h-[44px] w-[92px] rounded-lg border border-line bg-panel px-2 text-right text-[17px]">
             </div>
           </div>
           {% endif %}
@@ -56,10 +56,10 @@
       <span class="text-[17px] text-faint">Not charged to customers - used only for the Failure Analysis page's peso estimates.</span>
       {% for rate in cost_rates %}
       <div class="flex items-center justify-between gap-4 rounded-2xl border border-header-line bg-inset px-4 py-3.5">
-        <label for="rate-{{ rate.key }}" class="text-[15px] font-bold">{{ cost_rate_labels.get(rate.key, rate.key) }}</label>
+        <label for="rate-{{ rate.key }}" class="text-[17px] font-bold">{{ cost_rate_labels.get(rate.key, rate.key) }}</label>
         <div class="flex items-center gap-2">
           <span class="text-lg text-muted">&#8369;</span>
-          <input id="rate-{{ rate.key }}" name="{{ rate.key }}" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rate.price) }}" class="h-[46px] w-[110px] rounded-xl border border-line bg-panel px-3 text-right text-[15px]">
+          <input id="rate-{{ rate.key }}" name="{{ rate.key }}" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rate.price) }}" class="h-[46px] w-[110px] rounded-xl border border-line bg-panel px-3 text-right text-[17px]">
         </div>
       </div>
       {% endfor %}
