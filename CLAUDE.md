@@ -1,4 +1,8 @@
-pip# PRINTME! — Project Instructions
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# PRINTME! — Project Instructions
 
 ## Stack
 - Backend: Python (Flask)
@@ -15,6 +19,53 @@ templates, do not redesign from scratch:
 - /design-reference/upload-screen.html — customer upload portal
 - /design-reference/admin-dashboard.html — staff dashboard
 - /design-reference/support.js — shared interactivity (dropdowns, steppers, etc.)
+
+## Commands
+
+```
+# Setup (one-time)
+python -m venv venv
+venv/bin/pip install -r requirements.txt        # Windows: venv\Scripts\pip
+set FLASK_APP=wsgi.py                           # Linux/dev container: export FLASK_APP=wsgi.py
+venv/bin/python -m flask db upgrade             # apply DB schema
+
+# Run the dev server
+venv/bin/python run.py                          # http://127.0.0.1:5000/ (upload), /admin/login (staff, demo password "print")
+
+# Tests
+venv/bin/python -m pytest                       # full suite
+venv/bin/python -m pytest tests/test_pricing.py            # one file
+venv/bin/python -m pytest tests/test_pricing.py::test_name # one test
+venv/bin/python -m pytest tests/layout_engine/              # layout engine only (test in isolation before wiring changes into the main flow)
+
+# Rebuild Tailwind CSS after editing printme/static/src/input.css or template classes
+scripts/build_css.sh          # Linux/dev container (needs tailwindcss-linux-x64 at repo root, not committed)
+scripts\build_css.ps1         # Windows
+
+# New DB migration after changing a model
+venv/bin/python -m flask db migrate -m "description"
+venv/bin/python -m flask db upgrade
+```
+
+Full setup/production-deployment steps (LibreOffice install, rembg model pre-cache, Windows Task Scheduler auto-start, firewall rules for customer phones) are in [README.md](README.md) — read it before touching deployment scripts in `scripts/`.
+
+Config is environment-driven via `.env` (see `.env.example`); `config.py` selects `DevConfig`/`TestConfig`/`ProdConfig` from `FLASK_ENV`. The `printme-layout-engine` and `printme-printing` skills carry the detailed constraints for those two subsystems — check them before editing `layout_engine/` or `services/printing/`.
+
+## Architecture
+
+- **App factory** (`printme/__init__.py`): `create_app(config_name)` wires up SQLAlchemy, Flask-Migrate (against an absolute `migrations/` path — required because Task Scheduler launches `wsgi.py` from a different cwd than a dev terminal), registers all blueprints, starts the APScheduler background jobs, and seeds today's secret code + default pricing rates on boot (skipped silently if tables don't exist yet, i.e. before the first `flask db upgrade`).
+- **Routes** (`printme/routes/`) are one blueprint per admin dashboard page (`admin_dashboard`, `admin_day`, `admin_history`, `admin_photo_sheets`, `admin_pricing`, `admin_review`, `admin_auth`) plus `upload` (customer-facing) and `api` (JSON endpoints, e.g. job cancellation). Routes stay thin — business logic lives in `services/`.
+- **Services** (`printme/services/`) hold the actual pipeline logic:
+  - `photo_pipeline.py` / `document_pipeline.py`: end-to-end processing for each job type (face detection → crop → background removal for photos; PDF/DOCX/image pass-through for documents), each owning its own `processing → ready_for_review/failed` transition.
+  - `job_state.py`: the single source of truth for legal job-status transitions (`JobStatus` in `models/job.py`) — an illegal jump (e.g. `uploaded` straight to `done`) raises `IllegalTransition` rather than silently corrupting state. Route/service code should go through this rather than setting `job.status` directly.
+  - `printing/`: printer backend abstraction (`base.py` interface, `win32_backend.py` for real Windows printing, `mock_backend.py` for dev-container/test use, `printer_registry.py` for the 3-printer dropdown) — see the `printme-printing` skill.
+  - `photo_sheet.py` / `photo_sheet_renderer.py`: bridge between a job's photo items and the layout engine, and rendering the packed sheet previews shown on the admin Photo Sheets page.
+  - `secret_code.py`: lazy rotation (a code is never stale even if the app wasn't running at midnight — `scheduler/` just makes rotation prompt on always-on machines) plus the manual reset path.
+  - `retention.py`: the 2-day upload auto-delete sweep, run by both the scheduler and the admin's manual "Delete jobs older than 2 days" button.
+- **`layout_engine/`** is a standalone, framework-agnostic package (`packer.py` bin-packing, `render.py` sheet image generation, `sizes.py` dimension constants, `types.py`) deliberately kept separate from `services/` — treat it as its own module per the `printme-layout-engine` skill.
+- **Models** (`printme/models/`): `Job`/`JobStatus`/`PhotoItemRow` (job.py), `PhotoSheet`/`PhotoSheetItem`, `PricingRate`, `SecretCode`, `Availability`. Migrations live in `migrations/versions/` (Alembic via Flask-Migrate).
+- **`scheduler/`**: APScheduler background jobs (midnight secret-code rotation, midnight retention sweep) — disabled in `TestConfig`/`DevConfig` (`SCHEDULER_ENABLED = False`), only active under `ProdConfig`.
+- Static assets: Tailwind source in `printme/static/src/input.css`, compiled to `printme/static/css/output.css` (committed — this is what ships, since the target machine has no build step). `design-reference/*.html` are the visual/structural source of truth for templates — see Design Reference above.
 
 ## Conventions
 - Keep files under ~600 lines; split into new modules rather than growing existing ones

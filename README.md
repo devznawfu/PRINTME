@@ -2,7 +2,25 @@
 
 LAN-hosted photo &amp; document printing shop system with automated photo processing. A customer-facing upload portal plus a staff admin dashboard for a walk-in print shop: photo prints (fixed sizes — 1×1, 2×2, Passport, Visa, Wallet, 4×6, 5×7, 4×4) go through automatic face detection, cropping, and background removal, then get packed onto the fewest A4 sheets by the built-in layout engine; documents (PDF/DOCX/JPG/PNG) print close to as-is. Runs entirely offline on a single Windows PC — see `CLAUDE.md` for the full spec.
 
-> **Status:** in active development. Not yet deployed or tested at the actual shop — this has been built and tested in a Linux dev container so far, with real printer/USB behavior still unverified on the target Windows machine.
+> **Status:** feature-complete for the spec in `CLAUDE.md` and built/tested end-to-end in a Linux dev container (mock print backend). Not yet deployed or run at the actual shop — real printer/USB behavior via `win32print` on the target Windows machine is still unverified.
+
+## What's built
+
+**Customer upload portal** — service picker (photo/document) with price hints, daily-code gate, fixed photo sizes with live crop preview and two-finger pinch-to-zoom, PDF page-count/thumbnail preview with a swipeable multi-page viewer, ticket number + queue position on confirmation, and a status endpoint the confirmation page polls.
+
+**Admin dashboard** — the daily secret code (with usage count, last-reset time, and a printable counter sign carrying both the upload QR and a WiFi-join QR), per-job cards with a real-time job list, a flagged "Needs Attention" queue with the specific flag reason, per-job recrop/erase(snip)/use-original/send-back actions, and target-printer selection before printing.
+
+**Photo Sheets** — the packed-sheet preview (grid lines/margins) per pending job, batched by paper type, with a print button and an erase tool per sheet.
+
+**Pricing** — editable per-size and per-page rates, plus enabling/disabling individual services and photo sizes.
+
+**Close of Day** — revenue, paper-type breakdown, and a never-collected-jobs backlog.
+
+**Failure Analysis** — ranks reprint reasons over the last 30 days with a specific top-reason callout.
+
+**History** — completed/failed/cancelled jobs, with restore and reprint (linked back to the original job) actions.
+
+**Networking** — `SERVE_HOST` locks the production server to the dedicated customer router's IP instead of every interface; the desktop shortcut and printable signs follow whatever host they're loaded from.
 
 ## Setup
 
@@ -77,6 +95,13 @@ Also from an elevated ("Run as administrator") PowerShell prompt, once:
 Windows blocks inbound connections by default — without this, the server
 can be running perfectly and phones on the same network still won't be
 able to load the page.
+
+Optionally, set `SERVE_HOST` in `.env` to the admin PC's reserved IP on
+that network (see below) before the first production launch — this locks
+the server to that interface only, so nothing reachable from the shop's
+main WiFi, a VPN, or a WSL/virtual adapter can reach the print queue.
+Leave it unset (defaults to every interface) if there's no separate
+network to lock it to.
 
 If PRINTME! is meant to run on its own dedicated router (separate from
 whatever else the shop's main WiFi is used for) rather than sharing the
