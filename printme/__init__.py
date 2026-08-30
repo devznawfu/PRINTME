@@ -1,5 +1,6 @@
 import os
 
+import sentry_sdk
 from flask import Flask
 from sqlalchemy.exc import OperationalError
 
@@ -8,6 +9,19 @@ from printme.extensions import db, migrate
 
 
 def create_app(config_name=None):
+    # No-op (returns None from init) when SENTRY_DSN is unset, e.g. local
+    # dev or CI without a Sentry project configured.
+    sentry_dsn = os.environ.get("SENTRY_DSN")
+    if sentry_dsn:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            send_default_pii=True,
+            enable_logs=True,
+            traces_sample_rate=1.0,
+            profile_session_sample_rate=1.0,
+            profile_lifecycle="trace",
+        )
+
     app = Flask(__name__)
 
     config_name = config_name or os.environ.get("FLASK_ENV", "dev")
